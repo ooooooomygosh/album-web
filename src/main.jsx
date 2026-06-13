@@ -57,6 +57,7 @@ const statusLabels = {
   searching: '正在搜索',
   thinking: '正在生成',
   done: '已完成',
+  deferred: 'AI 导览稍后补充，条目已先保存',
   cloud: '已同步',
   error: '需要重试'
 };
@@ -914,21 +915,48 @@ function App() {
   const completeBackground = async (candidate) => {
     setAddPhase('ai');
     setBackgroundStatus('thinking');
-    const data = await api('/api/ai/background', {
-      session,
-      method: 'POST',
-      body: JSON.stringify({ item: candidate })
-    });
-    setBackgroundStatus('done');
-    return {
-      ...candidate,
-      background: data.background || candidate.context,
-      context: data.background || candidate.context,
-      aiProfile: data.aiProfile
-        ? { ...data.aiProfile, sources: data.research?.sources || data.aiProfile.sources || [] }
-        : candidate.aiProfile,
-      tags: [...new Set([...(candidate.tags || []), ...(data.tags || [])])].slice(0, 8)
-    };
+    try {
+      const data = await api('/api/ai/background', {
+        session,
+        method: 'POST',
+        body: JSON.stringify({ item: candidate })
+      });
+      setBackgroundStatus('done');
+      return {
+        ...candidate,
+        background: data.background || candidate.context,
+        context: data.background || candidate.context,
+        aiProfile: data.aiProfile
+          ? { ...data.aiProfile, sources: data.research?.sources || data.aiProfile.sources || [] }
+          : candidate.aiProfile,
+        tags: [...new Set([...(candidate.tags || []), ...(data.tags || [])])].slice(0, 8)
+      };
+    } catch (error) {
+      const album = candidate.albumTitle && candidate.albumTitle !== candidate.title ? `《${candidate.albumTitle}》` : `《${candidate.title}》`;
+      const fallbackOverview = candidate.context || `${candidate.artist} 的《${candidate.title}》已加入展柜。AI 导览暂时没有生成完成，当前先保留平台元数据、封面、曲目和链接，之后可以再次请求 AI 补充创作语境、旋律线索、歌词视角和编曲层次。`;
+      setBackgroundStatus('deferred');
+      return {
+        ...candidate,
+        background: fallbackOverview,
+        context: fallbackOverview,
+        aiProfile: candidate.aiProfile || {
+          overview: fallbackOverview,
+          genre: (candidate.tags || []).slice(0, 6),
+          albumContext: `这条音乐先以 ${album} 的元数据进入房间；如果曲目表已经存在，展柜会继续显示它在专辑里的位置。`,
+          creativeBackground: `AI 导览这次没有完成，已先保存可靠的标题、艺人、封面、年份、平台链接和曲目。`,
+          melodyMotif: '旋律动机待 AI 补充；评论区可以先记录最先被记住的主歌、副歌或人声片段。',
+          lyricPerspective: '歌词视角待 AI 补充；可以先由房间成员写下自己听见的叙述位置和情绪关系。',
+          arrangement: '编曲层次待 AI 补充；先听节奏、人声距离、和声、留白与乐器进入方式。',
+          releaseState: '发行状态待 AI 补充；当前页面保留来自音乐平台和开放数据库的元数据。',
+          listeningGuide: (candidate.tracks || [candidate.title]).slice(0, 4).map((track, index) => `${index + 1}. ${track}：先记录旋律、歌词或音色里最鲜明的一个细节。`),
+          discussionPrompts: ['这首作品最先抓住你的是旋律、歌词还是音色？', '它适合放在什么场景推荐给朋友？', '如果继续听同专辑，下一首应该接哪一首？'],
+          sources: [],
+          aiPending: true,
+          backgroundError: error.message
+        },
+        tags: [...new Set([...(candidate.tags || []), 'AI 待补充'])].slice(0, 8)
+      };
+    }
   };
 
   const addSelectedToShowroom = async () => {
@@ -950,6 +978,9 @@ function App() {
       setItemStatus('cloud');
       await loadRoomData(room, { preserveActive: true });
       setAddPhase('done');
+      if (backgroundStatus === 'deferred' || enriched.aiProfile?.aiPending) {
+        setAddError('AI 导览暂时未完成，音乐已先加入展柜。');
+      }
     } catch (error) {
       setAddError(error.message);
       setItemStatus('error');
@@ -1214,7 +1245,7 @@ function RoomHero({ room, heroConfig, roomSettingsDraft, setRoomSettingsDraft, s
   const updateHeroDraft = (patch) => {
     setRoomSettingsDraft((current) => ({
       ...current,
-      heroConfig: normalizeHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
+      heroConfig: editableHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
     }));
   };
 
@@ -1327,7 +1358,7 @@ function HeroRecordStage({ activeItem, items, orbitStats, roomMembers, setMode }
 }
 
 function HeroEditor({ draft, updateHeroDraft, saveRoomSettings, roomStatus, close }) {
-  const heroDraft = normalizeHeroConfig(draft);
+  const heroDraft = editableHeroConfig(draft);
   return (
     <aside className="hero-editor glass-panel" role="region" tabIndex="-1" aria-label="首页主题编辑">
       <div className="section-title"><Pencil size={18} /><h2>首页主题</h2></div>
@@ -1909,11 +1940,11 @@ function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser,
 
 function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discoverRooms, switchRoom, roomDraft, setRoomDraft, createAnotherRoom, inviteDraft, setInviteDraft, invitePassword, setInvitePassword, joinAnotherRoom, roomStatus, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings }) {
   const canEditRoom = room.ownerId === session.user.id || session.user.role === 'admin';
-  const heroDraft = normalizeHeroConfig(roomSettingsDraft.heroConfig, room);
+  const heroDraft = editableHeroConfig(roomSettingsDraft.heroConfig, room);
   const updateHeroDraft = (patch) => {
     setRoomSettingsDraft((current) => ({
       ...current,
-      heroConfig: normalizeHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
+      heroConfig: editableHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
     }));
   };
   return (
