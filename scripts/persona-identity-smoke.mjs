@@ -25,9 +25,9 @@ function textBlob(value) {
 
 function assertNoDownrankLanguage(value, label) {
   const text = textBlob(value);
-  const pattern = /弱线索|弱证据|辅助语境|辅助线索|调味料，不是主食材|真正权重仍然是你选了哪些歌|不会盖过真实音乐选择|背景线索只用来|不能替代音乐偏好本身/;
+  const pattern = /弱线索|弱证据|辅助语境|辅助线索|调味料，不是主食材|真正权重仍然是你选了哪些歌|不会盖过真实音乐选择|背景线索只用来|不能替代音乐偏好本身|精神图谱|同等级?证据|同级证据|同权证据|同权线索|同一层级|坐标|互相照亮|互相校准|从哪里听|被什么击中|未来探索路线|未来路线|核心矛盾|社交播放方式|30\s*天|90\s*天|资料解释|证据维度|画像会更立体|不是音乐之外的附属品|不只是音乐和背景两层|人口统计|human spirit map|%\s*可信度/;
   if (pattern.test(text)) {
-    throw new Error(`${label} still downranks profile signals: ${text.slice(0, 1000)}`);
+    throw new Error(`${label} still contains rigid report language: ${text.slice(0, 1000)}`);
   }
 }
 
@@ -122,31 +122,33 @@ const persona = await request('/api/ai/recommend?action=persona', {
 
 const report = persona.report || {};
 const identityText = textBlob(report.identitySignals);
-const spiritText = textBlob(report.humanSpiritMap);
+const reportText = textBlob(report);
 for (const value of Object.values(expected)) {
   if (!identityText.includes(String(value))) {
     throw new Error(`Persona identitySignals missing ${value}: ${identityText}`);
   }
-  if (!spiritText.includes(String(value))) {
-    throw new Error(`Persona humanSpiritMap missing ${value}: ${spiritText}`);
-  }
 }
 if ((report.identitySignals?.fields || []).length < 4) throw new Error(`identitySignals fields incomplete: ${identityText}`);
-if (String(report.humanSpiritMap?.text || '').length < 260 || (report.humanSpiritMap?.tensions || []).length < 3) {
-  throw new Error(`humanSpiritMap is too thin: ${spiritText}`);
+if (String(report.lifeReading?.text || '').length < 180) {
+  throw new Error(`lifeReading is too thin: ${textBlob(report.lifeReading)}`);
 }
-if (!(/我爱你/.test(spiritText) && /李荣浩/.test(spiritText))) {
-  throw new Error(`humanSpiritMap did not cite the concrete song and artist: ${spiritText}`);
+if ((report.dailyVibes || []).length < 3 || (report.oracleCards || []).length < 3 || !report.musicAge?.listeningAge) {
+  throw new Error(`Persona playful modules incomplete: ${reportText.slice(0, 1200)}`);
 }
-if (!(/情绪/.test(spiritText) && /干净|收得|评论/.test(spiritText))) {
-  throw new Error(`humanSpiritMap did not connect the comment evidence with the identity reading: ${spiritText}`);
+if (!(/我爱你/.test(reportText) && /李荣浩/.test(reportText))) {
+  throw new Error(`Persona did not cite the concrete song and artist: ${reportText.slice(0, 1200)}`);
+}
+if (!(/情绪/.test(reportText) && /干净|收得|评论/.test(reportText))) {
+  throw new Error(`Persona did not connect the comment with the reading: ${reportText.slice(0, 1200)}`);
+}
+for (const value of Object.values(expected)) {
+  if (!reportText.includes(String(value))) {
+    throw new Error(`Persona did not use profile field ${value} in the broader report: ${reportText.slice(0, 1200)}`);
+  }
 }
 assertNoDownrankLanguage(report, 'Persona report');
 if (!report.recommendations?.artists?.length || !report.recommendations?.albums?.length || !report.recommendations?.songs?.length) {
   throw new Error(`Persona recommendations incomplete: ${textBlob(report.recommendations)}`);
-}
-if (/30\s*天|90\s*天|核心矛盾|社交播放方式|未来路线/.test(textBlob(report))) {
-  throw new Error(`Persona report contains removed rigid wording: ${textBlob(report).slice(0, 900)}`);
 }
 
 const chat = await request('/api/ai/recommend?action=persona-chat', {
@@ -168,8 +170,8 @@ assertNoDownrankLanguage(chatText, 'Persona chat');
 
 const refreshed = await request('/api/auth', { method: 'GET' }, user.token);
 assertNoDownrankLanguage(refreshed.user?.latestPersona, 'Refreshed auth latestPersona');
-if (!textBlob(refreshed.user?.latestPersona?.humanSpiritMap).includes(expected.mbti)) {
-  throw new Error(`Refreshed auth latestPersona did not expose normalized spirit map: ${textBlob(refreshed.user?.latestPersona)}`);
+if (!textBlob(refreshed.user?.latestPersona).includes(expected.mbti)) {
+  throw new Error(`Refreshed auth latestPersona did not expose normalized persona fields: ${textBlob(refreshed.user?.latestPersona)}`);
 }
 
 console.log(JSON.stringify({
@@ -179,10 +181,11 @@ console.log(JSON.stringify({
   fallback: persona.fallback,
   model: report.model,
   identitySignals: report.identitySignals,
-  humanSpiritMap: {
-    title: report.humanSpiritMap?.title,
-    textLength: String(report.humanSpiritMap?.text || '').length,
-    tensionCount: report.humanSpiritMap?.tensions?.length || 0
+  playfulModules: {
+    lifeReadingLength: String(report.lifeReading?.text || '').length,
+    dailyVibes: report.dailyVibes?.length || 0,
+    oracleCards: report.oracleCards?.length || 0,
+    musicAge: report.musicAge?.listeningAge || ''
   },
   recommendationCounts: {
     artists: report.recommendations?.artists?.length || 0,

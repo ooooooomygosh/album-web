@@ -2025,7 +2025,9 @@ function PersonaReport({ report, addPublicTag }) {
     ['歌曲', 'song', report.recommendations?.songs]
   ].filter(([, , values]) => values?.length);
   const identityFields = Array.isArray(report.identitySignals?.fields) ? report.identitySignals.fields.filter((item) => item?.label && item?.value) : [];
-  const spiritTensions = Array.isArray(report.humanSpiritMap?.tensions) ? report.humanSpiritMap.tensions.filter((item) => item?.axis && item?.reading) : [];
+  const dailyVibes = Array.isArray(report.dailyVibes) ? report.dailyVibes.filter((item) => item?.title && item?.text) : [];
+  const oracleCards = Array.isArray(report.oracleCards) ? report.oracleCards.filter((item) => item?.title && item?.text) : [];
+  const easterEggs = Array.isArray(report.easterEggs) ? report.easterEggs.filter(Boolean) : [];
   return (
     <article className="persona-report" style={accent ? { '--persona-accent': accent } : undefined}>
       <div className="persona-title">
@@ -2035,54 +2037,57 @@ function PersonaReport({ report, addPublicTag }) {
       {(report.archetype?.summary || report.headline) && <p className="persona-headline">{report.archetype?.summary || report.headline}</p>}
       {report.summary && <p className="persona-summary">{report.summary}</p>}
       {report.the_roast && <div className="persona-roast"><Sparkles size={18} /><p>{report.the_roast}</p></div>}
+      {report.lifeReading && (
+        <section className="life-reading-card">
+          <div className="life-reading-kicker">
+            <span>{report.lifeReading.vibe || '人格牌面'}</span>
+            <b>{report.lifeReading.title || '日常人格盲盒'}</b>
+          </div>
+          {report.lifeReading.text && <p>{report.lifeReading.text}</p>}
+          <div className="life-reading-facets">
+            {report.lifeReading.socialStyle && <article><strong>朋友局</strong><span>{report.lifeReading.socialStyle}</span></article>}
+            {report.lifeReading.workStyle && <article><strong>做事方式</strong><span>{report.lifeReading.workStyle}</span></article>}
+            {report.lifeReading.loveStyle && <article><strong>亲密雷达</strong><span>{report.lifeReading.loveStyle}</span></article>}
+          </div>
+        </section>
+      )}
+      {oracleCards.length > 0 && (
+        <section className="oracle-card-grid">
+          {oracleCards.map((item, index) => (
+            <article key={`${item.title}-${index}`}>
+              <span>{item.card || `牌 ${index + 1}`}</span>
+              <strong>{item.title}</strong>
+              <p>{item.text}</p>
+            </article>
+          ))}
+        </section>
+      )}
+      {(dailyVibes.length > 0 || report.musicAge?.listeningAge) && (
+        <section className="persona-vibe-board">
+          {report.musicAge?.listeningAge && (
+            <article className="music-age-card">
+              <Sparkles size={18} />
+              <div>
+                <strong>音乐年龄：{report.musicAge.listeningAge}</strong>
+                {report.musicAge.realAgeHint && <small>现实年龄线索：{report.musicAge.realAgeHint}</small>}
+              </div>
+              {report.musicAge.reason && <small>{report.musicAge.reason}</small>}
+            </article>
+          )}
+          {dailyVibes.map((item) => (
+            <article key={item.title} className="daily-vibe-card">
+              <strong>{item.title}</strong>
+              <p>{item.text}</p>
+            </article>
+          ))}
+        </section>
+      )}
       {report.personalitySketch && (
         <div className="persona-sketch-card">
-          <strong>人物画像</strong>
+          <strong>一句话侧写</strong>
           <p>{report.personalitySketch.text}</p>
           {report.personalitySketch.softGuess && <small>{report.personalitySketch.softGuess}</small>}
         </div>
-      )}
-      {identityFields.length > 0 && (
-        <section className="identity-signal-card">
-          <div>
-            <strong>已读取的个人线索</strong>
-            {report.identitySignals?.summary && <p>{report.identitySignals.summary}</p>}
-          </div>
-          {identityFields.length > 0 && (
-            <div className="identity-signal-grid">
-              {identityFields.map((item) => (
-                <article key={`${item.label}-${item.value}`}>
-                  <span>{item.label}</span>
-                  <b>{item.value}</b>
-                  {item.reading && <p>{item.reading}</p>}
-                </article>
-              ))}
-            </div>
-          )}
-          {report.identitySignals?.caveat && <small>{report.identitySignals.caveat}</small>}
-        </section>
-      )}
-      {report.humanSpiritMap && (
-        <section className="spirit-map-card">
-          <div className="spirit-map-head">
-            <span>human spirit map</span>
-            <h4>{report.humanSpiritMap.title || '身份与声音的精神图谱'}</h4>
-            {report.humanSpiritMap.thesis && <p>{report.humanSpiritMap.thesis}</p>}
-          </div>
-          {report.humanSpiritMap.text && <p className="spirit-map-text">{report.humanSpiritMap.text}</p>}
-          {spiritTensions.length > 0 && (
-            <div className="spirit-tension-grid">
-              {spiritTensions.map((item) => (
-                <article key={item.axis}>
-                  <strong>{item.axis}</strong>
-                  {item.evidence?.length > 0 && <div className="evidence-pills">{item.evidence.slice(0, 5).map((value) => <span key={value}>{value}</span>)}</div>}
-                  <p>{item.reading}</p>
-                </article>
-              ))}
-            </div>
-          )}
-          {report.humanSpiritMap.caveat && <small>{report.humanSpiritMap.caveat}</small>}
-        </section>
       )}
       {report.preferenceReading?.length > 0 && (
         <div className="preference-reading-grid">
@@ -2100,10 +2105,10 @@ function PersonaReport({ report, addPublicTag }) {
           {report.tasteDNA.map((item) => <div key={item.axis}><span><strong>{item.axis}</strong><small>{item.value}</small></span><i style={{ '--dna': `${item.value}%` }} /><p>{item.label}</p>{item.evidence?.length > 0 && <em>{item.evidence.join(' / ')}</em>}</div>)}
         </div>
       )}
-      {report.evidenceCards?.length > 0 && <div className="evidence-card-grid">{report.evidenceCards.map((item) => <div key={item.claim}><strong>{item.claim}</strong><p>{(item.basedOn || []).join(' / ')}</p><small>{Math.round((item.confidence || 0.6) * 100)}% 可信度</small></div>)}</div>}
+      {report.evidenceCards?.length > 0 && <div className="evidence-card-grid">{report.evidenceCards.map((item) => <div key={item.claim}><strong>{item.claim}</strong><p>{(item.basedOn || []).join(' / ')}</p><small>{Math.round((item.confidence || 0.6) * 100)}% 玄学命中率</small></div>)}</div>}
       {recommendationGroups.length > 0 && (
         <section className="recommendation-board">
-          <div className="section-title"><Music2 size={18} /><h3>新的推荐入口</h3></div>
+          <div className="section-title"><Music2 size={18} /><h3>给你的下一批歌</h3></div>
           <div className="recommendation-columns">
             {recommendationGroups.map(([groupTitle, kind, values]) => (
               <div key={groupTitle}>
@@ -2138,6 +2143,11 @@ function PersonaReport({ report, addPublicTag }) {
           ))}
         </div>
       )}
+      {easterEggs.length > 0 && (
+        <div className="persona-easter-eggs">
+          {easterEggs.slice(0, 5).map((item) => <span key={item}>{item}</span>)}
+        </div>
+      )}
       {report.ui_theme_hint && (
         <div className="persona-theme-card">
           <div><span style={{ background: report.ui_theme_hint.primary_color }} /> <strong>{report.ui_theme_hint.style}</strong></div>
@@ -2145,6 +2155,20 @@ function PersonaReport({ report, addPublicTag }) {
         </div>
       )}
       {report.essay && <details className="persona-full-note"><summary>展开完整分析</summary><p className="persona-essay">{report.essay}</p></details>}
+      {identityFields.length > 0 && (
+        <details className="identity-signal-card compact-identity-card">
+          <summary>本次抽到的资料牌</summary>
+          <div className="identity-signal-grid">
+            {identityFields.map((item) => (
+              <article key={`${item.label}-${item.value}`}>
+                <span>{item.label}</span>
+                <b>{item.value}</b>
+                {item.reading && <p>{item.reading}</p>}
+              </article>
+            ))}
+          </div>
+        </details>
+      )}
       <div className="tag-row persona-tags">
         {(report.tags || []).map((tag) => <button key={tag} type="button" onClick={() => addPublicTag(tag)}>{tag}<Plus size={13} /></button>)}
       </div>
