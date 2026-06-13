@@ -163,7 +163,8 @@ const chat = await request('/api/ai/recommend?action=persona-chat', {
 }, user.token);
 
 const chatText = String(chat.answer || '');
-if (!chatText.includes(expected.mbti) || !chatText.includes(expected.major) || !chatText.includes(String(expected.birthYear)) || !chatText.includes(expected.gender)) {
+const birthMentioned = chatText.includes(String(expected.birthYear)) || chatText.includes(`${String(expected.birthYear).slice(2)}年`);
+if (!chatText.includes(expected.mbti) || !chatText.includes(expected.major) || !birthMentioned || !chatText.includes(expected.gender)) {
   throw new Error(`Persona chat did not cite identity fields: ${chatText}`);
 }
 assertNoDownrankLanguage(chatText, 'Persona chat');
