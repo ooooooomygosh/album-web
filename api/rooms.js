@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, hashSecret, json, requireUser, roomRef, safeId } from './_firebase.js';
+import { memberSnapshot } from '../lib/member-profile.js';
 
 function cleanName(value) {
   return String(value || '').trim().slice(0, 80);
@@ -75,12 +76,7 @@ function publicRoom(id, data) {
 function memberPatch(user) {
   return {
     [`members.${user.id}`]: true,
-    [`memberProfiles.${user.id}`]: {
-      name: user.name,
-      avatar: user.avatar,
-      avatarUrl: user.avatarUrl || '',
-      publicTags: user.publicTags || []
-    },
+    [`memberProfiles.${user.id}`]: memberSnapshot(user),
     updatedAt: FieldValue.serverTimestamp()
   };
 }
@@ -196,12 +192,7 @@ export default async function handler(req, res) {
         passwordHash: body.password ? hashSecret(String(body.password)) : '',
         members: { [user.id]: true },
         memberProfiles: {
-          [user.id]: {
-            name: user.name,
-            avatar: user.avatar,
-            avatarUrl: user.avatarUrl || '',
-            publicTags: user.publicTags || []
-          }
+          [user.id]: memberSnapshot(user)
         },
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()

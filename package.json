@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "review": "node scripts/review.mjs",
+    "member:smoke": "node scripts/member-profile-smoke.mjs",
     "api:smoke": "node scripts/api-smoke.mjs",
     "hero:smoke": "node scripts/hero-config-smoke.mjs",
     "persona:smoke": "node scripts/persona-identity-smoke.mjs"

@@ -121,6 +121,30 @@ function profileToDraft(user) {
   };
 }
 
+function publicMemberProfile(user = {}, id = '') {
+  const profile = user.profile && typeof user.profile === 'object' ? user.profile : {};
+  const name = user.name || 'Music friend';
+  return {
+    id: user.id || id,
+    name,
+    avatar: user.avatar || avatarFor(name),
+    avatarUrl: user.avatarUrl || '',
+    avatarDataUrl: user.avatarDataUrl || '',
+    publicTags: Array.isArray(user.publicTags) ? user.publicTags : [],
+    bio: user.bio || profile.bio || '',
+    location: user.location || profile.location || '',
+    profile: {
+      bio: user.bio || profile.bio || '',
+      location: user.location || profile.location || '',
+      favoriteGenres: Array.isArray(profile.favoriteGenres) ? profile.favoriteGenres : [],
+      favoriteArtists: Array.isArray(profile.favoriteArtists) ? profile.favoriteArtists : [],
+      favoriteBands: Array.isArray(profile.favoriteBands) ? profile.favoriteBands : [],
+      favoriteAlbums: Array.isArray(profile.favoriteAlbums) ? profile.favoriteAlbums : [],
+      favoriteSongs: Array.isArray(profile.favoriteSongs) ? profile.favoriteSongs : []
+    }
+  };
+}
+
 function listToText(value) {
   return Array.isArray(value) ? value.join('、') : String(value || '');
 }
@@ -205,6 +229,17 @@ function heroBackgroundImage(heroConfig, activeItem) {
 function UserAvatar({ user, className = '' }) {
   const src = avatarSrc(user);
   return src ? <img className={`user-avatar-img ${className}`} src={src} alt={`${user?.name || '用户'} 头像`} /> : <span className={`mini-avatar ${className}`}>{user?.avatar || avatarFor(user?.name)}</span>;
+}
+
+function AuthorChip({ profile, fallbackName, fallbackAvatar, onOpen }) {
+  const user = profile || publicMemberProfile({ name: fallbackName, avatar: fallbackAvatar });
+  const canOpen = Boolean(profile?.id && onOpen);
+  return (
+    <button type="button" className="author-chip" disabled={!canOpen} onClick={() => canOpen && onOpen(profile.id)}>
+      <UserAvatar user={user} />
+      <span>{user.name || fallbackName || 'Music friend'}</span>
+    </button>
+  );
 }
 
 async function imageFileToDataUrl(file) {
@@ -689,6 +724,7 @@ function App() {
   const [personaChat, setPersonaChat] = useState([]);
   const [discoverRooms, setDiscoverRooms] = useState([]);
   const [heroEditing, setHeroEditing] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
   const [roomSettingsDraft, setRoomSettingsDraft] = useState({ visibility: 'unlisted', joinMode: 'open', discoverable: false, description: '', password: '', heroConfig: defaultHeroConfig });
 
   const activeItem = items.find((item) => item.id === activeId) || items[0];
@@ -702,14 +738,52 @@ function App() {
     return Boolean(activeItem.type === 'album' && commentedItem && sameAlbum(commentedItem, activeItem));
   }) : [];
   const roomMembers = useMemo(() => {
-    const profiles = room?.memberProfiles ? Object.values(room.memberProfiles) : [];
-    const fallback = session?.user ? [session.user] : [];
-    return (profiles.length ? profiles : fallback).slice(0, 5).map((member, index) => ({
-      name: member.name,
-      avatar: member.avatar || avatarFor(member.name),
-      color: memberColors[index % memberColors.length]
-    }));
+    const profiles = room?.memberProfiles
+      ? Object.entries(room.memberProfiles).map(([id, member]) => publicMemberProfile(member, id))
+      : [];
+    const fallback = session?.user ? [publicMemberProfile(session.user, session.user.id)] : [];
+    const merged = (profiles.length ? profiles : fallback).map((member, index) => {
+      const liveUser = member.id && member.id === session?.user?.id ? publicMemberProfile(session.user, session.user.id) : member;
+      return {
+        ...member,
+        ...liveUser,
+        id: liveUser.id || member.id,
+        color: memberColors[index % memberColors.length]
+      };
+    });
+    return merged.slice(0, 8);
   }, [room, session]);
+  const memberProfilesById = useMemo(() => {
+    const profiles = {};
+    Object.entries(room?.memberProfiles || {}).forEach(([id, member]) => {
+      profiles[id] = publicMemberProfile(member, id);
+    });
+    if (session?.user?.id) profiles[session.user.id] = publicMemberProfile(session.user, session.user.id);
+    Object.values(profiles).forEach((member) => {
+      if (member.id) profiles[member.id] = member;
+    });
+    return profiles;
+  }, [room?.memberProfiles, session?.user]);
+  const selectedMember = selectedMemberId ? memberProfilesById[selectedMemberId] : null;
+  const selectedMemberItems = selectedMemberId ? items.filter((item) => item.addedById === selectedMemberId) : [];
+
+  const syncCurrentRoomMember = (user) => {
+    if (!user?.id) return;
+    const snapshot = publicMemberProfile(user, user.id);
+    setRoom((current) => {
+      if (!current?.id) return current;
+      return {
+        ...current,
+        memberProfiles: {
+          ...(current.memberProfiles || {}),
+          [user.id]: {
+            ...(current.memberProfiles?.[user.id] || {}),
+            ...snapshot
+          }
+        }
+      };
+    });
+  };
 
   const refreshRooms = async () => {
     if (!session?.token) return;
@@ -837,6 +911,7 @@ function App() {
         body: JSON.stringify({ action: 'updateProfile', ...draft })
       });
       updateSessionUser(data.user);
+      syncCurrentRoomMember(data.user);
       setProfileDraft(profileToDraft(data.user));
       setProfileStatus('个人资料已保存');
       return data.user;
@@ -1301,7 +1376,9 @@ function App() {
           </nav>
           <div className="member-stack" aria-label="房间成员">
             {roomMembers.map((member) => (
-              <span key={member.name} title={member.name} style={{ '--dot': member.color }}>{member.avatar}</span>
+              <button key={member.id || member.name} type="button" title={`查看 ${member.name} 的公开资料`} style={{ '--dot': member.color }} onClick={() => setSelectedMemberId(member.id)}>
+                <UserAvatar user={member} />
+              </button>
             ))}
           </div>
         </header>
@@ -1328,9 +1405,9 @@ function App() {
 
         <section className="workspace single-workspace">
           <section className="main-stage wide-stage">
-            {mode === 'showroom' && <Showroom items={items} activeItem={activeItem} activeComments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} setActiveId={setActiveId} setMode={setMode} askAi={askAi} itemStatus={itemStatus} session={session} deleteItem={deleteItem} deleteComment={deleteComment} />}
+            {mode === 'showroom' && <Showroom items={items} activeItem={activeItem} activeComments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} setActiveId={setActiveId} setMode={setMode} askAi={askAi} itemStatus={itemStatus} session={session} deleteItem={deleteItem} deleteComment={deleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
             {mode === 'add' && <AddMusic query={query} setQuery={setQuery} artistQuery={artistQuery} setArtistQuery={setArtistQuery} link={link} setLink={setLink} searchType={searchType} setSearchType={setSearchType} setSearchStatus={setSearchStatus} setCandidates={setCandidates} resolvedLink={resolvedLink} runOnlineSearch={runOnlineSearch} searchStatus={searchStatus} candidates={candidates} selectedCandidate={selectedCandidate} setSelectedCandidate={setSelectedCandidate} addSelectedToShowroom={addSelectedToShowroom} backgroundStatus={backgroundStatus} itemStatus={itemStatus} addPhase={addPhase} addError={addError} />}
-            {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={deleteComment} />}
+            {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={deleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
             {mode === 'ai' && <Ai selected={activeItem} aiInsight={aiInsight} aiStatus={aiStatus} askAi={askAi} />}
             {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} />}
             {mode === 'profile' && <ProfilePanel session={session} profileDraft={profileDraft} setProfileDraft={setProfileDraft} saveProfile={saveProfile} uploadAvatar={uploadAvatar} profileStats={profileStats} profileStatus={profileStatus} loadProfileStats={loadProfileStats} fillProfileFromHistory={fillProfileFromHistory} personaTone={personaTone} setPersonaTone={setPersonaTone} personaHistoryMode={personaHistoryMode} setPersonaHistoryMode={setPersonaHistoryMode} personaSelectedIds={personaSelectedIds} togglePersonaItem={togglePersonaItem} generatePersona={generatePersona} personaStatus={personaStatus} personaReport={personaReport} addPublicTag={addPublicTag} personaQuestion={personaQuestion} setPersonaQuestion={setPersonaQuestion} askPersona={askPersona} personaChat={personaChat} personaChatStatus={personaChatStatus} />}
@@ -1357,6 +1434,18 @@ function App() {
             </div>
           </aside>
         </section>
+        {selectedMember && (
+          <MemberProfileModal
+            member={selectedMember}
+            items={selectedMemberItems}
+            close={() => setSelectedMemberId('')}
+            openItem={(itemId) => {
+              setActiveId(itemId);
+              setMode('showroom');
+              setSelectedMemberId('');
+            }}
+          />
+        )}
       </section>
     </main>
   );
@@ -1436,6 +1525,71 @@ function AlbumWall({ items, activeItem, setActiveId, layout, setLayout, variant 
         ))}
       </div>
       {showToolbar && layout !== 'auto' && items.length > wallItems.length && <p className="wall-more">还有 {items.length - wallItems.length} 张封面收在展柜里，切换“自动”查看全部。</p>}
+    </div>
+  );
+}
+
+function MemberProfileModal({ member, items, close, openItem }) {
+  const profile = member.profile || {};
+  const chips = [
+    ['所在地', profile.location || member.location],
+    ['喜欢风格', profile.favoriteGenres],
+    ['喜欢歌手', profile.favoriteArtists],
+    ['喜欢乐队', profile.favoriteBands],
+    ['喜欢专辑', profile.favoriteAlbums],
+    ['喜欢歌曲', profile.favoriteSongs]
+  ].map(([label, value]) => {
+    const text = Array.isArray(value) ? value.slice(0, 6).join('、') : String(value || '');
+    return [label, text];
+  }).filter(([, value]) => value);
+  const albums = items.filter((item) => item.type === 'album').length;
+  const songs = items.length - albums;
+
+  return (
+    <div className="member-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
+      <aside className="member-modal glass-panel" role="dialog" aria-modal="true" aria-label={`${member.name} 的公开资料`}>
+        <button type="button" className="modal-close" aria-label="关闭" onClick={close}>×</button>
+        <header className="member-profile-head">
+          <div className="member-profile-avatar"><UserAvatar user={member} /></div>
+          <div>
+            <p className="eyebrow"><Users size={15} /> public profile</p>
+            <h2>{member.name}</h2>
+            <p>{member.bio || profile.bio || '这个成员还没有写公开简介。'}</p>
+          </div>
+        </header>
+        {(member.publicTags || []).length > 0 && (
+          <div className="tag-row compact-tags public-tag-row">
+            {member.publicTags.slice(0, 12).map((tag) => <span key={tag}>{tag}</span>)}
+          </div>
+        )}
+        <div className="member-profile-stats">
+          <span><strong>{items.length}</strong>当前房间添加</span>
+          <span><strong>{albums}</strong>专辑</span>
+          <span><strong>{songs}</strong>歌曲</span>
+        </div>
+        {chips.length > 0 && (
+          <section className="member-public-fields">
+            {chips.map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </section>
+        )}
+        <section className="member-added-section">
+          <div className="section-title"><Library size={18} /><h3>TA 添加的音乐</h3></div>
+          <div className="member-added-list">
+            {items.length ? items.slice(0, 12).map((item) => (
+              <button key={item.id} type="button" onClick={() => openItem(item.id)}>
+                <AlbumArt item={item} size="thumb" />
+                <span><strong>{item.title}</strong><small>{item.artist} · {item.type === 'album' ? '专辑' : item.albumTitle || '歌曲'}</small></span>
+                <ChevronRight size={15} />
+              </button>
+            )) : <p className="empty-state compact-empty">TA 还没有在当前房间添加音乐。</p>}
+          </div>
+        </section>
+      </aside>
     </div>
   );
 }
@@ -1617,7 +1771,7 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
   );
 }
 
-function Showroom({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, askAi, itemStatus, session, deleteItem, deleteComment }) {
+function Showroom({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, askAi, itemStatus, session, deleteItem, deleteComment, memberProfilesById, openMember }) {
   const [showcaseMode, setShowcaseMode] = useState('tracks');
   const [wallLayout, setWallLayout] = useState('4x3');
   const runTransition = (callback) => {
@@ -1648,6 +1802,7 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
   const modeIcon = showcaseMode === 'spotlight' ? Sparkles : showcaseMode === 'tracks' ? Music2 : Grid3X3;
   const ModeIcon = modeIcon;
   const canDeleteActive = activeItem && (activeItem.addedById === session?.user?.id || session?.user?.role === 'admin');
+  const activeAdder = activeItem?.addedById ? memberProfilesById?.[activeItem.addedById] : null;
 
   if (!items.length) return <div className="panel-content empty-showroom"><Disc3 size={48} /><h2>展柜还没有内容</h2><p>从歌曲或专辑开始，把朋友的推荐放进这个房间。</p><button className="full-action narrow" type="button" onClick={() => setMode('add')}><CirclePlus size={16} />添加第一条</button></div>;
   return (
@@ -1713,7 +1868,13 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
                 </div>
               </div>
             )}
-            <div className="credit-strip"><span>添加者 / 来源</span><strong>{activeItem.addedBy} · {activeItem.source}</strong></div>
+            <div className="credit-strip">
+              <span>添加者 / 来源</span>
+              <div className="credit-person">
+                <AuthorChip profile={activeAdder} fallbackName={activeItem.addedBy} fallbackAvatar={activeItem.addedByAvatar} onOpen={openMember} />
+                <strong>{activeItem.source}</strong>
+              </div>
+            </div>
             <p className="status-line">{itemStatus === 'cloud' ? '已同步到房间展柜。' : itemStatus}</p>
           </div>
           <div className="tracklist-panel">
@@ -1791,13 +1952,16 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
             {commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}
             {commentAiStatus && !['idle', 'thinking', 'done'].includes(commentAiStatus) && <p className="status-line error-line">{commentAiStatus}</p>}
             <div className="showroom-comment-list">
-              {activeComments.length ? activeComments.map((comment) => (
-                <article key={comment.id} className="comment">
-                  <div><strong><span className="mini-avatar">{comment.avatar || avatarFor(comment.author)}</span>{comment.author}</strong><span><Star size={14} /> {comment.mood}</span></div>
-                  <p>{comment.text}</p>
-                  {(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}
-                </article>
-              )) : <p className="empty-state compact-empty">还没有评论。</p>}
+              {activeComments.length ? activeComments.map((comment) => {
+                const author = comment.userId ? memberProfilesById?.[comment.userId] : null;
+                return (
+                  <article key={comment.id} className="comment">
+                    <div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div>
+                    <p>{comment.text}</p>
+                    {(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}
+                  </article>
+                );
+              }) : <p className="empty-state compact-empty">还没有评论。</p>}
             </div>
           </div>
         </div>
@@ -1806,9 +1970,9 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
   );
 }
 
-function Review({ selected, comments, draft, setDraft, submitComment, commentStatus, commentAiStatus, session, deleteComment }) {
+function Review({ selected, comments, draft, setDraft, submitComment, commentStatus, commentAiStatus, session, deleteComment, memberProfilesById, openMember }) {
   if (!selected) return <div className="panel-content empty-state">先在展柜中添加或选择一条音乐。</div>;
-  return <div className="panel-content"><div className="review-composer"><p className="eyebrow"><MessageCircle size={15} /> comments</p><h2>评论 {selected.title}</h2><textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="写下你推荐它的原因" /><button type="button" onClick={submitComment}><Send size={17} /> 发布评论</button><p className="status-line">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>{commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}</div><div className="comment-list">{comments.length ? comments.map((comment) => <article key={comment.id} className="comment"><div><strong><span className="mini-avatar">{comment.avatar || avatarFor(comment.author)}</span>{comment.author}</strong><span><Star size={14} /> {comment.mood}</span></div><p>{comment.text}</p>{(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}</article>) : <p className="empty-state">还没有评论。</p>}</div></div>;
+  return <div className="panel-content"><div className="review-composer"><p className="eyebrow"><MessageCircle size={15} /> comments</p><h2>评论 {selected.title}</h2><textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="写下你推荐它的原因" /><button type="button" onClick={submitComment}><Send size={17} /> 发布评论</button><p className="status-line">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>{commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}</div><div className="comment-list">{comments.length ? comments.map((comment) => { const author = comment.userId ? memberProfilesById?.[comment.userId] : null; return <article key={comment.id} className="comment"><div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div><p>{comment.text}</p>{(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}</article>; }) : <p className="empty-state">还没有评论。</p>}</div></div>;
 }
 
 function Ai({ selected, aiInsight, aiStatus, askAi }) {

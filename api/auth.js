@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, hashSecret, json, randomToken, storageBucket } from './_firebase.js';
 import { normalizeStoredPersona } from '../lib/music-persona.js';
+import { memberSnapshot } from '../lib/member-profile.js';
 
 function cleanEmail(value) {
   return String(value || '').trim().toLowerCase().slice(0, 160);
@@ -170,6 +171,17 @@ async function profileStats(user) {
   };
 }
 
+async function syncJoinedRoomProfiles(user) {
+  const snapshot = memberSnapshot(user);
+  const roomsSnapshot = await db().collection('albumCircleRooms').where(`members.${user.id}`, '==', true).limit(50).get();
+  if (roomsSnapshot.empty) return;
+  const batch = db().batch();
+  roomsSnapshot.docs.forEach((roomDoc) => {
+    batch.set(roomDoc.ref, { [`memberProfiles.${user.id}`]: snapshot }, { merge: true });
+  });
+  await batch.commit();
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
@@ -208,7 +220,9 @@ export default async function handler(req, res) {
         updatedAt: FieldValue.serverTimestamp()
       };
       await db().collection('albumCircleUsers').doc(user.id).set(patch, { merge: true });
-      return json(res, 200, publicUser(user.id, { ...user, ...patch }, req.headers.authorization?.replace(/^Bearer\s+/i, '')));
+      const nextUser = { ...user, ...patch };
+      await syncJoinedRoomProfiles(nextUser);
+      return json(res, 200, publicUser(user.id, nextUser, req.headers.authorization?.replace(/^Bearer\s+/i, '')));
     }
 
     if (action === 'avatar') {
@@ -232,6 +246,7 @@ export default async function handler(req, res) {
         patch.avatarUrl = '';
       }
       await db().collection('albumCircleUsers').doc(user.id).set(patch, { merge: true });
+      await syncJoinedRoomProfiles({ ...user, ...patch });
       return json(res, 200, { ok: true, avatarUrl: patch.avatarUrl || '', avatarDataUrl: patch.avatarDataUrl || '' });
     }
 

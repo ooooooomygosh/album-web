@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { json, requireUser, roomRef } from './_firebase.js';
+import { memberSnapshot } from '../lib/member-profile.js';
 
 function cleanArray(value, fallback = [], limit = 20) {
   return Array.isArray(value) ? value.map((item) => String(item).slice(0, 160)).filter(Boolean).slice(0, limit) : fallback;
@@ -100,7 +101,7 @@ function touchRoomForUser(user, extra) {
     ...extra,
     updatedAt: FieldValue.serverTimestamp(),
     [`members.${user.id}`]: true,
-    [`memberProfiles.${user.id}`]: { name: user.name, avatar: user.avatar, avatarUrl: user.avatarUrl || '', publicTags: user.publicTags || [] }
+    [`memberProfiles.${user.id}`]: memberSnapshot(user)
   };
 }
 
