@@ -3931,33 +3931,91 @@ input[type="range"] {
 .persona-card-stack {
   position: relative;
   z-index: 1;
-  width: min(58%, 178px);
-  aspect-ratio: 0.74;
+  width: min(70%, 230px);
+  aspect-ratio: 1.08;
+  perspective: 900px;
 }
 
 .persona-card-stack i {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  align-content: end;
+  gap: 3px;
+  width: min(44%, 98px);
+  aspect-ratio: 0.72;
+  padding: 9px;
+  overflow: hidden;
+  color: #f8fbff;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
+  border-radius: 16px;
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--cover-a), transparent 56%), color-mix(in srgb, var(--cover-b), transparent 72%)),
     var(--card-cover) center / cover;
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
-  transform: rotate(calc((var(--i) - 1) * 8deg)) translateY(calc(var(--i) * 8px));
-  animation: persona-card-flip 4.8s ease-in-out infinite;
-  animation-delay: calc(var(--i) * 240ms);
+  transform:
+    translate(-50%, -50%)
+    rotate(calc((var(--i) - 2.5) * 13deg))
+    translateX(calc((var(--i) - 2.5) * 26px))
+    translateY(var(--card-y));
+  transform-style: preserve-3d;
+  animation: persona-card-shuffle 7.2s cubic-bezier(.2, .8, .2, 1) infinite;
+  animation-delay: calc(var(--i) * -820ms);
+}
+
+.persona-card-stack i.avatar {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--cover-c), transparent 40%), color-mix(in srgb, var(--cover-a), transparent 64%)),
+    var(--card-cover) center / cover;
+}
+
+.persona-card-stack i.profile {
+  background:
+    radial-gradient(circle at 50% 22%, color-mix(in srgb, var(--cover-c), transparent 30%), transparent 28%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 10px),
+    linear-gradient(145deg, color-mix(in srgb, var(--cover-a), transparent 52%), color-mix(in srgb, var(--cover-b), transparent 72%));
 }
 
 .persona-card-stack i::after {
   position: absolute;
-  inset: 9px;
+  inset: 8px;
   content: "";
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 13px;
+  border-radius: 12px;
   background:
     radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.28), transparent 26%),
     linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.25));
+}
+
+.persona-card-stack i::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(180deg, transparent 36%, rgba(0, 0, 0, 0.62)),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.28), transparent 30%);
+  pointer-events: none;
+}
+
+.persona-card-stack b,
+.persona-card-stack small {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.persona-card-stack b {
+  font-size: 0.72rem;
+  line-height: 1.05;
+}
+
+.persona-card-stack small {
+  color: rgba(248, 251, 255, 0.72);
+  font-size: 0.6rem;
 }
 
 .persona-pulse-core {
@@ -4046,13 +4104,38 @@ input[type="range"] {
   }
 }
 
-@keyframes persona-card-flip {
+@keyframes persona-card-shuffle {
   0%, 100% {
-    filter: brightness(0.92) saturate(0.9);
+    z-index: 1;
+    filter: brightness(0.9) saturate(0.9);
   }
-  50% {
+  18% {
+    z-index: 4;
     filter: brightness(1.14) saturate(1.18);
-    transform: rotate(calc((var(--i) - 1) * 5deg)) translateY(calc(var(--i) * 4px)) translateX(calc((var(--i) - 1) * 6px));
+    transform:
+      translate(-50%, -54%)
+      rotateY(18deg)
+      rotate(calc((var(--i) - 2.5) * 7deg))
+      translateX(calc((var(--i) - 2.5) * 12px))
+      scale(1.08);
+  }
+  38% {
+    z-index: 5;
+    transform:
+      translate(-50%, -58%)
+      rotateY(180deg)
+      rotate(calc((var(--i) - 2.5) * -5deg))
+      translateX(calc((2.5 - var(--i)) * 18px))
+      scale(1.02);
+  }
+  62% {
+    z-index: 3;
+    transform:
+      translate(-50%, -48%)
+      rotateY(360deg)
+      rotate(calc((var(--i) - 2.5) * 12deg))
+      translateX(calc((var(--i) - 2.5) * 28px))
+      translateY(calc((var(--i) - 2) * 7px));
   }
 }
 

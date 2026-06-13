@@ -570,13 +570,24 @@ function AddGenerationLoader({ item, phaseSteps, activePhaseIndex }) {
   );
 }
 
-function PersonaGenerationLoader({ tone, selectedCount, profileStats }) {
+function PersonaGenerationLoader({ tone, selectedCount, profileStats, user }) {
   const variants = ['oracle', 'spectrum', 'constellation'];
   const variant = variants[stableIndex(`${tone}-${selectedCount}-${profileStats?.itemsAdded || 0}`, variants.length)];
   const topArtists = (profileStats?.topArtists || []).slice(0, 5);
   const recentAdds = (profileStats?.recentAdds || []).slice(0, 5);
   const tags = (profileStats?.tags || []).slice(0, 6);
   const commentCount = profileStats?.commentsAdded || (Array.isArray(profileStats?.comments) ? profileStats.comments.length : 0);
+  const avatar = avatarSrc(user);
+  const profile = user?.profile || {};
+  const profileLabel = [profile.mbti, profile.birthYear, profile.major].filter(Boolean).slice(0, 2).join(' / ') || '资料牌';
+  const cardItems = [
+    { title: user?.name || '你', kind: 'avatar', image: avatar, label: profileLabel },
+    { title: selectedCount ? `${selectedCount} 首代表作` : '偏好资料', kind: 'profile', label: profile.favoriteGenres?.[0] || tags[0]?.name || tone },
+    ...(recentAdds.length ? recentAdds.slice(0, 4).map((item) => ({ title: item.title, kind: 'music', image: item.cover, label: item.artist })) : [
+      { title: '评论', kind: 'comment', label: `${commentCount} 条线索` },
+      { title: '歌手', kind: 'artist', label: topArtists[0]?.name || '偏好雷达' }
+    ])
+  ].slice(0, 6);
 
   return (
     <div className={`persona-loading persona-loading-${variant}`} aria-live="polite">
@@ -585,8 +596,11 @@ function PersonaGenerationLoader({ tone, selectedCount, profileStats }) {
           {Array.from({ length: 12 }, (_, index) => <span key={index} style={{ '--i': index }} />)}
         </div>
         <div className="persona-card-stack">
-          {(recentAdds.length ? recentAdds : [{ title: 'Profile' }, { title: 'Comments' }, { title: 'Tags' }]).slice(0, 3).map((item, index) => (
-            <i key={`${item.title}-${index}`} style={{ '--i': index, '--card-cover': cssImageUrl(item.cover) }} />
+          {cardItems.map((item, index) => (
+            <i key={`${item.title}-${index}`} className={`persona-loading-card ${item.kind}`} style={{ '--i': index, '--card-y': `${Math.abs(index - 2.5) * 5}px`, '--card-cover': cssImageUrl(item.image) }}>
+              <b>{item.title}</b>
+              <small>{item.label}</small>
+            </i>
           ))}
         </div>
         <div className="persona-pulse-core"><Sparkles size={24} /></div>
@@ -811,7 +825,7 @@ function App() {
   const [aiPromptDraft, setAiPromptDraft] = useState('');
   const [personaPromptDraft, setPersonaPromptDraft] = useState('');
   const [aiMaxTokens, setAiMaxTokens] = useState(2100);
-  const [personaMaxTokens, setPersonaMaxTokens] = useState(12000);
+  const [personaMaxTokens, setPersonaMaxTokens] = useState(16000);
   const [personaChatMaxTokens, setPersonaChatMaxTokens] = useState(5200);
   const [aiTemperature, setAiTemperature] = useState(0.5);
   const [personaTemperature, setPersonaTemperature] = useState(0.72);
@@ -1357,7 +1371,7 @@ function App() {
       setAiPromptDraft(data.config?.customPrompt || '');
       setPersonaPromptDraft(data.config?.personaPrompt || '');
       setAiMaxTokens(data.config?.maxTokens || 2100);
-      setPersonaMaxTokens(data.config?.personaMaxTokens || 12000);
+      setPersonaMaxTokens(data.config?.personaMaxTokens || 16000);
       setPersonaChatMaxTokens(data.config?.personaChatMaxTokens || 5200);
       setAiTemperature(data.config?.temperature ?? 0.5);
       setPersonaTemperature(data.config?.personaTemperature ?? 0.72);
@@ -2364,7 +2378,7 @@ function ProfilePanel({ session, profileDraft, setProfileDraft, saveProfile, upl
             {!recentAdds.length && <p className="empty-state compact-empty">刷新统计后会显示你添加过的歌曲和专辑。</p>}
           </div>
           <button type="button" className="full-action narrow" onClick={generatePersona} disabled={personaStatus === 'thinking'}><Sparkles size={16} />{personaStatus === 'thinking' ? '正在抽音乐人格牌' : '让 AI 拆穿我的歌单'}</button>
-          {personaStatus === 'thinking' && <PersonaGenerationLoader tone={personaTone} selectedCount={selectedCount} profileStats={profileStats} />}
+          {personaStatus === 'thinking' && <PersonaGenerationLoader tone={personaTone} selectedCount={selectedCount} profileStats={profileStats} user={avatarUser} />}
           {personaStatus === 'fallback' && <p className="status-line">AI 暂时不可用，已生成本地临时侧写。</p>}
           {String(personaStatus).startsWith('error-') && <p className="status-line error-line">{String(personaStatus).replace('error-', '')}</p>}
         </article>

@@ -170,7 +170,7 @@ if (adminUser) {
       customPrompt: '后台测试：保持具体、谨慎、像推荐导览。',
       personaPrompt: '后台测试：音乐画像要自然、有趣、避免僵硬字段。',
       maxTokens: 1800,
-      personaMaxTokens: 12000,
+      personaMaxTokens: 16000,
       personaChatMaxTokens: 5200,
       temperature: 0.45,
       personaTemperature: 0.78
@@ -184,7 +184,7 @@ if (adminUser) {
       customPrompt: previousAdminConfig.config?.customPrompt || '',
       personaPrompt: previousAdminConfig.config?.personaPrompt || '',
       maxTokens: previousAdminConfig.config?.maxTokens || 2100,
-      personaMaxTokens: previousAdminConfig.config?.personaMaxTokens || 12000,
+      personaMaxTokens: previousAdminConfig.config?.personaMaxTokens || 16000,
       personaChatMaxTokens: previousAdminConfig.config?.personaChatMaxTokens || 5200,
       temperature: previousAdminConfig.config?.temperature ?? 0.5,
       personaTemperature: previousAdminConfig.config?.personaTemperature ?? 0.72

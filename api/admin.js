@@ -71,7 +71,7 @@ export default async function handler(req, res) {
         const temperature = Number(req.body?.temperature || 0.5);
         const personaTemperature = Number(req.body?.personaTemperature ?? 0.72);
         const maxTokens = Number(req.body?.maxTokens || 2100);
-        const personaMaxTokens = Number(req.body?.personaMaxTokens || 12000);
+        const personaMaxTokens = Number(req.body?.personaMaxTokens || 16000);
         const personaChatMaxTokens = Number(req.body?.personaChatMaxTokens || 5200);
         const config = {
           customPrompt,
