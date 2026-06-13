@@ -1685,6 +1685,7 @@ function PersonaReport({ report, addPublicTag }) {
     ['歌曲', 'song', report.recommendations?.songs]
   ].filter(([, , values]) => values?.length);
   const identityFields = Array.isArray(report.identitySignals?.fields) ? report.identitySignals.fields.filter((item) => item?.label && item?.value) : [];
+  const spiritTensions = Array.isArray(report.humanSpiritMap?.tensions) ? report.humanSpiritMap.tensions.filter((item) => item?.axis && item?.reading) : [];
   return (
     <article className="persona-report" style={accent ? { '--persona-accent': accent } : undefined}>
       <div className="persona-title">
@@ -1719,6 +1720,28 @@ function PersonaReport({ report, addPublicTag }) {
             </div>
           )}
           {report.identitySignals?.caveat && <small>{report.identitySignals.caveat}</small>}
+        </section>
+      )}
+      {report.humanSpiritMap && (
+        <section className="spirit-map-card">
+          <div className="spirit-map-head">
+            <span>human spirit map</span>
+            <h4>{report.humanSpiritMap.title || '身份与声音的精神图谱'}</h4>
+            {report.humanSpiritMap.thesis && <p>{report.humanSpiritMap.thesis}</p>}
+          </div>
+          {report.humanSpiritMap.text && <p className="spirit-map-text">{report.humanSpiritMap.text}</p>}
+          {spiritTensions.length > 0 && (
+            <div className="spirit-tension-grid">
+              {spiritTensions.map((item) => (
+                <article key={item.axis}>
+                  <strong>{item.axis}</strong>
+                  {item.evidence?.length > 0 && <div className="evidence-pills">{item.evidence.slice(0, 5).map((value) => <span key={value}>{value}</span>)}</div>}
+                  <p>{item.reading}</p>
+                </article>
+              ))}
+            </div>
+          )}
+          {report.humanSpiritMap.caveat && <small>{report.humanSpiritMap.caveat}</small>}
         </section>
       )}
       {report.preferenceReading?.length > 0 && (

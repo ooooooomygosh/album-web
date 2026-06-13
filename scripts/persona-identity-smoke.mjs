@@ -114,12 +114,25 @@ const persona = await request('/api/ai/recommend?action=persona', {
 
 const report = persona.report || {};
 const identityText = textBlob(report.identitySignals);
+const spiritText = textBlob(report.humanSpiritMap);
 for (const value of Object.values(expected)) {
   if (!identityText.includes(String(value))) {
     throw new Error(`Persona identitySignals missing ${value}: ${identityText}`);
   }
+  if (!spiritText.includes(String(value))) {
+    throw new Error(`Persona humanSpiritMap missing ${value}: ${spiritText}`);
+  }
 }
 if ((report.identitySignals?.fields || []).length < 4) throw new Error(`identitySignals fields incomplete: ${identityText}`);
+if (String(report.humanSpiritMap?.text || '').length < 260 || (report.humanSpiritMap?.tensions || []).length < 3) {
+  throw new Error(`humanSpiritMap is too thin: ${spiritText}`);
+}
+if (!/我爱你|李荣浩|评论|音乐|专辑|歌曲/.test(spiritText)) {
+  throw new Error(`humanSpiritMap did not connect identity with music/comment evidence: ${spiritText}`);
+}
+if (/弱线索|调味料，不是主食材|真正权重仍然是你选了哪些歌/.test(textBlob(report))) {
+  throw new Error(`Persona report still downranks profile signals: ${textBlob(report).slice(0, 900)}`);
+}
 if (!report.recommendations?.artists?.length || !report.recommendations?.albums?.length || !report.recommendations?.songs?.length) {
   throw new Error(`Persona recommendations incomplete: ${textBlob(report.recommendations)}`);
 }
@@ -150,6 +163,11 @@ console.log(JSON.stringify({
   fallback: persona.fallback,
   model: report.model,
   identitySignals: report.identitySignals,
+  humanSpiritMap: {
+    title: report.humanSpiritMap?.title,
+    textLength: String(report.humanSpiritMap?.text || '').length,
+    tensionCount: report.humanSpiritMap?.tensions?.length || 0
+  },
   recommendationCounts: {
     artists: report.recommendations?.artists?.length || 0,
     albums: report.recommendations?.albums?.length || 0,
