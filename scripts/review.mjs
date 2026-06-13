@@ -107,6 +107,64 @@ async function verifyNoOverflow(page, scopeName) {
   return overflow;
 }
 
+async function verifyMobileSections(page) {
+  await page.locator('.showroom-detail').waitFor({ timeout: 15000 });
+  const sections = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    return [
+      '.showroom-panel',
+      '.album-wall-rail',
+      '.showroom-detail',
+      '.detail-story',
+      '.tracklist-panel',
+      '.ai-dossier',
+      '.showroom-comments',
+      '.showroom-comment-list'
+    ].map((selector) => {
+      const node = document.querySelector(selector);
+      const rect = node?.getBoundingClientRect();
+      return {
+        selector,
+        found: Boolean(node),
+        left: rect?.left || 0,
+        right: rect?.right || 0,
+        width: rect?.width || 0,
+        viewport
+      };
+    });
+  });
+  const missing = sections.filter((item) => !item.found).map((item) => item.selector);
+  if (missing.length) throw new Error(`mobile missing key sections: ${missing.join(', ')}`);
+  const bad = sections.filter((item) => item.left < -1 || item.right > item.viewport + 1 || item.width > item.viewport + 1);
+  if (bad.length) throw new Error(`mobile key sections overflow: ${JSON.stringify(bad)}`);
+
+  const commentInput = page.locator('.showroom-comments textarea');
+  await commentInput.fill('移动端评论排版验收：这段文字应该能正常换行，不撑破卡片，也不会挡住发布按钮。');
+  await page.locator('.showroom-comments').getByRole('button', { name: /发布到展柜/ }).click();
+  await page.getByText(/移动端评论排版验收/).waitFor({ timeout: 20000 });
+  await verifyNoOverflow(page, 'mobile-after-comment');
+
+  await page.locator('.ai-dossier .profile-note summary').first().click();
+  await page.locator('.ai-dossier .profile-note[open]').first().waitFor({ timeout: 5000 });
+  await verifyNoOverflow(page, 'mobile-after-ai-guide-open');
+
+  await page.locator('.mode-tabs').getByRole('button', { name: '房间', exact: true }).click();
+  await page.locator('.room-detail .room-manager').waitFor({ timeout: 10000 });
+  const roomMetrics = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    return Array.from(document.querySelectorAll('.room-detail, .room-manager, .room-manager article, .room-url, .room-list button')).map((node) => {
+      const rect = node.getBoundingClientRect();
+      return { className: node.className || node.tagName, left: rect.left, right: rect.right, width: rect.width, viewport };
+    });
+  });
+  const roomBad = roomMetrics.filter((item) => item.left < -1 || item.right > item.viewport + 1 || item.width > item.viewport + 1);
+  if (roomBad.length) throw new Error(`mobile room sections overflow: ${JSON.stringify(roomBad.slice(0, 8))}`);
+  await verifyNoOverflow(page, 'mobile-room');
+  await page.locator('.mode-tabs').getByRole('button', { name: '展柜', exact: true }).click();
+  await page.locator('.showroom-panel.showcase-tracks').waitFor({ timeout: 10000 });
+  return { sections: sections.length, roomNodes: roomMetrics.length };
+}
+
 async function verifyHeroOnlyGallery(page, scopeName, expectedItems = 2) {
   await page.locator('.gallery-only-hero .album-wall-hero').waitFor({ timeout: 15000 });
   const metrics = await page.evaluate(() => {
@@ -212,6 +270,7 @@ const mobileImages = await verifyImages(mobile, 'mobile');
 const mobileOverflow = await verifyNoOverflow(mobile, 'mobile');
 const mobileHero = await verifyHeroOnlyGallery(mobile, 'mobile', 2);
 const mobileTracks = await verifyShowroomTracks(mobile, 'mobile');
+const mobileSections = await verifyMobileSections(mobile);
 
 const report = {
   baseUrl,
@@ -223,6 +282,7 @@ const report = {
   desktopOverflow,
   mobileHero,
   mobileTracks,
+  mobileSections,
   mobileOverflow,
   desktopImages: desktopImages.length,
   mobileImages: mobileImages.length,

@@ -5178,3 +5178,366 @@ input[type="range"] {
     border-radius: 14px;
   }
 }
+
+@media (max-width: 860px) {
+  .shell {
+    width: min(100% - 16px, 720px);
+    padding-bottom: 38px;
+  }
+
+  .topbar {
+    gap: 12px;
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .brand > div {
+    min-width: 0;
+  }
+
+  .brand strong,
+  .brand span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mode-tabs {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .mode-tabs::-webkit-scrollbar,
+  .showroom-views::-webkit-scrollbar,
+  .album-wall-rail .poster-grid::-webkit-scrollbar,
+  .wall-layout-buttons::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mode-tabs button,
+  .showroom-views button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .panel-content {
+    min-height: auto;
+    padding: 14px;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .showroom-panel {
+    gap: 16px;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .showcase-tracks .showroom-command,
+  .showroom-command {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .showroom-command h2 {
+    font-size: clamp(1.55rem, 8vw, 2.25rem);
+    line-height: 1;
+  }
+
+  .showroom-command p:not(.eyebrow) {
+    max-width: none;
+    font-size: 0.84rem;
+  }
+
+  .showroom-views {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .album-wall-showroom,
+  .album-wall-rail {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px;
+    border-radius: 22px;
+    overflow: hidden;
+  }
+
+  .album-wall-rail .poster-grid {
+    gap: 12px;
+    margin: 0 -2px;
+    padding: 2px 2px 14px;
+  }
+
+  .album-wall-rail .poster-tile {
+    flex-basis: min(220px, 68vw);
+  }
+
+  .detail-drawer,
+  .showroom-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    width: 100%;
+    max-width: 100%;
+    padding: 14px;
+    border-radius: 22px;
+    overflow: hidden;
+  }
+
+  .detail-art-stack {
+    position: relative;
+    top: auto;
+    justify-self: center;
+    width: min(245px, 72vw);
+    max-width: 100%;
+  }
+
+  .detail-art-stack .album-art {
+    width: 100%;
+  }
+
+  .vinyl-shadow {
+    inset: 16% -8% 16% 44%;
+  }
+
+  .detail-story,
+  .tracklist-panel,
+  .ai-dossier,
+  .showroom-comments {
+    grid-column: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .detail-drawer h2 {
+    font-size: clamp(1.7rem, 10vw, 2.6rem);
+    overflow-wrap: anywhere;
+  }
+
+  .detail-drawer p,
+  .room-detail p,
+  .profile-note p,
+  .listening-guide p,
+  .comment p,
+  .ai-card p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .detail-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .detail-actions button,
+  .showroom-comments > button,
+  .review-composer button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .listening-links div,
+  .prompt-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .listening-links a,
+  .prompt-strip button {
+    flex: 0 0 auto;
+    max-width: min(280px, 78vw);
+  }
+
+  .tracklist-panel,
+  .showroom-comments,
+  .ai-dossier {
+    padding: 13px;
+    border-radius: 18px;
+  }
+
+  .showroom-tracklist {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .showroom-track {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .showroom-track strong,
+  .showroom-track small,
+  .related-song b,
+  .related-song small {
+    white-space: normal;
+  }
+
+  .album-context-card,
+  .related-song {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .related-song {
+    min-height: auto;
+  }
+
+  .related-song > span,
+  .related-song > svg {
+    display: none;
+  }
+
+  .ai-profile-grid,
+  .showroom-comment-list,
+  .comment-list,
+  .ai-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-note summary {
+    min-height: 48px;
+    padding: 11px 36px 11px 12px;
+  }
+
+  .profile-note p {
+    padding: 0 13px 14px;
+  }
+
+  .showroom-comments textarea,
+  .review-composer textarea {
+    min-height: 116px;
+  }
+
+  .comment {
+    min-width: 0;
+    padding: 13px;
+    border-radius: 16px;
+  }
+
+  .comment > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .comment .author-chip {
+    max-width: 100%;
+  }
+
+  .comment .author-chip span {
+    max-width: min(210px, 48vw);
+  }
+
+  .inline-delete {
+    width: fit-content;
+  }
+
+  .room-detail {
+    gap: 14px;
+  }
+
+  .room-url {
+    font-size: 0.82rem;
+  }
+
+  .room-actions,
+  .room-manager,
+  .expanded-room-manager,
+  .room-stats,
+  .admin-grid,
+  .admin-controls.expanded {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .room-actions {
+    display: grid;
+  }
+
+  .room-actions .full-action,
+  .room-manager > article > button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .room-manager article {
+    padding: 13px;
+    border-radius: 18px;
+  }
+
+  .room-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .room-list button,
+  .known-rooms button {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 520px) {
+  .shell {
+    width: min(100% - 12px, 720px);
+  }
+
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  .wall-layout-buttons {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .wall-toolbar button {
+    flex: 0 0 auto;
+    min-width: 48px;
+  }
+
+  .album-wall-rail .poster-tile {
+    flex-basis: min(205px, 72vw);
+  }
+
+  .detail-drawer,
+  .showroom-detail {
+    padding: 12px;
+  }
+
+  .tracklist-panel,
+  .showroom-comments,
+  .ai-dossier,
+  .room-manager article {
+    padding: 12px;
+  }
+
+  .comment > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comment > div > span {
+    justify-self: start;
+  }
+}
