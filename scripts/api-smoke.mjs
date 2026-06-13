@@ -33,7 +33,12 @@ async function request(path, options = {}, token = '') {
   if (bypassSecret) headers['x-vercel-protection-bypass'] = bypassSecret;
   const response = await fetch(`${baseUrl}${withBypass(path)}`, { ...options, headers });
   const text = await response.text();
-  const data = JSON.parse(text || '{}');
+  let data = {};
+  try {
+    data = JSON.parse(text || '{}');
+  } catch (error) {
+    throw new Error(`${path} returned non-JSON ${response.status}: ${text.slice(0, 280)}`);
+  }
   if (!response.ok) throw new Error(`${path} failed ${response.status}: ${JSON.stringify(data)}`);
   return data;
 }

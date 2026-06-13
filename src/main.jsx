@@ -73,6 +73,22 @@ const defaultHeroConfig = {
   motionLevel: 'ambient'
 };
 
+const wallLayoutPresets = {
+  '2x2': { label: '2x2', cols: 2, rows: 2 },
+  '3x3': { label: '3x3', cols: 3, rows: 3 },
+  '4x3': { label: '4x3', cols: 4, rows: 3 },
+  '5x4': { label: '5x4', cols: 5, rows: 4 },
+  auto: { label: '自动', cols: 0, rows: 0 }
+};
+
+function wallLayoutStyle(layout) {
+  const preset = wallLayoutPresets[layout] || wallLayoutPresets['4x3'];
+  return {
+    '--wall-cols': preset.cols || 'auto',
+    '--wall-rows': preset.rows || 'auto'
+  };
+}
+
 function loadJson(key, fallback) {
   try {
     return JSON.parse(localStorage.getItem(key) || 'null') || fallback;
@@ -263,6 +279,34 @@ function fallbackPalette(item) {
   return [colorHash(seed, 0), colorHash(seed, 97), colorHash(seed, 211)];
 }
 
+function rgbToHslString(r, g, b, lightAdjust = 0) {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const delta = max - min;
+    s = l > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    switch (max) {
+      case red:
+        h = (green - blue) / delta + (green < blue ? 6 : 0);
+        break;
+      case green:
+        h = (blue - red) / delta + 2;
+        break;
+      default:
+        h = (red - green) / delta + 4;
+    }
+    h /= 6;
+  }
+  const lightness = Math.max(18, Math.min(82, Math.round(l * 100 + lightAdjust)));
+  return `hsl(${Math.round(h * 360)} ${Math.max(28, Math.round(s * 100))}% ${lightness}%)`;
+}
+
 function cssImageUrl(url) {
   return url ? `url("${String(url).replace(/["\\]/g, '\\$&')}")` : 'none';
 }
@@ -287,7 +331,78 @@ function listeningLinksFor(item) {
 }
 
 function useCoverPalette(item) {
-  return useMemo(() => fallbackPalette(item), [item?.palette, item?.title, item?.artist, item?.albumTitle]);
+  const fallback = useMemo(() => fallbackPalette(item), [item?.palette, item?.title, item?.artist, item?.albumTitle]);
+  const [sampled, setSampled] = useState(null);
+
+  useEffect(() => {
+    const cover = item?.cover;
+    setSampled(null);
+    if (!cover || typeof document === 'undefined') return undefined;
+    let cancelled = false;
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.referrerPolicy = 'no-referrer';
+    image.onload = () => {
+      if (cancelled) return;
+      try {
+        const canvas = document.createElement('canvas');
+        const size = 32;
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.drawImage(image, 0, 0, size, size);
+        const { data } = context.getImageData(0, 0, size, size);
+        const buckets = new Map();
+        for (let index = 0; index < data.length; index += 16) {
+          const r = data[index];
+          const g = data[index + 1];
+          const b = data[index + 2];
+          const a = data[index + 3];
+          if (a < 180) continue;
+          const brightness = (r + g + b) / 3;
+          if (brightness < 18 || brightness > 242) continue;
+          const key = `${Math.round(r / 24) * 24},${Math.round(g / 24) * 24},${Math.round(b / 24) * 24}`;
+          const current = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+          current.count += 1;
+          current.r += r;
+          current.g += g;
+          current.b += b;
+          buckets.set(key, current);
+        }
+        const colors = [...buckets.values()]
+          .map((bucket) => ({
+            count: bucket.count,
+            r: Math.round(bucket.r / bucket.count),
+            g: Math.round(bucket.g / bucket.count),
+            b: Math.round(bucket.b / bucket.count)
+          }))
+          .sort((left, right) => {
+            const leftSat = Math.max(left.r, left.g, left.b) - Math.min(left.r, left.g, left.b);
+            const rightSat = Math.max(right.r, right.g, right.b) - Math.min(right.r, right.g, right.b);
+            return right.count * (rightSat + 34) - left.count * (leftSat + 34);
+          })
+          .slice(0, 3);
+        if (colors.length >= 2) {
+          setSampled([
+            rgbToHslString(colors[0].r, colors[0].g, colors[0].b, -4),
+            rgbToHslString(colors[1].r, colors[1].g, colors[1].b, 4),
+            rgbToHslString((colors[2] || colors[0]).r, (colors[2] || colors[0]).g, (colors[2] || colors[0]).b, 18)
+          ]);
+        }
+      } catch {
+        if (!cancelled) setSampled(null);
+      }
+    };
+    image.onerror = () => {
+      if (!cancelled) setSampled(null);
+    };
+    image.src = cover;
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.cover]);
+
+  return sampled || fallback;
 }
 
 function authHeaders(session) {
@@ -304,6 +419,19 @@ async function api(path, { session, ...options } = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed: ${response.status}`);
   return data;
+}
+
+async function apiWithTimeout(path, options = {}, timeoutMs = 22000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await api(path, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('AI 导览生成超时，已先保存音乐。');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function AlbumArt({ item, className = '', size = 'large' }) {
@@ -916,11 +1044,11 @@ function App() {
     setAddPhase('ai');
     setBackgroundStatus('thinking');
     try {
-      const data = await api('/api/ai/background', {
+      const data = await apiWithTimeout('/api/ai/background', {
         session,
         method: 'POST',
         body: JSON.stringify({ item: candidate })
-      });
+      }, 22000);
       setBackgroundStatus('done');
       return {
         ...candidate,
@@ -1234,19 +1362,89 @@ function App() {
   );
 }
 
+function AlbumWall({ items, activeItem, setActiveId, layout, setLayout, variant = 'hero', showToolbar = true }) {
+  const wallItems = variant === 'hero' && layout !== 'auto'
+    ? items.slice(0, (wallLayoutPresets[layout]?.cols || 4) * (wallLayoutPresets[layout]?.rows || 3))
+    : items;
+  const placeholderCount = Math.min(12, Math.max(6, (wallLayoutPresets[layout]?.cols || 4) * (wallLayoutPresets[layout]?.rows || 3)));
+  const runTransition = (callback) => {
+    if (typeof document !== 'undefined' && document.startViewTransition) {
+      document.startViewTransition(callback);
+    } else {
+      callback();
+    }
+  };
+  const selectItem = (id) => runTransition(() => setActiveId(id));
+  const changeLayout = (nextLayout) => runTransition(() => setLayout(nextLayout));
+  const toolbar = showToolbar ? (
+    <div className="wall-toolbar" aria-label="陈列布局">
+      <div className="wall-label">
+        <strong>专辑陈列柜</strong>
+        <span>{items.length ? `${items.length} 张封面` : '等待第一张封面'}</span>
+      </div>
+      <div className="wall-layout-buttons">
+        {Object.entries(wallLayoutPresets).map(([key, preset]) => (
+          <button key={key} type="button" className={layout === key ? 'active' : ''} onClick={() => changeLayout(key)}>{preset.label}</button>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  if (!items.length) {
+    if (variant === 'hero') {
+      return (
+        <div className={`album-wall album-wall-${variant} empty-album-wall empty-poster-wall wall-${layout}`} style={wallLayoutStyle(layout)}>
+          {toolbar}
+          <div className="poster-grid ghost-poster-grid" aria-hidden="true">
+            {Array.from({ length: placeholderCount }).map((_, index) => (
+              <span key={index} className="ghost-poster" style={{ '--tile-index': index }} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className={`album-wall album-wall-${variant} empty-album-wall wall-${layout}`} style={wallLayoutStyle(layout)}>
+        {toolbar}
+        <div className="poster-empty">
+          <Disc3 size={58} />
+          <strong>第一张封面还在路上</strong>
+          <span>添加歌曲或专辑后，这里会变成房间的专辑陈列柜。</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`album-wall album-wall-${variant} wall-${layout}`} style={wallLayoutStyle(layout)}>
+      {toolbar}
+      <div className="poster-grid" aria-label="专辑陈列墙">
+        {wallItems.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            className={activeItem?.id === item.id ? 'poster-tile active' : 'poster-tile'}
+            aria-label={`${item.type === 'album' ? '专辑' : '歌曲'} ${item.title} ${item.artist}`}
+            onClick={() => selectItem(item.id)}
+            style={{ '--tile-index': index, '--poster-a': item.palette?.[0] || 'var(--cover-a)', '--poster-b': item.palette?.[1] || 'var(--cover-b)' }}
+          >
+            <AlbumArt item={item} />
+            <span>{item.type === 'album' ? 'album' : 'song'}</span>
+            <strong>{item.title}</strong>
+            <small>{item.artist}</small>
+          </button>
+        ))}
+      </div>
+      {showToolbar && layout !== 'auto' && items.length > wallItems.length && <p className="wall-more">还有 {items.length - wallItems.length} 张封面收在展柜里，切换“自动”查看全部。</p>}
+    </div>
+  );
+}
+
 function RoomHero({ room, heroConfig, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings, roomStatus, canEditRoom, heroEditing, setHeroEditing, activeItem, items, comments, roomMembers, roomUrl, setMode, setActiveId, logout }) {
   const heroRef = useRef(null);
   const pointerFrame = useRef(0);
-  const title = heroConfig.title || room.name;
-  const description = heroConfig.description || room.description || defaultHeroConfig.description;
-  const orbitStats = [
-    ['展柜', items.length],
-    ['评论', comments.length],
-    ['成员', roomMembers.length],
-    [activeItem?.type === 'album' ? '曲目' : '曲目', countAlbumTracks(activeItem)]
-  ];
+  const [wallLayout, setWallLayout] = useState('4x3');
   const themeClass = `hero-${heroConfig.visualMode} motion-${heroConfig.motionLevel}`;
-  const previewItems = items.slice(0, 5);
 
   const updateHeroDraft = (patch) => {
     setRoomSettingsDraft((current) => ({
@@ -1275,7 +1473,7 @@ function RoomHero({ room, heroConfig, roomSettingsDraft, setRoomSettingsDraft, s
   return (
     <section
       ref={heroRef}
-      className={`hero compact-hero room-hero ${themeClass}`}
+      className={`hero compact-hero room-hero gallery-only-hero ${themeClass}`}
       onPointerMove={updatePointer}
       style={{ '--hero-x': '50%', '--hero-y': '42%' }}
     >
@@ -1284,32 +1482,11 @@ function RoomHero({ room, heroConfig, roomSettingsDraft, setRoomSettingsDraft, s
         <span className="field-ring ring-two" />
         <span className="field-scanline" />
       </div>
-      <div className="copy hero-copy">
-        <div className="hero-kicker">
-          <p className="eyebrow"><Library size={16} /> {heroConfig.eyebrow}</p>
-          <span>{heroConfig.accentName}</span>
-        </div>
-        <h1>{title}<span>{heroConfig.titleSuffix}</span></h1>
-        <p>{description}</p>
-        <div className="hero-actions">
-          <button type="button" className="primary-action" onClick={() => setMode('add')}><CirclePlus size={18} /> 添加音乐</button>
-          <button type="button" className="secondary-action share-room" onClick={() => navigator.clipboard?.writeText(roomUrl)}><Share2 size={17} /> 复制邀请链接</button>
-          <button type="button" className="secondary-action" onClick={() => setMode('showroom')}><Grid3X3 size={17} /> 进入展柜</button>
-          <button type="button" className="secondary-action quiet-action" onClick={logout}><LogOut size={17} /> 退出</button>
-        </div>
-        {previewItems.length > 0 && (
-          <div className="hero-mini-rail" aria-label="快速切换当前展柜条目">
-            {previewItems.map((item) => (
-              <button key={item.id} type="button" className={activeItem?.id === item.id ? 'active' : ''} onClick={() => setActiveId(item.id)} title={`${item.title} - ${item.artist}`}>
-                <AlbumArt item={item} size="thumb" />
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="hero-wall-stage">
+        <AlbumWall items={items} activeItem={activeItem} setActiveId={setActiveId} layout={wallLayout} setLayout={setWallLayout} variant="hero" />
       </div>
-      <HeroRecordStage activeItem={activeItem} items={items} orbitStats={orbitStats} roomMembers={roomMembers} setMode={setMode} />
       {canEditRoom && (
-        <button type="button" className="hero-edit-button" aria-expanded={heroEditing} onClick={() => setHeroEditing((value) => !value)}><Pencil size={16} />编辑首页</button>
+        <button type="button" className="hero-edit-button" aria-label="编辑首页" title="编辑首页" aria-expanded={heroEditing} onClick={() => setHeroEditing((value) => !value)}><Pencil size={16} /></button>
       )}
       {heroEditing && canEditRoom && (
         <HeroEditor
@@ -1441,7 +1618,16 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
 }
 
 function Showroom({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, askAi, itemStatus, session, deleteItem, deleteComment }) {
-  const [showcaseMode, setShowcaseMode] = useState('wall');
+  const [showcaseMode, setShowcaseMode] = useState('tracks');
+  const [wallLayout, setWallLayout] = useState('4x3');
+  const runTransition = (callback) => {
+    if (typeof document !== 'undefined' && document.startViewTransition) {
+      document.startViewTransition(callback);
+    } else {
+      callback();
+    }
+  };
+  const switchShowcaseMode = (nextMode) => runTransition(() => setShowcaseMode(nextMode));
   const parentAlbum = activeItem?.type === 'song'
     ? items.find((item) => item.type === 'album' && sameAlbum(item, activeItem))
     : null;
@@ -1469,8 +1655,8 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
       <div className="showroom-command">
         <div>
           <p className="eyebrow"><ModeIcon size={15} /> core showroom</p>
-          <h2>展柜</h2>
-          <p>每张封面都是一个入口。点开后查看曲目、朋友评论和当前推荐理由。</p>
+          <h2>{showcaseMode === 'tracks' ? '轨道' : showcaseMode === 'spotlight' ? '聚光' : '封面墙'}</h2>
+          <p>左右滑动封面，点击切换条目，再进入曲目、评论和聆听入口。</p>
         </div>
         <div className="showroom-views" aria-label="展柜形态">
           {[
@@ -1478,7 +1664,7 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
             ['spotlight', Sparkles, '聚光'],
             ['tracks', Music2, '轨道']
           ].map(([key, Icon, label]) => (
-            <button key={key} className={showcaseMode === key ? 'active' : ''} type="button" onClick={() => setShowcaseMode(key)}><Icon size={16} />{label}</button>
+            <button key={key} className={showcaseMode === key ? 'active' : ''} type="button" onClick={() => switchShowcaseMode(key)}><Icon size={16} />{label}</button>
           ))}
         </div>
       </div>
@@ -1495,17 +1681,7 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
         </section>
       )}
 
-      <div className={showcaseMode === 'tracks' ? 'showcase-rail' : 'showcase-grid'}>
-        {items.map((item, index) => (
-          <button key={item.id} className={activeItem?.id === item.id ? 'showcase-card active' : 'showcase-card'} type="button" aria-label={`${item.type === 'album' ? '专辑' : '歌曲'} ${item.title} ${item.artist}`} onClick={() => setActiveId(item.id)} style={{ '--tilt': `${(index % 5) - 2}deg`, '--delay': `${index * 35}ms` }}>
-            <AlbumArt item={item} />
-            <span className="showcase-kind">{item.type === 'album' ? '专辑' : '歌曲'}</span>
-            <strong>{item.title}</strong>
-            <small>{item.artist}</small>
-            <em>{item.type === 'album' ? `${item.tracks?.length || 0} 首曲目` : `单曲 · ${item.albumTitle || item.year}`}</em>
-          </button>
-        ))}
-      </div>
+      <AlbumWall items={items} activeItem={activeItem} setActiveId={setActiveId} layout={wallLayout} setLayout={setWallLayout} variant={showcaseMode === 'tracks' ? 'rail' : 'showroom'} showToolbar={showcaseMode !== 'tracks'} />
 
       {activeItem && (
         <div className="detail-drawer glass-panel showroom-detail">
