@@ -1,0 +1,14 @@
+node_modules/
+dist/
+artifacts/
+.env
+.env.*
+!.env.example
+.DS_Store
+.vercel
+*serviceAccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.p12
+*.key
