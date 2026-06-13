@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Album,
@@ -13,6 +13,7 @@ import {
   LogOut,
   MessageCircle,
   Music2,
+  Pencil,
   Radio,
   Plus,
   Search,
@@ -43,6 +44,7 @@ const emptyProfile = {
   favoriteArtists: [],
   favoriteBands: [],
   favoriteAlbums: [],
+  favoriteSongs: [],
   gender: '',
   birthYear: '',
   mbti: '',
@@ -57,6 +59,17 @@ const statusLabels = {
   done: '已完成',
   cloud: '已同步',
   error: '需要重试'
+};
+
+const defaultHeroConfig = {
+  eyebrow: 'shared listening room',
+  title: '',
+  titleSuffix: '把朋友的推荐整理成展柜。',
+  description: '把朋友的推荐、评论和 AI 导览收进同一个音乐展柜。',
+  accentName: 'Listening Observatory',
+  backgroundUrl: '',
+  visualMode: 'observatory',
+  motionLevel: 'ambient'
 };
 
 function loadJson(key, fallback) {
@@ -97,6 +110,79 @@ function listToText(value) {
 
 function textToList(value) {
   return String(value || '').split(/[，,、\n]/).map((item) => item.trim()).filter(Boolean);
+}
+
+function clampText(value, max, fallback = '') {
+  const text = String(value || '').trim();
+  return (text || fallback).slice(0, max);
+}
+
+function cleanImageUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    if (url.protocol !== 'https:') return '';
+    const trustedHosts = [
+      'firebasestorage.googleapis.com',
+      'storage.googleapis.com',
+      'res.cloudinary.com',
+      'images.unsplash.com',
+      'is1-ssl.mzstatic.com',
+      'is2-ssl.mzstatic.com',
+      'is3-ssl.mzstatic.com',
+      'is4-ssl.mzstatic.com',
+      'is5-ssl.mzstatic.com',
+      'coverartarchive.org'
+    ];
+    const imageLike = /\.(png|jpe?g|webp|avif)(\?.*)?$/i.test(url.pathname + url.search)
+      || /(^|[?&])(format|fm|contentType)=([^&]*)(png|jpe?g|webp|avif|image%2F|image\/)/i.test(url.search)
+      || trustedHosts.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
+    if (!imageLike) return '';
+    return url.toString().slice(0, 520);
+  } catch {
+    return '';
+  }
+}
+
+function normalizeHeroConfig(config = {}, room = {}) {
+  const source = config && typeof config === 'object' ? config : {};
+  const visualMode = ['observatory', 'vinyl', 'editorial'].includes(source.visualMode) ? source.visualMode : defaultHeroConfig.visualMode;
+  const motionLevel = ['still', 'ambient', 'cinematic'].includes(source.motionLevel) ? source.motionLevel : defaultHeroConfig.motionLevel;
+  return {
+    eyebrow: clampText(source.eyebrow, 48, defaultHeroConfig.eyebrow),
+    title: clampText(source.title, 80, ''),
+    titleSuffix: clampText(source.titleSuffix, 80, defaultHeroConfig.titleSuffix),
+    description: clampText(source.description || room.description, 280, defaultHeroConfig.description),
+    accentName: clampText(source.accentName, 42, defaultHeroConfig.accentName),
+    backgroundUrl: cleanImageUrl(source.backgroundUrl),
+    visualMode,
+    motionLevel
+  };
+}
+
+function editableHeroConfig(config = {}, room = {}) {
+  const source = config && typeof config === 'object' ? config : {};
+  const normalized = normalizeHeroConfig(source, room);
+  const owns = (key) => Object.prototype.hasOwnProperty.call(source, key);
+  const raw = (key, max) => (owns(key) ? String(source[key] ?? '').slice(0, max) : normalized[key]);
+  return {
+    ...normalized,
+    eyebrow: raw('eyebrow', 48),
+    title: raw('title', 80),
+    titleSuffix: raw('titleSuffix', 80),
+    description: raw('description', 280),
+    accentName: raw('accentName', 42),
+    backgroundUrl: raw('backgroundUrl', 520)
+  };
+}
+
+function countAlbumTracks(item) {
+  return item?.tracks?.length || (item?.type === 'song' ? 1 : 0);
+}
+
+function heroBackgroundImage(heroConfig, activeItem) {
+  return heroConfig.backgroundUrl || activeItem?.cover || '';
 }
 
 function UserAvatar({ user, className = '' }) {
@@ -473,11 +559,14 @@ function App() {
   const [personaChatStatus, setPersonaChatStatus] = useState('idle');
   const [personaChat, setPersonaChat] = useState([]);
   const [discoverRooms, setDiscoverRooms] = useState([]);
-  const [roomSettingsDraft, setRoomSettingsDraft] = useState({ visibility: 'unlisted', joinMode: 'open', discoverable: false, description: '', password: '' });
+  const [heroEditing, setHeroEditing] = useState(false);
+  const [roomSettingsDraft, setRoomSettingsDraft] = useState({ visibility: 'unlisted', joinMode: 'open', discoverable: false, description: '', password: '', heroConfig: defaultHeroConfig });
 
   const activeItem = items.find((item) => item.id === activeId) || items[0];
+  const heroConfig = normalizeHeroConfig(room?.heroConfig, room || {});
   const palette = useCoverPalette(activeItem);
   const roomUrl = room ? `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.id)}` : '';
+  const canEditRoom = room && (room.ownerId === session?.user?.id || session?.user?.role === 'admin');
   const activeComments = activeItem ? comments.filter((comment) => {
     if (comment.albumId === activeItem.id || comment.albumTitle === activeItem.title) return true;
     const commentedItem = items.find((item) => item.id === comment.albumId);
@@ -570,9 +659,10 @@ function App() {
       joinMode: room.joinMode || 'open',
       discoverable: Boolean(room.discoverable),
       description: room.description || '',
+      heroConfig: editableHeroConfig(room.heroConfig, room),
       password: ''
     });
-  }, [room?.id, room?.visibility, room?.joinMode, room?.discoverable, room?.description]);
+  }, [room?.id, room?.visibility, room?.joinMode, room?.discoverable, room?.description, room?.heroConfig]);
 
   const loadProfileStats = async () => {
     if (!session?.token) return;
@@ -620,8 +710,10 @@ function App() {
       updateSessionUser(data.user);
       setProfileDraft(profileToDraft(data.user));
       setProfileStatus('个人资料已保存');
+      return data.user;
     } catch (error) {
       setProfileStatus(error.message);
+      throw error;
     }
   };
 
@@ -651,6 +743,7 @@ function App() {
         ...profile,
         favoriteArtists: [...new Set([...(profile.favoriteArtists || []), ...(stats.topArtists || []).slice(0, 8).map((item) => item.name)])].slice(0, 18),
         favoriteAlbums: [...new Set([...(profile.favoriteAlbums || []), ...(stats.topAlbums || []).slice(0, 8).map((item) => item.name)])].slice(0, 18),
+        favoriteSongs: [...new Set([...(profile.favoriteSongs || []), ...(stats.recentAdds || []).filter((item) => item.type !== 'album').slice(0, 10).map((item) => `${item.title} - ${item.artist}`)])].slice(0, 24),
         favoriteGenres: [...new Set([...(profile.favoriteGenres || []), ...(stats.tags || []).slice(0, 8).map((item) => item.name)])].slice(0, 16)
       }
     }));
@@ -665,6 +758,7 @@ function App() {
   const generatePersona = async () => {
     setPersonaStatus('thinking');
     try {
+      await saveProfile(profileDraft);
       const data = await api('/api/ai/recommend?action=persona', {
         session,
         method: 'POST',
@@ -766,7 +860,12 @@ function App() {
       const data = await api('/api/rooms', {
         session,
         method: 'POST',
-        body: JSON.stringify({ action: 'settings', roomId: room.id, ...roomSettingsDraft })
+        body: JSON.stringify({
+          action: 'settings',
+          roomId: room.id,
+          ...roomSettingsDraft,
+          heroConfig: normalizeHeroConfig(roomSettingsDraft.heroConfig, room)
+        })
       });
       setRoom(data.room);
       await refreshRooms();
@@ -1011,7 +1110,7 @@ function App() {
   if (!room) return <RoomGate session={session} room={room} setRoom={setRoom} />;
 
   return (
-    <main className={reduceMotion ? 'app reduce-motion' : 'app'} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': cssImageUrl(activeItem?.cover), '--glass-alpha': glass / 100 }}>
+    <main className={reduceMotion ? 'app reduce-motion' : 'app'} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': cssImageUrl(heroBackgroundImage(heroConfig, activeItem)), '--glass-alpha': glass / 100 }}>
       <div className="aurora" aria-hidden="true" />
       <section className="shell">
         <header className="topbar glass-panel">
@@ -1042,28 +1141,25 @@ function App() {
           </div>
         </header>
 
-        <section className="hero compact-hero">
-          <div className="copy">
-            <p className="eyebrow"><Library size={16} /> shared music room</p>
-            <h1>{room.name}<span>把朋友的推荐整理成展柜。</span></h1>
-            <p>在同一个房间里添加歌曲或专辑，确认版本和封面后进入展柜；评论、AI 推荐和背景资料都围绕当前条目展开。</p>
-            <div className="hero-actions">
-              <button type="button" className="primary-action" onClick={() => setMode('add')}><CirclePlus size={18} /> 添加音乐</button>
-              <button type="button" className="secondary-action share-room" onClick={() => navigator.clipboard?.writeText(roomUrl)}><Share2 size={17} /> 复制邀请链接</button>
-              <button type="button" className="secondary-action" onClick={logout}><LogOut size={17} /> 退出</button>
-            </div>
-          </div>
-          {activeItem ? (
-            <div className="now-card glass-panel">
-              <div className="cover-wrap"><AlbumArt item={activeItem} /></div>
-              <div className="now-meta"><span>{activeItem.type === 'album' ? '专辑' : '歌曲'} · {activeItem.year}</span><h2>{activeItem.title}</h2><p>{activeItem.artist}</p></div>
-              <div className="meter"><span>当前展柜</span><strong>{items.length}</strong></div>
-              <div className="platform-pills">{(activeItem.platforms || []).map((name) => <span key={name}>{name}</span>)}</div>
-            </div>
-          ) : (
-            <div className="now-card glass-panel empty-hero-card"><Disc3 size={44} /><h2>展柜是空的</h2><p>添加第一首歌曲或第一张专辑。</p></div>
-          )}
-        </section>
+        <RoomHero
+          room={room}
+          heroConfig={heroConfig}
+          roomSettingsDraft={roomSettingsDraft}
+          setRoomSettingsDraft={setRoomSettingsDraft}
+          saveRoomSettings={saveRoomSettings}
+          roomStatus={roomStatus}
+          canEditRoom={canEditRoom}
+          heroEditing={heroEditing}
+          setHeroEditing={setHeroEditing}
+          activeItem={activeItem}
+          items={items}
+          comments={comments}
+          roomMembers={roomMembers}
+          roomUrl={roomUrl}
+          setMode={setMode}
+          setActiveId={setActiveId}
+          logout={logout}
+        />
 
         <section className="workspace single-workspace">
           <section className="main-stage wide-stage">
@@ -1098,6 +1194,159 @@ function App() {
         </section>
       </section>
     </main>
+  );
+}
+
+function RoomHero({ room, heroConfig, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings, roomStatus, canEditRoom, heroEditing, setHeroEditing, activeItem, items, comments, roomMembers, roomUrl, setMode, setActiveId, logout }) {
+  const heroRef = useRef(null);
+  const pointerFrame = useRef(0);
+  const title = heroConfig.title || room.name;
+  const description = heroConfig.description || room.description || defaultHeroConfig.description;
+  const orbitStats = [
+    ['展柜', items.length],
+    ['评论', comments.length],
+    ['成员', roomMembers.length],
+    [activeItem?.type === 'album' ? '曲目' : '曲目', countAlbumTracks(activeItem)]
+  ];
+  const themeClass = `hero-${heroConfig.visualMode} motion-${heroConfig.motionLevel}`;
+  const previewItems = items.slice(0, 5);
+
+  const updateHeroDraft = (patch) => {
+    setRoomSettingsDraft((current) => ({
+      ...current,
+      heroConfig: normalizeHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
+    }));
+  };
+
+  useEffect(() => () => {
+    if (pointerFrame.current) cancelAnimationFrame(pointerFrame.current);
+  }, []);
+
+  const updatePointer = (event) => {
+    if (heroConfig.motionLevel === 'still' || !heroRef.current) return;
+    const target = event.currentTarget;
+    const { clientX, clientY } = event;
+    if (pointerFrame.current) cancelAnimationFrame(pointerFrame.current);
+    pointerFrame.current = requestAnimationFrame(() => {
+      const rect = target.getBoundingClientRect();
+      target.style.setProperty('--hero-x', `${Math.round(((clientX - rect.left) / rect.width) * 100)}%`);
+      target.style.setProperty('--hero-y', `${Math.round(((clientY - rect.top) / rect.height) * 100)}%`);
+      pointerFrame.current = 0;
+    });
+  };
+
+  return (
+    <section
+      ref={heroRef}
+      className={`hero compact-hero room-hero ${themeClass}`}
+      onPointerMove={updatePointer}
+      style={{ '--hero-x': '50%', '--hero-y': '42%' }}
+    >
+      <div className="hero-field" aria-hidden="true">
+        <span className="field-ring ring-one" />
+        <span className="field-ring ring-two" />
+        <span className="field-scanline" />
+      </div>
+      <div className="copy hero-copy">
+        <div className="hero-kicker">
+          <p className="eyebrow"><Library size={16} /> {heroConfig.eyebrow}</p>
+          <span>{heroConfig.accentName}</span>
+        </div>
+        <h1>{title}<span>{heroConfig.titleSuffix}</span></h1>
+        <p>{description}</p>
+        <div className="hero-actions">
+          <button type="button" className="primary-action" onClick={() => setMode('add')}><CirclePlus size={18} /> 添加音乐</button>
+          <button type="button" className="secondary-action share-room" onClick={() => navigator.clipboard?.writeText(roomUrl)}><Share2 size={17} /> 复制邀请链接</button>
+          <button type="button" className="secondary-action" onClick={() => setMode('showroom')}><Grid3X3 size={17} /> 进入展柜</button>
+          <button type="button" className="secondary-action quiet-action" onClick={logout}><LogOut size={17} /> 退出</button>
+        </div>
+        {previewItems.length > 0 && (
+          <div className="hero-mini-rail" aria-label="快速切换当前展柜条目">
+            {previewItems.map((item) => (
+              <button key={item.id} type="button" className={activeItem?.id === item.id ? 'active' : ''} onClick={() => setActiveId(item.id)} title={`${item.title} - ${item.artist}`}>
+                <AlbumArt item={item} size="thumb" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <HeroRecordStage activeItem={activeItem} items={items} orbitStats={orbitStats} roomMembers={roomMembers} setMode={setMode} />
+      {canEditRoom && (
+        <button type="button" className="hero-edit-button" aria-expanded={heroEditing} onClick={() => setHeroEditing((value) => !value)}><Pencil size={16} />编辑首页</button>
+      )}
+      {heroEditing && canEditRoom && (
+        <HeroEditor
+          draft={roomSettingsDraft.heroConfig || heroConfig}
+          updateHeroDraft={updateHeroDraft}
+          saveRoomSettings={saveRoomSettings}
+          roomStatus={roomStatus}
+          close={() => setHeroEditing(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+function HeroRecordStage({ activeItem, items, orbitStats, roomMembers, setMode }) {
+  if (!activeItem) {
+    return (
+      <div className="now-card hero-stage glass-panel empty-hero-card">
+        <div className="empty-record" aria-hidden="true"><Disc3 size={54} /></div>
+        <h2>展柜是空的</h2>
+        <p>添加第一首歌曲或第一张专辑。</p>
+        <button type="button" className="full-action narrow" onClick={() => setMode('add')}><CirclePlus size={16} />添加音乐</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="now-card hero-stage glass-panel">
+      <div className="record-orbit" aria-hidden="true">
+        {orbitStats.map(([label, value], index) => (
+          <span key={label} style={{ '--i': index }}><strong>{value || 0}</strong><small>{label}</small></span>
+        ))}
+      </div>
+      <div className="record-core">
+        <div className="vinyl-disc" aria-hidden="true" />
+        <div className="cover-wrap hero-cover-wrap"><AlbumArt item={activeItem} /></div>
+      </div>
+      <div className="now-meta hero-now-meta">
+        <span>{activeItem.type === 'album' ? '专辑' : '歌曲'} · {activeItem.year || activeItem.albumTitle || '未知年份'}</span>
+        <h2>{activeItem.title}</h2>
+        <p>{activeItem.artist}</p>
+      </div>
+      <div className="hero-stage-footer">
+        <div className="member-dots">
+          {roomMembers.slice(0, 4).map((member) => <span key={member.name} title={member.name} style={{ '--dot': member.color }}>{member.avatar}</span>)}
+        </div>
+        <div className="platform-pills">{(activeItem.platforms || []).slice(0, 4).map((name) => <span key={name}>{name}</span>)}</div>
+        <div className="meter"><span>当前展柜</span><strong>{items.length}</strong></div>
+      </div>
+    </div>
+  );
+}
+
+function HeroEditor({ draft, updateHeroDraft, saveRoomSettings, roomStatus, close }) {
+  const heroDraft = normalizeHeroConfig(draft);
+  return (
+    <aside className="hero-editor glass-panel" role="region" tabIndex="-1" aria-label="首页主题编辑">
+      <div className="section-title"><Pencil size={18} /><h2>首页主题</h2></div>
+      <label>小标题<input value={heroDraft.eyebrow} onChange={(event) => updateHeroDraft({ eyebrow: event.target.value })} /></label>
+      <label>主标题<input value={heroDraft.title} onChange={(event) => updateHeroDraft({ title: event.target.value })} placeholder="留空则使用房间名" /></label>
+      <label>副标题<input value={heroDraft.titleSuffix} onChange={(event) => updateHeroDraft({ titleSuffix: event.target.value })} /></label>
+      <label>首页文案<textarea value={heroDraft.description} onChange={(event) => updateHeroDraft({ description: event.target.value })} /></label>
+      <div className="theme-form-grid">
+        <label>视觉模式<select value={heroDraft.visualMode} onChange={(event) => updateHeroDraft({ visualMode: event.target.value })}><option value="observatory">观测室</option><option value="vinyl">黑胶舞台</option><option value="editorial">杂志大片</option></select></label>
+        <label>动效强度<select value={heroDraft.motionLevel} onChange={(event) => updateHeroDraft({ motionLevel: event.target.value })}><option value="ambient">轻动效</option><option value="cinematic">电影感</option><option value="still">静态</option></select></label>
+      </div>
+      <label>主题名<input value={heroDraft.accentName} onChange={(event) => updateHeroDraft({ accentName: event.target.value })} /></label>
+      <label>背景图 URL<input value={heroDraft.backgroundUrl} onChange={(event) => updateHeroDraft({ backgroundUrl: event.target.value })} placeholder="可留空，默认跟随当前专辑封面" /></label>
+      <div className="hero-editor-actions">
+        <button type="button" className="secondary-action" onClick={close}>收起</button>
+        <button type="button" className="primary-action" onClick={saveRoomSettings}>保存首页</button>
+      </div>
+      {roomStatus && <p className="status-line">{roomStatus}</p>}
+    </aside>
   );
 }
 
@@ -1363,6 +1612,23 @@ function EditableList({ label, value, onChange, placeholder }) {
   );
 }
 
+function recoTitle(item, kind) {
+  if (typeof item === 'string') return item;
+  if (!item) return '';
+  if (kind === 'artist' || kind === 'band') return item.name || item.title || '';
+  return [item.artist, item.title || item.name].filter(Boolean).join(' - ') || item.title || item.name || '';
+}
+
+function recoReason(item) {
+  if (!item || typeof item === 'string') return '';
+  return item.reason || item.entry || '';
+}
+
+function recoEntry(item) {
+  if (!item || typeof item === 'string') return '';
+  return item.entry && item.entry !== item.reason ? item.entry : '';
+}
+
 function PersonaReport({ report, addPublicTag }) {
   if (!report) {
     return (
@@ -1375,6 +1641,12 @@ function PersonaReport({ report, addPublicTag }) {
   }
   const title = report.profileName || report.musicPersonality?.name || '音乐画像';
   const accent = /^#[0-9a-f]{6}$/i.test(report.ui_theme_hint?.primary_color || '') ? report.ui_theme_hint.primary_color : '';
+  const recommendationGroups = [
+    ['艺人', 'artist', report.recommendations?.artists],
+    ['乐队', 'band', report.recommendations?.bands],
+    ['专辑', 'album', report.recommendations?.albums],
+    ['歌曲', 'song', report.recommendations?.songs]
+  ].filter(([, , values]) => values?.length);
   return (
     <article className="persona-report" style={accent ? { '--persona-accent': accent } : undefined}>
       <div className="persona-title">
@@ -1384,31 +1656,49 @@ function PersonaReport({ report, addPublicTag }) {
       {(report.archetype?.summary || report.headline) && <p className="persona-headline">{report.archetype?.summary || report.headline}</p>}
       {report.summary && <p className="persona-summary">{report.summary}</p>}
       {report.the_roast && <div className="persona-roast"><Sparkles size={18} /><p>{report.the_roast}</p></div>}
-      {report.tasteDNA?.length > 0 && (
-        <div className="taste-dna-grid">
-          {report.tasteDNA.map((item) => <div key={item.axis}><span><strong>{item.axis}</strong><small>{item.value}</small></span><i style={{ '--dna': `${item.value}%` }} /><p>{item.label}</p></div>)}
+      {report.personalitySketch && (
+        <div className="persona-sketch-card">
+          <strong>人物画像</strong>
+          <p>{report.personalitySketch.text}</p>
+          {report.personalitySketch.softGuess && <small>{report.personalitySketch.softGuess}</small>}
         </div>
       )}
-      {(report.personality_dissection?.rational_vs_emotional || report.personality_dissection?.comment_vibe) && (
-        <div className="dissection-grid">
-          {report.personality_dissection?.rational_vs_emotional && <div><strong>理性大脑 vs 感性灵魂</strong><p>{report.personality_dissection.rational_vs_emotional}</p></div>}
-          {report.personality_dissection?.comment_vibe && <div><strong>评论人格面具</strong><p>{report.personality_dissection.comment_vibe}</p></div>}
+      {report.preferenceReading?.length > 0 && (
+        <div className="preference-reading-grid">
+          {report.preferenceReading.map((item) => (
+            <div key={item.signal}>
+              <strong>{item.signal}</strong>
+              {item.evidence?.length > 0 && <div className="evidence-pills">{item.evidence.slice(0, 5).map((value) => <span key={value}>{value}</span>)}</div>}
+              <p>{item.reading}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {report.tasteDNA?.length > 0 && (
+        <div className="taste-dna-grid">
+          {report.tasteDNA.map((item) => <div key={item.axis}><span><strong>{item.axis}</strong><small>{item.value}</small></span><i style={{ '--dna': `${item.value}%` }} /><p>{item.label}</p>{item.evidence?.length > 0 && <em>{item.evidence.join(' / ')}</em>}</div>)}
         </div>
       )}
       {report.evidenceCards?.length > 0 && <div className="evidence-card-grid">{report.evidenceCards.map((item) => <div key={item.claim}><strong>{item.claim}</strong><p>{(item.basedOn || []).join(' / ')}</p><small>{Math.round((item.confidence || 0.6) * 100)}% 可信度</small></div>)}</div>}
-      <div className="recommendation-columns">
-        {[
-          ['艺人', report.recommendations?.artists],
-          ['乐队', report.recommendations?.bands],
-          ['专辑', report.recommendations?.albums],
-          ['歌曲', report.recommendations?.songs]
-        ].map(([title, values]) => (
-          <div key={title}>
-            <strong>{title}</strong>
-            {(values || []).map((value) => <span key={value}>{value}</span>)}
+      {recommendationGroups.length > 0 && (
+        <section className="recommendation-board">
+          <div className="section-title"><Music2 size={18} /><h3>新的推荐入口</h3></div>
+          <div className="recommendation-columns">
+            {recommendationGroups.map(([groupTitle, kind, values]) => (
+              <div key={groupTitle}>
+                <strong>{groupTitle}</strong>
+                {(values || []).map((value, index) => (
+                  <article key={`${groupTitle}-${recoTitle(value, kind)}-${index}`} className="recommendation-chip-card">
+                    <b>{recoTitle(value, kind)}</b>
+                    {recoReason(value) && <p>{recoReason(value)}</p>}
+                    {recoEntry(value) && <small>{recoEntry(value)}</small>}
+                  </article>
+                ))}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </section>
+      )}
       {(report.recommendations?.hidden_gem_music || report.recommendations?.cross_domain) && (
         <div className="cross-reco-grid">
           {report.recommendations?.hidden_gem_music && <div><strong>隐藏宝藏</strong><p>{report.recommendations.hidden_gem_music.title && <b>{report.recommendations.hidden_gem_music.title}： </b>}{report.recommendations.hidden_gem_music.reason}</p></div>}
@@ -1416,11 +1706,15 @@ function PersonaReport({ report, addPublicTag }) {
           {report.recommendations?.cross_domain?.night_routine && <div><strong>深夜仪式</strong><p>{report.recommendations.cross_domain.night_routine}</p></div>}
         </div>
       )}
-      {report.prescription && (
-        <div className="prescription-grid">
-          {report.prescription.nextAlbum && <div><strong>下一张处方</strong><p><b>{report.prescription.nextAlbum.artist} - {report.prescription.nextAlbum.title}</b>{report.prescription.nextAlbum.reason}</p></div>}
-          {report.prescription.wildCard && <div><strong>野路子</strong><p><b>{report.prescription.wildCard.artist} - {report.prescription.wildCard.title}</b>{report.prescription.wildCard.reason}</p></div>}
-          {report.prescription.doNotOverplay && <div><strong>别再循环警告</strong><p>{report.prescription.doNotOverplay}</p></div>}
+      {report.playlistRoutes?.length > 0 && (
+        <div className="playlist-route-grid">
+          {report.playlistRoutes.map((route) => (
+            <div key={route.title}>
+              <strong>{route.title}</strong>
+              <p>{route.description}</p>
+              <div>{(route.items || []).slice(0, 6).map((item) => <span key={item}>{item}</span>)}</div>
+            </div>
+          ))}
         </div>
       )}
       {report.ui_theme_hint && (
@@ -1504,6 +1798,7 @@ function ProfilePanel({ session, profileDraft, setProfileDraft, saveProfile, upl
           <EditableList label="喜欢的歌手" value={profile.favoriteArtists} onChange={(value) => setProfileField('favoriteArtists', value)} placeholder="王菲、Frank Ocean" />
           <EditableList label="喜欢的乐队" value={profile.favoriteBands} onChange={(value) => setProfileField('favoriteBands', value)} placeholder="Radiohead、The xx" />
           <EditableList label="喜欢的专辑" value={profile.favoriteAlbums} onChange={(value) => setProfileField('favoriteAlbums', value)} placeholder="唱游、Blonde" />
+          <EditableList label="喜欢的歌曲" value={profile.favoriteSongs} onChange={(value) => setProfileField('favoriteSongs', value)} placeholder="我爱你 - 李荣浩、暗涌 - 王菲" />
           <div className="profile-mini-grid">
             <label>性别<input value={profile.gender} onChange={(event) => setProfileField('gender', event.target.value)} placeholder="可留空" /></label>
             <label>出生年份<input value={profile.birthYear} onChange={(event) => setProfileField('birthYear', event.target.value)} placeholder="可留空" /></label>
@@ -1614,6 +1909,13 @@ function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser,
 
 function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discoverRooms, switchRoom, roomDraft, setRoomDraft, createAnotherRoom, inviteDraft, setInviteDraft, invitePassword, setInvitePassword, joinAnotherRoom, roomStatus, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings }) {
   const canEditRoom = room.ownerId === session.user.id || session.user.role === 'admin';
+  const heroDraft = normalizeHeroConfig(roomSettingsDraft.heroConfig, room);
+  const updateHeroDraft = (patch) => {
+    setRoomSettingsDraft((current) => ({
+      ...current,
+      heroConfig: normalizeHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
+    }));
+  };
   return (
     <div className="panel-content room-detail">
       <p className="eyebrow"><Users size={15} /> room</p>
@@ -1666,6 +1968,19 @@ function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discov
           <label className="checkbox-line"><input type="checkbox" disabled={!canEditRoom || roomSettingsDraft.visibility !== 'public'} checked={Boolean(roomSettingsDraft.discoverable)} onChange={(event) => setRoomSettingsDraft((current) => ({ ...current, discoverable: event.target.checked }))} />出现在公开房间列表</label>
           <label>简介<textarea disabled={!canEditRoom} value={roomSettingsDraft.description} onChange={(event) => setRoomSettingsDraft((current) => ({ ...current, description: event.target.value }))} placeholder="写一句这个房间的听歌主题。" /></label>
           <label>新密码<input disabled={!canEditRoom || roomSettingsDraft.joinMode !== 'password'} type="password" value={roomSettingsDraft.password} onChange={(event) => setRoomSettingsDraft((current) => ({ ...current, password: event.target.value }))} placeholder="留空则沿用旧密码" /></label>
+          <div className="hero-theme-fields">
+            <div className="section-title"><Sparkles size={18} /><h3>首页主题</h3></div>
+            <label>小标题<input disabled={!canEditRoom} value={heroDraft.eyebrow} onChange={(event) => updateHeroDraft({ eyebrow: event.target.value })} /></label>
+            <label>主标题<input disabled={!canEditRoom} value={heroDraft.title} onChange={(event) => updateHeroDraft({ title: event.target.value })} placeholder="留空使用房间名" /></label>
+            <label>副标题<input disabled={!canEditRoom} value={heroDraft.titleSuffix} onChange={(event) => updateHeroDraft({ titleSuffix: event.target.value })} /></label>
+            <label>首页文案<textarea disabled={!canEditRoom} value={heroDraft.description} onChange={(event) => updateHeroDraft({ description: event.target.value })} /></label>
+            <div className="theme-form-grid">
+              <label>视觉模式<select disabled={!canEditRoom} value={heroDraft.visualMode} onChange={(event) => updateHeroDraft({ visualMode: event.target.value })}><option value="observatory">观测室</option><option value="vinyl">黑胶舞台</option><option value="editorial">杂志大片</option></select></label>
+              <label>动效<select disabled={!canEditRoom} value={heroDraft.motionLevel} onChange={(event) => updateHeroDraft({ motionLevel: event.target.value })}><option value="ambient">轻动效</option><option value="cinematic">电影感</option><option value="still">静态</option></select></label>
+            </div>
+            <label>主题名<input disabled={!canEditRoom} value={heroDraft.accentName} onChange={(event) => updateHeroDraft({ accentName: event.target.value })} /></label>
+            <label>背景图 URL<input disabled={!canEditRoom} value={heroDraft.backgroundUrl} onChange={(event) => updateHeroDraft({ backgroundUrl: event.target.value })} placeholder="可留空，默认跟随当前专辑封面" /></label>
+          </div>
           <button type="button" disabled={!canEditRoom} onClick={saveRoomSettings}>保存设置</button>
         </article>
       </section>

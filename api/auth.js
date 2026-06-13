@@ -42,6 +42,7 @@ function cleanProfile(value = {}) {
     favoriteArtists: cleanList(profile.favoriteArtists, 18, 80),
     favoriteBands: cleanList(profile.favoriteBands, 18, 80),
     favoriteAlbums: cleanList(profile.favoriteAlbums, 18, 120),
+    favoriteSongs: cleanList(profile.favoriteSongs, 24, 120),
     gender: String(profile.gender || '').trim().slice(0, 40),
     birthYear: birthYear >= 1900 && birthYear <= new Date().getFullYear() ? birthYear : '',
     mbti: String(profile.mbti || '').trim().toUpperCase().slice(0, 16),

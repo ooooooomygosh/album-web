@@ -46,11 +46,11 @@ async function register(page, name, avatar) {
 async function createRoom(page) {
   await page.getByLabel('房间名称').fill(`上线验收房间 ${stamp}`);
   await page.getByRole('button', { name: /创建房间/ }).click();
-  await page.getByRole('button', { name: /添加音乐/ }).waitFor({ timeout: 20000 });
+  await page.locator('.hero-actions .primary-action').waitFor({ timeout: 20000 });
   return new URL(page.url()).searchParams.get('room');
 }
 
-async function addMusic(page, type, query, expectedTitle, expectedArtist, expectedCardCount) {
+async function addMusic(page, type, titleQuery, artistQuery, expectedTitle, expectedArtist, expectedCardCount) {
   await page.getByRole('button', { name: '添加', exact: true }).click();
   await page.getByRole('button', { name: type === 'album' ? '专辑' : '歌曲', exact: true }).click();
   await page.waitForFunction(
@@ -58,14 +58,15 @@ async function addMusic(page, type, query, expectedTitle, expectedArtist, expect
     type === 'album' ? '专辑' : '歌曲',
     { timeout: 5000 }
   );
-  await page.getByLabel('关键词').fill(query);
+  await page.getByLabel('歌曲 / 专辑名').fill(titleQuery);
+  await page.getByLabel('歌手 / 乐队').fill(artistQuery);
   await page.getByRole('button', { name: /^搜索$/ }).click();
   await page.locator('.candidate').first().waitFor({ timeout: 35000 });
   await page.locator('.candidate-preview').filter({ hasText: type === 'album' ? '专辑' : '歌曲' }).waitFor({ timeout: 10000 });
   const firstTitle = await page.locator('.candidate strong').first().innerText();
   const firstMeta = await page.locator('.candidate small').first().innerText();
   if (!expectedTitle.test(firstTitle) || !expectedArtist.test(firstMeta)) {
-    throw new Error(`${query} ranked unexpected candidate: ${firstTitle} / ${firstMeta}`);
+    throw new Error(`${artistQuery} ${titleQuery} ranked unexpected candidate: ${firstTitle} / ${firstMeta}`);
   }
   await page.locator('.candidate').first().click();
   await page.getByRole('button', { name: type === 'album' ? /加入专辑/ : /加入歌曲/ }).click();
@@ -76,7 +77,7 @@ async function addMusic(page, type, query, expectedTitle, expectedArtist, expect
   );
   const addErrors = await page.locator('.error-line').allTextContents();
   if (addErrors.some((text) => text.trim())) {
-    throw new Error(`${query} add failed: ${addErrors.join(' | ')}`);
+    throw new Error(`${artistQuery} ${titleQuery} add failed: ${addErrors.join(' | ')}`);
   }
   await page.locator('.showcase-card strong').filter({ hasText: expectedTitle }).first().waitFor({ timeout: 15000 });
   await page.getByText(expectedArtist).first().waitFor({ timeout: 15000 });
@@ -123,9 +124,26 @@ const desktop = await newPage(browser, { width: 1440, height: 1040 }, 'desktop-u
 await desktop.goto(withBypass(baseUrl), { waitUntil: 'networkidle' });
 await register(desktop, 'Alice Reviewer', 'A');
 const roomId = await createRoom(desktop);
-const song = await addMusic(desktop, 'song', '李荣浩 我爱你', /我[爱愛]你|I Love You/i, /李荣浩|李榮浩|Li Ronghao/i, 1);
-const album = await addMusic(desktop, 'album', 'Frank Ocean Blonde', /Blonde/i, /Frank Ocean/i, 2);
-const albumSong = await addMusic(desktop, 'song', 'Frank Ocean White Ferrari', /White Ferrari/i, /Frank Ocean/i, 3);
+await desktop.locator('.room-hero').waitFor({ timeout: 15000 });
+await desktop.locator('.hero-stage').waitFor({ timeout: 15000 });
+await desktop.getByRole('button', { name: /编辑首页/ }).click();
+await desktop.getByLabel('主标题').fill(`验收观测室 ${stamp}`);
+await desktop.getByLabel('副标题').fill('把今天的封面、评论和曲目整理成一座发光展柜。');
+await desktop.getByLabel('首页文案').fill('这是一次自动化验收：主题文字、视觉模式和首页编辑器都应该被保存并回显。');
+await desktop.getByLabel('主题名').fill('Listening Observatory QA');
+const heroEditorSelects = desktop.locator('.hero-editor select');
+if (await heroEditorSelects.count() !== 2) throw new Error('Hero editor expected exactly two selects.');
+await heroEditorSelects.first().selectOption('editorial');
+await heroEditorSelects.nth(1).selectOption('still');
+await desktop.getByRole('button', { name: /保存首页/ }).click();
+await desktop.getByText(/房间设置已保存/).waitFor({ timeout: 15000 });
+await desktop.reload({ waitUntil: 'networkidle' });
+await desktop.getByRole('heading', { name: new RegExp(`验收观测室 ${stamp}`) }).waitFor({ timeout: 20000 });
+await desktop.getByText('Listening Observatory QA').waitFor({ timeout: 10000 });
+await desktop.locator('.room-hero.hero-editorial.motion-still').waitFor({ timeout: 10000 });
+const song = await addMusic(desktop, 'song', '我爱你', '李荣浩', /我[爱愛]你|I Love You/i, /李荣浩|李榮浩|Li Ronghao/i, 1);
+const album = await addMusic(desktop, 'album', 'Blonde', 'Frank Ocean', /Blonde/i, /Frank Ocean/i, 2);
+const albumSong = await addMusic(desktop, 'song', 'White Ferrari', 'Frank Ocean', /White Ferrari/i, /Frank Ocean/i, 3);
 await desktop.getByRole('button', { name: /专辑 Blonde Frank Ocean/i }).click();
 await desktop.screenshot({ path: path.join(outDir, 'desktop.png'), fullPage: true });
 const desktopImages = await verifyImages(desktop, 'desktop');

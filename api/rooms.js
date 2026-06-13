@@ -5,11 +5,60 @@ function cleanName(value) {
   return String(value || '').trim().slice(0, 80);
 }
 
+function cleanImageUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    if (url.protocol !== 'https:') return '';
+    const trustedHosts = [
+      'firebasestorage.googleapis.com',
+      'storage.googleapis.com',
+      'res.cloudinary.com',
+      'images.unsplash.com',
+      'is1-ssl.mzstatic.com',
+      'is2-ssl.mzstatic.com',
+      'is3-ssl.mzstatic.com',
+      'is4-ssl.mzstatic.com',
+      'is5-ssl.mzstatic.com',
+      'coverartarchive.org'
+    ];
+    const imageLike = /\.(png|jpe?g|webp|avif)(\?.*)?$/i.test(url.pathname + url.search)
+      || /(^|[?&])(format|fm|contentType)=([^&]*)(png|jpe?g|webp|avif|image%2F|image\/)/i.test(url.search)
+      || trustedHosts.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
+    if (!imageLike) return '';
+    return url.toString().slice(0, 520);
+  } catch {
+    return '';
+  }
+}
+
+function cleanHeroConfig(value = {}, fallback = {}) {
+  const source = value && typeof value === 'object' ? value : {};
+  const owns = (key) => Object.prototype.hasOwnProperty.call(source, key);
+  const pick = (key, defaultValue = '') => (owns(key) ? source[key] : fallback[key] ?? defaultValue);
+  const visualModeValue = pick('visualMode', 'observatory');
+  const motionLevelValue = pick('motionLevel', 'ambient');
+  const visualMode = ['observatory', 'vinyl', 'editorial'].includes(visualModeValue) ? visualModeValue : 'observatory';
+  const motionLevel = ['still', 'ambient', 'cinematic'].includes(motionLevelValue) ? motionLevelValue : 'ambient';
+  return {
+    eyebrow: String(pick('eyebrow', 'shared listening room')).slice(0, 48),
+    title: String(pick('title', '')).slice(0, 80),
+    titleSuffix: String(pick('titleSuffix', '把朋友的推荐整理成展柜。')).slice(0, 80),
+    description: String(pick('description', '')).slice(0, 280),
+    accentName: String(pick('accentName', 'Listening Observatory')).slice(0, 42),
+    backgroundUrl: cleanImageUrl(pick('backgroundUrl', '')),
+    visualMode,
+    motionLevel
+  };
+}
+
 function publicRoom(id, data) {
   return {
     id,
     name: data.name || 'Untitled room',
     description: data.description || '',
+    heroConfig: cleanHeroConfig(data.heroConfig, { description: data.description || '' }),
     ownerId: data.ownerId,
     ownerName: data.ownerName,
     visibility: data.visibility || 'unlisted',
@@ -119,7 +168,8 @@ export default async function handler(req, res) {
           visibility,
           joinMode,
           discoverable: Boolean(body.discoverable && visibility === 'public'),
-          description: String(body.description || data.description || '').slice(0, 180),
+          description: String(Object.prototype.hasOwnProperty.call(body, 'description') ? body.description : data.description || '').slice(0, 180),
+          heroConfig: cleanHeroConfig(body.heroConfig, data.heroConfig || { description: data.description || '' }),
           updatedAt: FieldValue.serverTimestamp()
         };
         if (joinMode === 'password' && body.password) patch.passwordHash = hashSecret(String(body.password));
@@ -137,6 +187,7 @@ export default async function handler(req, res) {
       const room = {
         name,
         description: String(body.description || '').slice(0, 180),
+        heroConfig: cleanHeroConfig(body.heroConfig, { description: body.description || '' }),
         ownerId: user.id,
         ownerName: user.name,
         visibility: ['public', 'unlisted', 'private'].includes(body.visibility) ? body.visibility : 'unlisted',
