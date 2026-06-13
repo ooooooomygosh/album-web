@@ -1,5 +1,5 @@
 import { db, json, requireUser } from '../_firebase.js';
-import { formatResearchForPrompt, publicResearchSources, searchMusicResearch } from './_research.js';
+import { publicResearchSources, searchMusicResearch } from './_research.js';
 
 function cleanText(value, max = 1200) {
   return String(value || '').trim().slice(0, max);
@@ -79,6 +79,26 @@ function concreteScore(text, item) {
   return needles.reduce((score, needle) => score + (value.includes(String(needle).slice(0, 12)) ? 1 : 0), 0);
 }
 
+function compactResearchForPrompt(research = {}, sourceLimit = 4, maxContent = 420) {
+  if (!research.enabled) return '联网检索：未配置。只能使用元数据和已保存评论，不得编造具体事实。';
+  if (research.error || !research.sources?.length) {
+    return `联网检索：已尝试 Tavily 搜索，但没有可用来源。查询：${research.query || ''}。错误：${research.error || 'no sources'}。不得编造具体事实。`;
+  }
+
+  const sourceLines = research.sources.slice(0, sourceLimit).map((source) => [
+    `[${source.id}] ${cleanText(source.title, 120)}`,
+    `URL: ${cleanText(source.url, 260)}`,
+    `摘要: ${cleanText(source.content, maxContent)}`
+  ].join('\n'));
+
+  return [
+    `联网检索查询：${cleanText(research.query, 220)}`,
+    research.answer ? `Tavily 综合摘要：${cleanText(research.answer, 520)}` : '',
+    '可引用来源如下。只能把这些来源明确支持的信息写成事实；来源没有支持的信息必须写“待考证”或省略。',
+    ...sourceLines
+  ].filter(Boolean).join('\n\n');
+}
+
 function sanitizeGuideText(value) {
   return String(value || '')
     .replace(/据公开资料显示[，,]?/g, '当前元数据只能确认')
@@ -90,7 +110,8 @@ function sanitizeGuideText(value) {
 
 function isRichProfile(profile, item) {
   const fields = ['albumContext', 'creativeBackground', 'melodyMotif', 'lyricPerspective', 'arrangement', 'releaseState'];
-  return fields.every((field) => profile[field]?.length >= 170 && concreteScore(profile[field], item) >= 1) && profile.overview?.length >= 210;
+  const body = [profile.overview, ...fields.map((field) => profile[field])].join('\n');
+  return fields.every((field) => profile[field]?.length >= 165) && profile.overview?.length >= 205 && concreteScore(body, item) >= 6;
 }
 
 function parseProfile(raw, item) {
@@ -150,18 +171,18 @@ export default async function handler(req, res) {
     const aiConfig = configDoc?.exists ? configDoc.data() : {};
     const research = await searchMusicResearch(item, {
       intent: 'background',
-      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 6, 4, 8),
+      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 5, 4, 7),
       searchDepth: process.env.BACKGROUND_TAVILY_SEARCH_DEPTH || 'advanced',
-      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 7500, 5000, 10000)
+      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 6000, 4500, 8000)
     });
-    const researchContext = formatResearchForPrompt(research);
+    const researchContext = compactResearchForPrompt(research);
 
     const prompt = [
       '你是 Album Circle 的资深音乐编辑。请为这条音乐写成“可直接展示”的中文推荐导览，不要像字段说明。',
       '只输出严格 JSON。字段：overview, genre, albumContext, creativeBackground, melodyMotif, lyricPerspective, arrangement, releaseState, listeningGuide, discussionPrompts。',
       '写作方法：先在心里把它当成一篇完整乐评推荐，再拆成这些卡片。每张卡都要有判断、有导览、有推荐理由。',
-      '总输出要像一篇完整长导览，但必须完整闭合 JSON；总中文长度控制在 2400-3600 字符，宁可克制也不能被截断。',
-      '每个长字段必须是完整段落，写 3-4 句：overview 240-380 字；albumContext/creativeBackground/melodyMotif/lyricPerspective/arrangement/releaseState 各 170-260 字。',
+      '总输出要像一篇完整长导览，但必须完整闭合 JSON；总中文长度控制在 2200-3200 字符，宁可克制也不能被截断。',
+      '每个长字段必须是完整段落，写 3-4 句：overview 220-340 字；albumContext/creativeBackground/melodyMotif/lyricPerspective/arrangement/releaseState 各 165-240 字。',
       '每段第一句直接说明“为什么值得听/它在作品中的功能”，后面说明“先听哪里/听完能理解什么”。必须点名标题、艺人或专辑，并包含具体线索：主歌、副歌、人声、节奏、和声、留白、发行、封面、平台来源、曲序位置或朋友评论入口。',
       '禁止使用连续问句或模板句式，例如“是否...”“可以从...理解”“建议不要急着...”。要用肯定判断写作，像一个认真推荐音乐的朋友。',
       '不要编造制作人、录音地点、幕后故事、公开资料、歌词原句、具体秒数或封面画面；除非这些信息在下面元数据或联网来源里明确出现。不确定就写“待考证”或“当前资料只能确认”。',
@@ -196,7 +217,7 @@ export default async function handler(req, res) {
     ].filter(Boolean).join('\n\n');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 45000, 30000, 50000));
+    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 38000, 28000, 44000));
     let response;
     try {
       response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -214,7 +235,7 @@ export default async function handler(req, res) {
             { role: 'user', content: finalPrompt }
           ],
           temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 6400, 5200, 7200)
+          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 5600, 4800, 6400)
         })
       });
     } finally {
