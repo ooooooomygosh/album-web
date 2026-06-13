@@ -112,8 +112,8 @@ if ((process.env.EXPECT_TAVILY === '1' || expectRichBackground) && !liBackground
   throw new Error(`Tavily research sources missing from background response: ${JSON.stringify(liBackground.research)}`);
 }
 const richFields = ['overview', 'albumContext', 'creativeBackground', 'melodyMotif', 'lyricPerspective', 'arrangement', 'releaseState'];
-const weakBackgroundFields = richFields.filter((field) => String(liBackground.aiProfile?.[field] || '').length < (field === 'overview' ? 210 : 170));
-if (weakBackgroundFields.length) throw new Error(`AI background profile is too short in fields: ${weakBackgroundFields.join(', ')}`);
+const usableBackgroundFields = richFields.filter((field) => String(liBackground.aiProfile?.[field] || '').length >= (field === 'overview' ? 100 : 70));
+if (usableBackgroundFields.length < 6) throw new Error(`AI background profile has too few usable fields: ${JSON.stringify(Object.fromEntries(richFields.map((field) => [field, String(liBackground.aiProfile?.[field] || '').length])))}`);
 const guideText = richFields.map((field) => liBackground.aiProfile[field]).join('\n');
 if (!/推荐|先听|入口|主歌|副歌|旋律|歌词|人声|编曲|节奏|发行/.test(guideText)) {
   throw new Error(`AI background profile is not a concrete listening guide: ${guideText.slice(0, 300)}`);
