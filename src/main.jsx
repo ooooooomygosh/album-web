@@ -580,26 +580,46 @@ function PersonaGenerationLoader({ tone, selectedCount, profileStats, user }) {
   const avatar = avatarSrc(user);
   const profile = user?.profile || {};
   const profileLabel = [profile.mbti, profile.birthYear, profile.major].filter(Boolean).slice(0, 2).join(' / ') || '资料牌';
-  const cardItems = [
+  const favoriteArtists = Array.isArray(profile.favoriteArtists) ? profile.favoriteArtists : [];
+  const favoriteGenres = Array.isArray(profile.favoriteGenres) ? profile.favoriteGenres : [];
+  const favoriteAlbums = Array.isArray(profile.favoriteAlbums) ? profile.favoriteAlbums : [];
+  const baseCards = [
     { title: user?.name || '你', kind: 'avatar', image: avatar, label: profileLabel },
-    { title: selectedCount ? `${selectedCount} 首代表作` : '偏好资料', kind: 'profile', label: profile.favoriteGenres?.[0] || tags[0]?.name || tone },
-    ...(recentAdds.length ? recentAdds.slice(0, 4).map((item) => ({ title: item.title, kind: 'music', image: item.cover, label: item.artist })) : [
-      { title: '评论', kind: 'comment', label: `${commentCount} 条线索` },
-      { title: '歌手', kind: 'artist', label: topArtists[0]?.name || '偏好雷达' }
-    ])
-  ].slice(0, 6);
+    { title: selectedCount ? `${selectedCount} 首代表作` : '偏好资料', kind: 'profile', label: favoriteGenres[0] || tags[0]?.name || tone },
+    ...recentAdds.slice(0, 3).map((item) => ({ title: item.title, kind: 'music', image: item.cover, label: item.artist })),
+    { title: favoriteArtists[0] || topArtists[0]?.name || '歌手雷达', kind: 'artist', label: favoriteAlbums[0] || '相似气质检索' },
+    { title: '评论切片', kind: 'comment', label: `${commentCount} 条线索` },
+    { title: tags[0]?.name || '隐藏标签', kind: 'tag', label: tags[1]?.name || '等待揭牌' }
+  ];
+  const cardItems = baseCards.filter((item, index, array) => item.title && array.findIndex((candidate) => candidate.title === item.title && candidate.kind === item.kind) === index).slice(0, 6);
 
   return (
     <div className={`persona-loading persona-loading-${variant}`} aria-live="polite">
       <div className="persona-oracle-stage" aria-hidden="true">
+        <div className="persona-table-glow" />
         <div className="persona-zodiac">
           {Array.from({ length: 12 }, (_, index) => <span key={index} style={{ '--i': index }} />)}
         </div>
+        <div className="persona-orbit persona-orbit-a" />
+        <div className="persona-orbit persona-orbit-b" />
         <div className="persona-card-stack">
           {cardItems.map((item, index) => (
-            <i key={`${item.title}-${index}`} className={`persona-loading-card ${item.kind}`} style={{ '--i': index, '--card-y': `${Math.abs(index - 2.5) * 5}px`, '--card-cover': cssImageUrl(item.image) }}>
-              <b>{item.title}</b>
-              <small>{item.label}</small>
+            <i
+              key={`${item.title}-${index}`}
+              className={`persona-loading-card ${item.kind}`}
+              style={{
+                '--i': index,
+                '--card-y': `${Math.abs(index - 2.5) * 5}px`,
+                '--card-cover': cssImageUrl(item.image)
+              }}
+            >
+              <span className="persona-card-face persona-card-front">
+                <b>{item.title}</b>
+                <small>{item.label}</small>
+              </span>
+              <span className="persona-card-face persona-card-back">
+                <em>{item.kind === 'avatar' ? 'YOU' : item.kind}</em>
+              </span>
             </i>
           ))}
         </div>
