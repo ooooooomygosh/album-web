@@ -104,11 +104,15 @@ const liBackground = await request('/api/ai/background', {
 if (!liBackground.aiProfile?.melodyMotif || !liBackground.aiProfile?.arrangement || !liBackground.aiProfile?.discussionPrompts?.length) {
   throw new Error(`AI background profile incomplete: ${JSON.stringify(liBackground)}`);
 }
-if (process.env.EXPECT_TAVILY === '1' && !liBackground.research?.sources?.length) {
+const expectRichBackground = process.env.EXPECT_RICH_BACKGROUND !== '0';
+if (expectRichBackground && (liBackground.fallback || liBackground.generated !== true)) {
+  throw new Error(`AI background fell back instead of generating rich guide: ${JSON.stringify({ fallback: liBackground.fallback, generated: liBackground.generated, error: liBackground.error, model: liBackground.model })}`);
+}
+if ((process.env.EXPECT_TAVILY === '1' || expectRichBackground) && !liBackground.research?.sources?.length) {
   throw new Error(`Tavily research sources missing from background response: ${JSON.stringify(liBackground.research)}`);
 }
 const richFields = ['overview', 'albumContext', 'creativeBackground', 'melodyMotif', 'lyricPerspective', 'arrangement', 'releaseState'];
-const weakBackgroundFields = richFields.filter((field) => String(liBackground.aiProfile?.[field] || '').length < (field === 'overview' ? 160 : 130));
+const weakBackgroundFields = richFields.filter((field) => String(liBackground.aiProfile?.[field] || '').length < (field === 'overview' ? 210 : 170));
 if (weakBackgroundFields.length) throw new Error(`AI background profile is too short in fields: ${weakBackgroundFields.join(', ')}`);
 const guideText = richFields.map((field) => liBackground.aiProfile[field]).join('\n');
 if (!/推荐|先听|入口|主歌|副歌|旋律|歌词|人声|编曲|节奏|发行/.test(guideText)) {
@@ -213,6 +217,8 @@ console.log(JSON.stringify({
   admin: adminUser?.user?.name || 'skipped',
   aiProfileKeys: Object.keys(addedSong.item.aiProfile || {}),
   aiProfileLengths: Object.fromEntries(richFields.map((field) => [field, String(addedSong.item.aiProfile?.[field] || '').length])),
+  backgroundGenerated: liBackground.generated,
+  backgroundModel: liBackground.model,
   visibleItemsForB: roomItemsForB.items.length,
   commentsForA: loadedComments.comments.length,
   aiComment: aiComment.comment.text.slice(0, 140),

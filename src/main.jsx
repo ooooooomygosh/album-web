@@ -57,7 +57,6 @@ const statusLabels = {
   searching: '正在搜索',
   thinking: '正在生成',
   done: '已完成',
-  deferred: 'AI 导览稍后补充，条目已先保存',
   cloud: '已同步',
   error: '需要重试'
 };
@@ -462,7 +461,7 @@ async function apiWithTimeout(path, options = {}, timeoutMs = 22000) {
   try {
     return await api(path, { ...options, signal: controller.signal });
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('AI 导览生成超时，已先保存音乐。');
+    if (error.name === 'AbortError') throw new Error('AI 深度导览仍在生成中，请稍后重试；本次没有写入低质兜底内容。');
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -1123,7 +1122,10 @@ function App() {
         session,
         method: 'POST',
         body: JSON.stringify({ item: candidate })
-      }, 22000);
+      }, 65000);
+      if (data.fallback || data.generated !== true) {
+        throw new Error(data.error || 'AI 深度导览没有完整生成，本次没有写入展柜，请重试。');
+      }
       setBackgroundStatus('done');
       return {
         ...candidate,
@@ -1135,36 +1137,8 @@ function App() {
         tags: [...new Set([...(candidate.tags || []), ...(data.tags || [])])].slice(0, 8)
       };
     } catch (error) {
-      const album = candidate.albumTitle && candidate.albumTitle !== candidate.title ? `《${candidate.albumTitle}》` : `《${candidate.title}》`;
-      const fallbackOverview = candidate.context || `${candidate.artist} 的《${candidate.title}》已加入展柜。AI 导览暂时没有生成完成，当前先保留平台元数据、封面、曲目和链接，之后可以再次请求 AI 补充创作语境、旋律线索、歌词视角和编曲层次。`;
-      const fallbackSources = [
-        ...(candidate.sources || []).map((source) => ({ title: source.provider || source.title || '音乐资料来源', url: source.url })),
-        candidate.trackViewUrl ? { title: 'Apple Music / iTunes 歌曲页', url: candidate.trackViewUrl } : null,
-        candidate.collectionViewUrl ? { title: 'Apple Music / iTunes 专辑页', url: candidate.collectionViewUrl } : null
-      ].filter((source) => source?.url).slice(0, 4);
-      const fallbackTracks = (candidate.tracks || [candidate.title]).slice(0, 4);
-      setBackgroundStatus('deferred');
-      return {
-        ...candidate,
-        background: fallbackOverview,
-        context: fallbackOverview,
-        aiProfile: candidate.aiProfile || {
-          overview: fallbackOverview,
-          genre: (candidate.tags || []).slice(0, 6),
-          albumContext: `这条音乐先以 ${album} 的元数据进入房间，展柜会保留它与当前专辑、曲目表和封面的关系。AI 深度导览暂时未完成时，读者仍然可以先沿着曲序进入：看它是开场、转折、情绪加深还是收束，再把朋友评论放回这个位置理解。`,
-          creativeBackground: `本次 AI 创作语境没有及时返回，页面已先保存可确认的标题、艺人、年份、平台链接、封面和曲目。这里不会把未经确认的制作人、录音地点或幕后故事写成事实；后续可以继续用联网资料补齐发行时期、版本关系和专业评论。`,
-          melodyMotif: `旋律动机先从最容易回放的段落听起：主歌如何把语气铺开，副歌或关键重复如何把标题变成记忆点。朋友进入这张卡片时，可以先记录自己第一次被抓住的音高、节奏重音、人声转折或和声靠近感，再等待 AI 补充更细的分析。`,
-          lyricPerspective: `歌词视角先围绕标题和人声位置展开：它更像直接说出口的关系，还是回头整理一段经验后的自白。当前没有可靠歌词来源时，评论区可以先写“我被放在谁的位置上听”，这样后续 AI 补充文本分析时，会更贴近真实聆听而不是空泛解读。`,
-          arrangement: `编曲层次可以按三层进入：先听节奏和低频如何决定身体感，再听人声、键盘、吉他或合成器如何改变距离，最后听留白、混响和和声是否让情绪变近。即使 AI 导览稍后补齐，这些线索也足够支撑一次认真推荐。`,
-          releaseState: `发行状态目前以平台和开放数据库元数据为准：年份、封面、试听链接、曲目或外部 ID 会优先保存。AI 没有完成时，系统不会阻止这首歌进入展柜；它会把可靠信息先呈现给房间成员，再用后续联网导览逐步补充版本、时期和评论语境。`,
-          listeningGuide: fallbackTracks.map((track, index) => `${index + 1}. ${track}：先记录旋律、歌词或音色里最鲜明的一个细节，再看它和 ${album} 的整体情绪如何相互照应。`),
-          discussionPrompts: ['这首作品最先抓住你的是旋律、歌词还是音色？', '它适合放在什么场景推荐给朋友？', '如果继续听同专辑，下一首应该接哪一首？'],
-          sources: fallbackSources,
-          aiPending: true,
-          backgroundError: error.message
-        },
-        tags: [...new Set([...(candidate.tags || []), 'AI 待补充'])].slice(0, 8)
-      };
+      setBackgroundStatus('error');
+      throw error;
     }
   };
 
@@ -1187,13 +1161,10 @@ function App() {
       setItemStatus('cloud');
       await loadRoomData(room, { preserveActive: true });
       setAddPhase('done');
-      if (backgroundStatus === 'deferred' || enriched.aiProfile?.aiPending) {
-        setAddError('AI 导览暂时未完成，音乐已先加入展柜。');
-      }
     } catch (error) {
       setAddError(error.message);
       setItemStatus('error');
-      setBackgroundStatus('idle');
+      setBackgroundStatus('error');
       setAddPhase('error');
     }
   };
@@ -1723,8 +1694,8 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
   const isAdding = backgroundStatus === 'thinking' || itemStatus === 'adding';
   const phaseSteps = [
     ['metadata', '读取 iTunes 元数据'],
-    ['ai', '生成 AI 初听导览'],
-    ['writing', '写入房间展柜']
+    ['ai', '联网检索 + DeepSeek v4 Pro 写长导览'],
+    ['writing', '保存高质量导览']
   ];
   const activePhaseIndex = addPhase === 'done' ? phaseSteps.length : Math.max(0, phaseSteps.findIndex(([key]) => key === addPhase));
 
@@ -1764,7 +1735,7 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
           ))}
         </div>
         <div className="candidate-preview">
-          {selectedCandidate ? <><AlbumArt item={selectedCandidate} className="feature-art" /><p className="eyebrow"><Album size={15} /> selected {selectedType}</p><h3>{selectedCandidate.title}</h3><p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? '专辑' : selectedCandidate.albumTitle}</p><div className="tag-row compact-tags">{(selectedCandidate.tags || []).map((tag) => <span key={tag}>{tag}</span>)}</div><button type="button" className="full-action" disabled={isAdding} onClick={addSelectedToShowroom}><CirclePlus size={16} />{isAdding ? '正在加入展柜' : `加入${selectedType}`}</button>{isAdding && <div className="ai-progress">{phaseSteps.map(([key, label], index) => <span key={key} className={index <= activePhaseIndex ? 'active' : ''}>{label}</span>)}</div>}<p className="status-line">{isAdding ? 'AI 正在把元数据整理成进入展柜时可读的音乐导览。' : (statusLabels[backgroundStatus] || statusLabels[itemStatus] || '确认后会写入当前房间。')}</p>{addError && <p className="status-line error-line">{addError}</p>}</> : <div className="empty-state">搜索并选择一个候选。</div>}
+          {selectedCandidate ? <><AlbumArt item={selectedCandidate} className="feature-art" /><p className="eyebrow"><Album size={15} /> selected {selectedType}</p><h3>{selectedCandidate.title}</h3><p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? '专辑' : selectedCandidate.albumTitle}</p><div className="tag-row compact-tags">{(selectedCandidate.tags || []).map((tag) => <span key={tag}>{tag}</span>)}</div><button type="button" className="full-action" disabled={isAdding} onClick={addSelectedToShowroom}><CirclePlus size={16} />{isAdding ? '正在深度生成' : `加入${selectedType}`}</button>{isAdding && <div className="ai-progress rich-progress"><i /><div>{phaseSteps.map(([key, label], index) => <span key={key} className={index <= activePhaseIndex ? 'active' : ''}>{label}</span>)}</div></div>}<p className="status-line">{isAdding ? '正在联网检索资料，并用 DeepSeek v4 Pro 生成更长、更具体的音乐导览；等待会更久，但不会用低质兜底替代。' : (statusLabels[backgroundStatus] || statusLabels[itemStatus] || '确认后会写入当前房间。')}</p>{addError && <p className="status-line error-line">{addError}</p>}</> : <div className="empty-state">搜索并选择一个候选。</div>}
         </div>
       </div>
     </div>

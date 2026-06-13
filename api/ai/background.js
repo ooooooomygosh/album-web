@@ -50,6 +50,12 @@ function richText(value, fallback, max = 1100, min = 170) {
   return text.length >= min ? text : fallback;
 }
 
+function numericConfig(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
 function concreteScore(text, item) {
   const value = String(text || '');
   const needles = [
@@ -84,7 +90,7 @@ function sanitizeGuideText(value) {
 
 function isRichProfile(profile, item) {
   const fields = ['albumContext', 'creativeBackground', 'melodyMotif', 'lyricPerspective', 'arrangement', 'releaseState'];
-  return fields.every((field) => profile[field]?.length >= 130 && concreteScore(profile[field], item) >= 1) && profile.overview?.length >= 160;
+  return fields.every((field) => profile[field]?.length >= 170 && concreteScore(profile[field], item) >= 1) && profile.overview?.length >= 210;
 }
 
 function parseProfile(raw, item) {
@@ -126,56 +132,41 @@ export default async function handler(req, res) {
     await requireUser(req);
     const item = req.body?.item || {};
     const key = process.env.DEEPSEEK_API_KEY;
-    const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+    const model = process.env.DEEPSEEK_BACKGROUND_MODEL || process.env.DEEPSEEK_PERSONA_MODEL || 'deepseek-v4-pro';
 
     if (!key) {
       const profile = fallbackProfile(item);
       return json(res, 200, {
         fallback: true,
+        generated: false,
         background: profile.overview,
         aiProfile: profile,
-        tags: profile.genre
+        tags: profile.genre,
+        model
       });
     }
 
     const configDoc = await db().collection('albumCircleConfig').doc('ai').get().catch(() => null);
     const aiConfig = configDoc?.exists ? configDoc.data() : {};
-    const startedAt = Date.now();
     const research = await searchMusicResearch(item, {
       intent: 'background',
-      maxResults: 3,
-      searchDepth: 'basic',
-      timeoutMs: Number(process.env.BACKGROUND_TAVILY_TIMEOUT_MS || 3500)
+      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 7, 4, 10),
+      searchDepth: process.env.BACKGROUND_TAVILY_SEARCH_DEPTH || 'advanced',
+      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 14000, 7000, 24000)
     });
-    if (Date.now() - startedAt > Number(process.env.BACKGROUND_AI_BUDGET_MS || 9500)) {
-      const profile = fallbackProfile(item);
-      return json(res, 200, {
-        fallback: true,
-        error: 'Background research used the request budget; returned local guide.',
-        background: profile.overview,
-        aiProfile: profile,
-        tags: profile.genre,
-        research: {
-          query: research.query,
-          enabled: research.enabled,
-          error: research.error || '',
-          sources: publicResearchSources(research)
-        }
-      });
-    }
     const researchContext = formatResearchForPrompt(research);
 
     const prompt = [
       '你是 Album Circle 的资深音乐编辑。请为这条音乐写成“可直接展示”的中文推荐导览，不要像字段说明。',
       '只输出严格 JSON。字段：overview, genre, albumContext, creativeBackground, melodyMotif, lyricPerspective, arrangement, releaseState, listeningGuide, discussionPrompts。',
       '写作方法：先在心里把它当成一篇完整乐评推荐，再拆成这些卡片。每张卡都要有判断、有导览、有推荐理由。',
-      '每个长字段必须是完整段落，写 2-3 句：overview 180-280 字；albumContext/creativeBackground/melodyMotif/lyricPerspective/arrangement/releaseState 各 130-210 字。',
-      '每段第一句直接说明“为什么值得听/它在作品中的功能”，后面说明“先听哪里/听完能理解什么”。必须点名标题、艺人或专辑，并包含具体线索：主歌、副歌、人声、节奏、和声、留白、发行、封面或平台来源。',
+      '每个长字段必须是完整段落，写 3-5 句：overview 220-360 字；albumContext/creativeBackground/melodyMotif/lyricPerspective/arrangement/releaseState 各 180-320 字。',
+      '每段第一句直接说明“为什么值得听/它在作品中的功能”，后面说明“先听哪里/听完能理解什么”。必须点名标题、艺人或专辑，并包含具体线索：主歌、副歌、人声、节奏、和声、留白、发行、封面、平台来源、曲序位置或朋友评论入口。',
       '禁止使用连续问句或模板句式，例如“是否...”“可以从...理解”“建议不要急着...”。要用肯定判断写作，像一个认真推荐音乐的朋友。',
       '不要编造制作人、录音地点、幕后故事、公开资料、歌词原句、具体秒数或封面画面；除非这些信息在下面元数据或联网来源里明确出现。不确定就写“待考证”或“当前资料只能确认”。',
       '如果使用联网来源中的事实，请自然写入正文并用 [S1]、[S2] 这样的短引用标记；不要堆链接，不要在没有来源支持时写确定事实。',
       '如果是歌曲：解释它和所属专辑的关系、情绪入口、旋律记忆点、歌词视角、编曲如何推进。若是专辑：解释曲目路线、入口曲、情绪变化、适合推荐给谁。',
-      'listeningGuide 给 4 条，每条 40-70 字；discussionPrompts 给 3 个问题；genre 给 3-6 个短标签。',
+      'listeningGuide 给 5-7 条，每条 55-95 字；discussionPrompts 给 4 个问题；genre 给 4-8 个短标签。',
       `类型：${String(item.type || '').slice(0, 30)}`,
       `标题：${String(item.title || '').slice(0, 120)}`,
       `艺人：${String(item.artist || '').slice(0, 120)}`,
@@ -192,7 +183,7 @@ export default async function handler(req, res) {
     const finalPrompt = aiConfig.customPrompt ? `${aiConfig.customPrompt}\n\n当前条目元数据如下，请仍然输出同一 JSON 字段：\n${prompt}` : prompt;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), Number(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS || 8000));
+    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 48000, 30000, 55000));
     let response;
     try {
       response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -210,7 +201,7 @@ export default async function handler(req, res) {
             { role: 'user', content: finalPrompt }
           ],
           temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: Math.max(900, Math.min(1800, Number(aiConfig.maxTokens || 1600)))
+          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 5200, 3200, 7600)
         })
       });
     } finally {
@@ -219,6 +210,10 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || `DeepSeek failed: ${response.status}`);
+    const finishReason = data.choices?.[0]?.finish_reason || '';
+    if (finishReason === 'length') {
+      throw new Error('DeepSeek background response was cut off before completion');
+    }
     const text = data.choices?.[0]?.message?.content || '';
     const profile = parseProfile(text, item);
 
@@ -233,6 +228,7 @@ export default async function handler(req, res) {
         sources: publicResearchSources(research)
       },
       generated: !profile.parseFallback && !profile.qualityFallback,
+      model,
       usage: data.usage
     });
   } catch (error) {
@@ -240,10 +236,12 @@ export default async function handler(req, res) {
     const profile = fallbackProfile(req.body?.item || {});
     return json(res, 200, {
       fallback: true,
+      generated: false,
       error: message,
       background: profile.overview,
       aiProfile: profile,
       tags: profile.genre,
+      model: process.env.DEEPSEEK_BACKGROUND_MODEL || process.env.DEEPSEEK_PERSONA_MODEL || 'deepseek-v4-pro',
       research: {
         enabled: false,
         sources: [],

@@ -1240,6 +1240,48 @@ select:focus {
   animation: shimmer 1.3s ease-in-out infinite;
 }
 
+.rich-progress {
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--cover-c), transparent 76%);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--cover-a), transparent 86%), color-mix(in srgb, var(--cover-b), transparent 92%)),
+    rgba(255, 255, 255, 0.055);
+}
+
+.rich-progress i {
+  position: relative;
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rich-progress i::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cover-c), white 10%), transparent);
+  animation: rich-progress-sweep 1.35s ease-in-out infinite;
+}
+
+.rich-progress > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@keyframes rich-progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
 .ai-writing {
   justify-self: start;
   color: rgba(248, 251, 255, 0.84);

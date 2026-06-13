@@ -4,7 +4,7 @@
   "framework": "vite",
   "functions": {
     "api/ai/background.js": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/ai/comment.js": {
       "maxDuration": 30
