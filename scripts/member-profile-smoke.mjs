@@ -63,7 +63,7 @@ const added = await request(`/api/items?roomId=${room.room.id}`, {
     artist: 'Album Circle QA',
     albumTitle: 'Room Signals',
     year: '2026',
-    cover: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/4d/5f/5d/4d5f5d84-4c4b-4dd3-1f34-5f737ed55080/cover.jpg/600x600bb.jpg',
+    cover: '',
     palette: ['#5cb7ff', '#f3d74c', '#f8fbff'],
     tags: ['profile-smoke'],
     source: 'member-profile-smoke'
