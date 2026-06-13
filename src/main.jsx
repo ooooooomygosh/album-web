@@ -455,15 +455,23 @@ function App() {
   const [adminData, setAdminData] = useState(null);
   const [adminStatus, setAdminStatus] = useState('');
   const [aiPromptDraft, setAiPromptDraft] = useState('');
+  const [personaPromptDraft, setPersonaPromptDraft] = useState('');
   const [aiMaxTokens, setAiMaxTokens] = useState(2100);
+  const [personaMaxTokens, setPersonaMaxTokens] = useState(3600);
+  const [personaChatMaxTokens, setPersonaChatMaxTokens] = useState(2200);
   const [aiTemperature, setAiTemperature] = useState(0.5);
+  const [personaTemperature, setPersonaTemperature] = useState(0.72);
   const [profileDraft, setProfileDraft] = useState(() => profileToDraft(session?.user));
   const [profileStats, setProfileStats] = useState(null);
   const [profileStatus, setProfileStatus] = useState('');
   const [personaTone, setPersonaTone] = useState('warm');
   const [personaHistoryMode, setPersonaHistoryMode] = useState('mine');
+  const [personaSelectedIds, setPersonaSelectedIds] = useState([]);
   const [personaStatus, setPersonaStatus] = useState('idle');
   const [personaReport, setPersonaReport] = useState(session?.user?.latestPersona || null);
+  const [personaQuestion, setPersonaQuestion] = useState('');
+  const [personaChatStatus, setPersonaChatStatus] = useState('idle');
+  const [personaChat, setPersonaChat] = useState([]);
   const [discoverRooms, setDiscoverRooms] = useState([]);
   const [roomSettingsDraft, setRoomSettingsDraft] = useState({ visibility: 'unlisted', joinMode: 'open', discoverable: false, description: '', password: '' });
 
@@ -572,6 +580,10 @@ function App() {
     try {
       const data = await api('/api/auth?action=stats', { session });
       setProfileStats(data.stats);
+      setPersonaSelectedIds((current) => {
+        const valid = new Set((data.stats?.recentAdds || []).map((item) => item.id));
+        return current.filter((id) => valid.has(id));
+      });
       setProfileStatus('');
     } catch (error) {
       setProfileStatus(error.message);
@@ -645,20 +657,54 @@ function App() {
     setProfileStatus('已把历史添加记录填入偏好草稿，记得保存。');
   };
 
+  const togglePersonaItem = (item) => {
+    setPersonaSelectedIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id].slice(0, 24));
+    setPersonaHistoryMode('selected');
+  };
+
   const generatePersona = async () => {
     setPersonaStatus('thinking');
     try {
       const data = await api('/api/ai/recommend?action=persona', {
         session,
         method: 'POST',
-        body: JSON.stringify({ action: 'persona', tone: personaTone, history: { mode: personaHistoryMode } })
+        body: JSON.stringify({
+          action: 'persona',
+          tone: personaTone,
+          history: { mode: personaHistoryMode, selected: personaSelectedIds }
+        })
       });
       setPersonaReport(data.report);
+      setPersonaChat([]);
       const nextUser = { ...session.user, latestPersona: data.report };
       updateSessionUser(nextUser);
       setPersonaStatus(data.fallback ? 'fallback' : 'done');
     } catch (error) {
       setPersonaStatus(`error-${error.message}`);
+    }
+  };
+
+  const askPersona = async (question = personaQuestion) => {
+    const text = String(question || '').trim();
+    if (!text) return;
+    setPersonaChatStatus('thinking');
+    setPersonaQuestion('');
+    setPersonaChat((current) => [...current, { role: 'user', text }]);
+    try {
+      const data = await api('/api/ai/recommend?action=persona-chat', {
+        session,
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'persona-chat',
+          question: text,
+          report: personaReport,
+          history: { mode: personaHistoryMode, selected: personaSelectedIds }
+        })
+      });
+      setPersonaChat((current) => [...current, { role: 'assistant', text: data.answer, sources: data.research?.sources || [] }]);
+      setPersonaChatStatus(data.fallback ? 'fallback' : 'done');
+    } catch (error) {
+      setPersonaChatStatus(`error-${error.message}`);
     }
   };
 
@@ -894,8 +940,12 @@ function App() {
       const data = await api('/api/admin', { session });
       setAdminData(data);
       setAiPromptDraft(data.config?.customPrompt || '');
+      setPersonaPromptDraft(data.config?.personaPrompt || '');
       setAiMaxTokens(data.config?.maxTokens || 2100);
+      setPersonaMaxTokens(data.config?.personaMaxTokens || 3600);
+      setPersonaChatMaxTokens(data.config?.personaChatMaxTokens || 2200);
       setAiTemperature(data.config?.temperature ?? 0.5);
+      setPersonaTemperature(data.config?.personaTemperature ?? 0.72);
       setAdminStatus('');
     } catch (error) {
       setAdminStatus(error.message);
@@ -908,7 +958,15 @@ function App() {
       const data = await api('/api/admin?action=config', {
         session,
         method: 'POST',
-        body: JSON.stringify({ customPrompt: aiPromptDraft, maxTokens: aiMaxTokens, temperature: aiTemperature })
+        body: JSON.stringify({
+          customPrompt: aiPromptDraft,
+          personaPrompt: personaPromptDraft,
+          maxTokens: aiMaxTokens,
+          personaMaxTokens,
+          personaChatMaxTokens,
+          temperature: aiTemperature,
+          personaTemperature
+        })
       });
       setAdminData((current) => ({ ...(current || {}), config: data.config }));
       setAdminStatus('AI 配置已保存');
@@ -1014,8 +1072,8 @@ function App() {
             {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={deleteComment} />}
             {mode === 'ai' && <Ai selected={activeItem} aiInsight={aiInsight} aiStatus={aiStatus} askAi={askAi} />}
             {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} />}
-            {mode === 'profile' && <ProfilePanel session={session} profileDraft={profileDraft} setProfileDraft={setProfileDraft} saveProfile={saveProfile} uploadAvatar={uploadAvatar} profileStats={profileStats} profileStatus={profileStatus} loadProfileStats={loadProfileStats} fillProfileFromHistory={fillProfileFromHistory} personaTone={personaTone} setPersonaTone={setPersonaTone} personaHistoryMode={personaHistoryMode} setPersonaHistoryMode={setPersonaHistoryMode} generatePersona={generatePersona} personaStatus={personaStatus} personaReport={personaReport} addPublicTag={addPublicTag} />}
-            {mode === 'admin' && <AdminPanel adminData={adminData} adminStatus={adminStatus} loadAdmin={loadAdmin} deleteRoom={adminDeleteRoom} deleteUser={adminDeleteUser} aiPromptDraft={aiPromptDraft} setAiPromptDraft={setAiPromptDraft} aiMaxTokens={aiMaxTokens} setAiMaxTokens={setAiMaxTokens} aiTemperature={aiTemperature} setAiTemperature={setAiTemperature} saveAiConfig={saveAiConfig} />}
+            {mode === 'profile' && <ProfilePanel session={session} profileDraft={profileDraft} setProfileDraft={setProfileDraft} saveProfile={saveProfile} uploadAvatar={uploadAvatar} profileStats={profileStats} profileStatus={profileStatus} loadProfileStats={loadProfileStats} fillProfileFromHistory={fillProfileFromHistory} personaTone={personaTone} setPersonaTone={setPersonaTone} personaHistoryMode={personaHistoryMode} setPersonaHistoryMode={setPersonaHistoryMode} personaSelectedIds={personaSelectedIds} togglePersonaItem={togglePersonaItem} generatePersona={generatePersona} personaStatus={personaStatus} personaReport={personaReport} addPublicTag={addPublicTag} personaQuestion={personaQuestion} setPersonaQuestion={setPersonaQuestion} askPersona={askPersona} personaChat={personaChat} personaChatStatus={personaChatStatus} />}
+            {mode === 'admin' && <AdminPanel adminData={adminData} adminStatus={adminStatus} loadAdmin={loadAdmin} deleteRoom={adminDeleteRoom} deleteUser={adminDeleteUser} aiPromptDraft={aiPromptDraft} setAiPromptDraft={setAiPromptDraft} personaPromptDraft={personaPromptDraft} setPersonaPromptDraft={setPersonaPromptDraft} aiMaxTokens={aiMaxTokens} setAiMaxTokens={setAiMaxTokens} personaMaxTokens={personaMaxTokens} setPersonaMaxTokens={setPersonaMaxTokens} personaChatMaxTokens={personaChatMaxTokens} setPersonaChatMaxTokens={setPersonaChatMaxTokens} aiTemperature={aiTemperature} setAiTemperature={setAiTemperature} personaTemperature={personaTemperature} setPersonaTemperature={setPersonaTemperature} saveAiConfig={saveAiConfig} />}
           </section>
           <aside className="inspector glass-panel">
             <div className="section-title"><Wand2 size={18} /><h2>房间状态</h2></div>
@@ -1310,39 +1368,40 @@ function PersonaReport({ report, addPublicTag }) {
     return (
       <div className="persona-empty">
         <Sparkles size={30} />
-        <strong>还没有生成音乐人格</strong>
-        <p>保存资料后可以让 AI 结合你的房间历史、偏好和联网资料生成一篇长文画像。</p>
+        <strong>还没有生成音乐侧写</strong>
+        <p>保存资料、勾选几首代表作后，让 AI 分析偏好线索并推荐新的歌手、歌曲和专辑。</p>
       </div>
     );
   }
+  const title = report.profileName || report.musicPersonality?.name || '音乐画像';
+  const accent = /^#[0-9a-f]{6}$/i.test(report.ui_theme_hint?.primary_color || '') ? report.ui_theme_hint.primary_color : '';
   return (
-    <article className="persona-report">
+    <article className="persona-report" style={accent ? { '--persona-accent': accent } : undefined}>
       <div className="persona-title">
         <p className="eyebrow"><Sparkles size={15} /> music oracle</p>
-        <h3>{report.musicPersonality?.name || '音乐画像'}</h3>
-        <span>{report.listeningAge}</span>
+        <h3>{report.archetype?.title || title}</h3>
       </div>
-      <p className="persona-essay">{report.essay}</p>
-      <div className="persona-facets">
-        {[
-          ['核心矛盾', report.musicPersonality?.coreConflict],
-          ['听歌动机', report.musicPersonality?.listeningMotive],
-          ['社交播放', report.musicPersonality?.socialPlaybackStyle],
-          ['深夜播放', report.musicPersonality?.lateNightPlaybackStyle]
-        ].map(([title, text]) => text && <div key={title}><strong>{title}</strong><p>{text}</p></div>)}
-      </div>
-      <div className="oracle-grid">
-        {[
-          ['30 天', report.oraclePredictions?.thirtyDays],
-          ['90 天', report.oraclePredictions?.ninetyDays],
-          ['1 年', report.oraclePredictions?.oneYear]
-        ].map(([title, text]) => text && <div key={title}><span>{title}</span><p>{text}</p></div>)}
-      </div>
+      {(report.archetype?.summary || report.headline) && <p className="persona-headline">{report.archetype?.summary || report.headline}</p>}
+      {report.summary && <p className="persona-summary">{report.summary}</p>}
+      {report.the_roast && <div className="persona-roast"><Sparkles size={18} /><p>{report.the_roast}</p></div>}
+      {report.tasteDNA?.length > 0 && (
+        <div className="taste-dna-grid">
+          {report.tasteDNA.map((item) => <div key={item.axis}><span><strong>{item.axis}</strong><small>{item.value}</small></span><i style={{ '--dna': `${item.value}%` }} /><p>{item.label}</p></div>)}
+        </div>
+      )}
+      {(report.personality_dissection?.rational_vs_emotional || report.personality_dissection?.comment_vibe) && (
+        <div className="dissection-grid">
+          {report.personality_dissection?.rational_vs_emotional && <div><strong>理性大脑 vs 感性灵魂</strong><p>{report.personality_dissection.rational_vs_emotional}</p></div>}
+          {report.personality_dissection?.comment_vibe && <div><strong>评论人格面具</strong><p>{report.personality_dissection.comment_vibe}</p></div>}
+        </div>
+      )}
+      {report.evidenceCards?.length > 0 && <div className="evidence-card-grid">{report.evidenceCards.map((item) => <div key={item.claim}><strong>{item.claim}</strong><p>{(item.basedOn || []).join(' / ')}</p><small>{Math.round((item.confidence || 0.6) * 100)}% 可信度</small></div>)}</div>}
       <div className="recommendation-columns">
         {[
           ['艺人', report.recommendations?.artists],
           ['乐队', report.recommendations?.bands],
-          ['专辑', report.recommendations?.albums]
+          ['专辑', report.recommendations?.albums],
+          ['歌曲', report.recommendations?.songs]
         ].map(([title, values]) => (
           <div key={title}>
             <strong>{title}</strong>
@@ -1350,6 +1409,27 @@ function PersonaReport({ report, addPublicTag }) {
           </div>
         ))}
       </div>
+      {(report.recommendations?.hidden_gem_music || report.recommendations?.cross_domain) && (
+        <div className="cross-reco-grid">
+          {report.recommendations?.hidden_gem_music && <div><strong>隐藏宝藏</strong><p>{report.recommendations.hidden_gem_music.title && <b>{report.recommendations.hidden_gem_music.title}： </b>}{report.recommendations.hidden_gem_music.reason}</p></div>}
+          {report.recommendations?.cross_domain?.book_or_movie && <div><strong>跨界补刀</strong><p>{report.recommendations.cross_domain.book_or_movie}</p></div>}
+          {report.recommendations?.cross_domain?.night_routine && <div><strong>深夜仪式</strong><p>{report.recommendations.cross_domain.night_routine}</p></div>}
+        </div>
+      )}
+      {report.prescription && (
+        <div className="prescription-grid">
+          {report.prescription.nextAlbum && <div><strong>下一张处方</strong><p><b>{report.prescription.nextAlbum.artist} - {report.prescription.nextAlbum.title}</b>{report.prescription.nextAlbum.reason}</p></div>}
+          {report.prescription.wildCard && <div><strong>野路子</strong><p><b>{report.prescription.wildCard.artist} - {report.prescription.wildCard.title}</b>{report.prescription.wildCard.reason}</p></div>}
+          {report.prescription.doNotOverplay && <div><strong>别再循环警告</strong><p>{report.prescription.doNotOverplay}</p></div>}
+        </div>
+      )}
+      {report.ui_theme_hint && (
+        <div className="persona-theme-card">
+          <div><span style={{ background: report.ui_theme_hint.primary_color }} /> <strong>{report.ui_theme_hint.style}</strong></div>
+          <p>{report.ui_theme_hint.bg_animation}</p>
+        </div>
+      )}
+      {report.essay && <details className="persona-full-note"><summary>展开完整分析</summary><p className="persona-essay">{report.essay}</p></details>}
       <div className="tag-row persona-tags">
         {(report.tags || []).map((tag) => <button key={tag} type="button" onClick={() => addPublicTag(tag)}>{tag}<Plus size={13} /></button>)}
       </div>
@@ -1359,11 +1439,39 @@ function PersonaReport({ report, addPublicTag }) {
   );
 }
 
-function ProfilePanel({ session, profileDraft, setProfileDraft, saveProfile, uploadAvatar, profileStats, profileStatus, loadProfileStats, fillProfileFromHistory, personaTone, setPersonaTone, personaHistoryMode, setPersonaHistoryMode, generatePersona, personaStatus, personaReport, addPublicTag }) {
+function PersonaChatBox({ report, personaQuestion, setPersonaQuestion, askPersona, personaChat, personaChatStatus }) {
+  const starters = report?.conversationStarters || ['我下一张应该补什么专辑？', '我的音乐年龄为什么是这样？', '根据我的资料推荐 5 首歌'];
+  return (
+    <article className="persona-chat-card">
+      <div className="section-title"><MessageCircle size={18} /><h3>继续聊这个画像</h3></div>
+      <div className="persona-starters">
+        {starters.slice(0, 4).map((question) => <button key={question} type="button" onClick={() => askPersona(question)}>{question}</button>)}
+      </div>
+      <div className="persona-chat-log">
+        {personaChat.map((message, index) => (
+          <div key={`${message.role}-${index}`} className={`persona-chat-msg ${message.role}`}>
+            <strong>{message.role === 'user' ? '你' : 'Album Circle AI'}</strong>
+            <p>{message.text}</p>
+            {message.sources?.length > 0 && <div className="source-strip compact-source">{message.sources.slice(0, 4).map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.title}</a>)}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="persona-chat-input">
+        <input value={personaQuestion} onChange={(event) => setPersonaQuestion(event.target.value)} placeholder="继续问：为什么我会喜欢这些歌？下一批听什么？" />
+        <button type="button" onClick={() => askPersona()} disabled={personaChatStatus === 'thinking'}><Send size={15} />{personaChatStatus === 'thinking' ? '回复中' : '发送'}</button>
+      </div>
+      {String(personaChatStatus).startsWith('error-') && <p className="status-line error-line">{String(personaChatStatus).replace('error-', '')}</p>}
+    </article>
+  );
+}
+
+function ProfilePanel({ session, profileDraft, setProfileDraft, saveProfile, uploadAvatar, profileStats, profileStatus, loadProfileStats, fillProfileFromHistory, personaTone, setPersonaTone, personaHistoryMode, setPersonaHistoryMode, personaSelectedIds, togglePersonaItem, generatePersona, personaStatus, personaReport, addPublicTag, personaQuestion, setPersonaQuestion, askPersona, personaChat, personaChatStatus }) {
   const profile = profileDraft.profile || emptyProfile;
   const setProfileField = (key, value) => setProfileDraft((current) => ({ ...current, profile: { ...(current.profile || emptyProfile), [key]: value } }));
   const setPublicTags = (value) => setProfileDraft((current) => ({ ...current, publicTags: value }));
   const avatarUser = { ...session.user, ...profileDraft };
+  const recentAdds = profileStats?.recentAdds || [];
+  const selectedCount = personaSelectedIds.length;
   return (
     <div className="panel-content profile-workspace">
       <section className="profile-hero-card">
@@ -1422,25 +1530,36 @@ function ProfilePanel({ session, profileDraft, setProfileDraft, saveProfile, upl
         </article>
 
         <article className="profile-card persona-card">
-          <div className="section-title"><Sparkles size={18} /><h3>音乐人格 / 占卜预测</h3></div>
-          <p>AI 会读取你主动填写的偏好和添加历史，并通过 Tavily 检索音乐资料后生成长文画像。它只是一种娱乐性的音乐导览。</p>
+          <div className="section-title"><Sparkles size={18} /><h3>音乐灵魂侧写</h3></div>
+          <p>先选几首真正代表你的歌或专辑。AI 会结合个人资料、评论片段和所选音乐，分析偏好之间的关联，并推荐新的歌手、歌曲和专辑。</p>
           <div className="persona-controls">
             <label>语气<select value={personaTone} onChange={(event) => setPersonaTone(event.target.value)}><option value="warm">温暖</option><option value="mystic">神秘</option><option value="critic">乐评</option><option value="playful">好玩</option></select></label>
-            <label>历史范围<select value={personaHistoryMode} onChange={(event) => setPersonaHistoryMode(event.target.value)}><option value="mine">我添加的音乐</option><option value="room">所在房间全部音乐</option><option value="none">不使用历史</option></select></label>
+            <label>分析范围<select value={personaHistoryMode} onChange={(event) => setPersonaHistoryMode(event.target.value)}><option value="selected">只分析我勾选的</option><option value="mine">我添加的全部音乐</option><option value="room">所在房间全部音乐</option><option value="none">只使用填写资料</option></select></label>
           </div>
-          <button type="button" className="full-action narrow" onClick={generatePersona} disabled={personaStatus === 'thinking'}><Sparkles size={16} />{personaStatus === 'thinking' ? 'AI 正在联网生成长文' : '生成音乐画像'}</button>
-          {personaStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />DeepSeek 正在结合资料、房间历史和联网来源写一篇完整画像。</div>}
-          {personaStatus === 'fallback' && <p className="status-line">AI 暂时不可用，已生成本地临时画像。</p>}
+          <div className="persona-selection-head"><strong>代表性音乐</strong><span>{selectedCount ? `已选择 ${selectedCount} 条` : '可从最近添加中点选'}</span></div>
+          <div className="persona-pick-list">
+            {recentAdds.slice(0, 12).map((item) => (
+              <button key={`${item.roomId}-${item.id}`} type="button" className={personaSelectedIds.includes(item.id) ? 'selected' : ''} onClick={() => togglePersonaItem(item)}>
+                {item.cover && <img src={item.cover} alt="" />}
+                <span><strong>{item.title}</strong><small>{item.artist} · {item.roomName}</small></span>
+              </button>
+            ))}
+            {!recentAdds.length && <p className="empty-state compact-empty">刷新统计后会显示你添加过的歌曲和专辑。</p>}
+          </div>
+          <button type="button" className="full-action narrow" onClick={generatePersona} disabled={personaStatus === 'thinking'}><Sparkles size={16} />{personaStatus === 'thinking' ? '正在翻你的歌单和评论' : '让 AI 拆穿我的歌单'}</button>
+          {personaStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />DeepSeek 正在读取你的资料、评论和勾选音乐，生成侧写与推荐。</div>}
+          {personaStatus === 'fallback' && <p className="status-line">AI 暂时不可用，已生成本地临时侧写。</p>}
           {String(personaStatus).startsWith('error-') && <p className="status-line error-line">{String(personaStatus).replace('error-', '')}</p>}
         </article>
       </section>
 
       <PersonaReport report={personaReport} addPublicTag={addPublicTag} />
+      <PersonaChatBox report={personaReport} personaQuestion={personaQuestion} setPersonaQuestion={setPersonaQuestion} askPersona={askPersona} personaChat={personaChat} personaChatStatus={personaChatStatus} />
     </div>
   );
 }
 
-function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser, aiPromptDraft, setAiPromptDraft, aiMaxTokens, setAiMaxTokens, aiTemperature, setAiTemperature, saveAiConfig }) {
+function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser, aiPromptDraft, setAiPromptDraft, personaPromptDraft, setPersonaPromptDraft, aiMaxTokens, setAiMaxTokens, personaMaxTokens, setPersonaMaxTokens, personaChatMaxTokens, setPersonaChatMaxTokens, aiTemperature, setAiTemperature, personaTemperature, setPersonaTemperature, saveAiConfig }) {
   return (
     <div className="panel-content admin-panel">
       <div className="admin-head">
@@ -1455,10 +1574,14 @@ function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser,
       <section className="admin-grid">
         <article className="admin-card wide">
           <div className="section-title"><Bot size={18} /><h3>AI Prompt 配置</h3></div>
-          <label>自定义系统提示<textarea value={aiPromptDraft} onChange={(event) => setAiPromptDraft(event.target.value)} placeholder="写入你想覆盖或追加的 AI 导览风格、字数、禁用表达等。" /></label>
-          <div className="admin-controls">
+          <label>歌曲 / 专辑导览 Prompt<textarea value={aiPromptDraft} onChange={(event) => setAiPromptDraft(event.target.value)} placeholder="用于添加歌曲或专辑时生成导览。可写风格、字数、禁用表达等。" /></label>
+          <label>音乐侧写 Prompt<textarea value={personaPromptDraft} onChange={(event) => setPersonaPromptDraft(event.target.value)} placeholder="用于个人页音乐侧写和继续对话。建议简洁写：更像朋友、更自然、根据用户资料、评论和所选歌曲分析并推荐新音乐。" /></label>
+          <div className="admin-controls expanded">
             <label>Max Tokens<input type="number" min="700" max="3200" value={aiMaxTokens} onChange={(event) => setAiMaxTokens(Number(event.target.value))} /></label>
+            <label>Persona Tokens<input type="number" min="1200" max="6000" value={personaMaxTokens} onChange={(event) => setPersonaMaxTokens(Number(event.target.value))} /></label>
+            <label>Chat Tokens<input type="number" min="900" max="3200" value={personaChatMaxTokens} onChange={(event) => setPersonaChatMaxTokens(Number(event.target.value))} /></label>
             <label>Temperature<input type="number" min="0" max="1" step="0.05" value={aiTemperature} onChange={(event) => setAiTemperature(Number(event.target.value))} /></label>
+            <label>Persona Temp<input type="number" min="0" max="1" step="0.05" value={personaTemperature} onChange={(event) => setPersonaTemperature(Number(event.target.value))} /></label>
           </div>
           <button type="button" className="full-action narrow" onClick={saveAiConfig}><Wand2 size={16} />保存 AI 配置</button>
         </article>

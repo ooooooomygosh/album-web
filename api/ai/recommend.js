@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return json(res, 405, { error: 'Method not allowed' });
   }
 
-  if (String(req.query.action || req.body?.action || '') === 'persona') {
+  if (['persona', 'persona-chat'].includes(String(req.query.action || req.body?.action || ''))) {
     return musicPersonaHandler(req, res);
   }
 

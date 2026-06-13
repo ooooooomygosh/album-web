@@ -213,7 +213,8 @@ if (adminPassword) {
   await admin.getByText(/房间/).first().waitFor({ timeout: 10000 });
   await admin.getByText(/用户/).first().waitFor({ timeout: 10000 });
   await admin.locator('.admin-row').filter({ hasText: /上线验收房间/ }).first().waitFor({ timeout: 10000 });
-  await admin.getByLabel('自定义系统提示').fill('验收中仅检查管理界面可编辑，不保存。');
+  await admin.getByLabel('歌曲 / 专辑导览 Prompt').fill('验收中仅检查管理界面可编辑，不保存。');
+  await admin.getByLabel('音乐侧写 Prompt').fill('验收中仅检查音乐侧写 Prompt 可编辑，不保存。');
 } else {
   await admin.getByText(/登录|注册/).first().waitFor({ timeout: 10000 });
 }

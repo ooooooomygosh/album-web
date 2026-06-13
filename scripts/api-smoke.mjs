@@ -157,16 +157,28 @@ if (adminUser) {
   const adminConfig = await request('/api/admin?action=config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customPrompt: '后台测试：保持具体、谨慎、像推荐导览。', maxTokens: 1800, temperature: 0.45 })
+    body: JSON.stringify({
+      customPrompt: '后台测试：保持具体、谨慎、像推荐导览。',
+      personaPrompt: '后台测试：音乐画像要自然、有趣、避免僵硬字段。',
+      maxTokens: 1800,
+      personaMaxTokens: 3600,
+      personaChatMaxTokens: 2200,
+      temperature: 0.45,
+      personaTemperature: 0.78
+    })
   }, adminUser.token);
-  if (!adminConfig.config?.customPrompt?.includes('后台测试')) throw new Error('Admin AI config was not saved.');
+  if (!adminConfig.config?.customPrompt?.includes('后台测试') || !adminConfig.config?.personaPrompt?.includes('音乐画像')) throw new Error('Admin AI config was not saved.');
   await request('/api/admin?action=config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       customPrompt: previousAdminConfig.config?.customPrompt || '',
+      personaPrompt: previousAdminConfig.config?.personaPrompt || '',
       maxTokens: previousAdminConfig.config?.maxTokens || 2100,
-      temperature: previousAdminConfig.config?.temperature ?? 0.5
+      personaMaxTokens: previousAdminConfig.config?.personaMaxTokens || 3600,
+      personaChatMaxTokens: previousAdminConfig.config?.personaChatMaxTokens || 2200,
+      temperature: previousAdminConfig.config?.temperature ?? 0.5,
+      personaTemperature: previousAdminConfig.config?.personaTemperature ?? 0.72
     })
   }, adminUser.token);
 }

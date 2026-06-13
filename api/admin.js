@@ -67,12 +67,20 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       if (action === 'config') {
         const customPrompt = String(req.body?.customPrompt || '').slice(0, 6000);
+        const personaPrompt = String(req.body?.personaPrompt || '').slice(0, 6000);
         const temperature = Number(req.body?.temperature || 0.5);
+        const personaTemperature = Number(req.body?.personaTemperature ?? 0.72);
         const maxTokens = Number(req.body?.maxTokens || 2100);
+        const personaMaxTokens = Number(req.body?.personaMaxTokens || 3600);
+        const personaChatMaxTokens = Number(req.body?.personaChatMaxTokens || 2200);
         const config = {
           customPrompt,
+          personaPrompt,
           temperature: Math.max(0, Math.min(1, temperature)),
+          personaTemperature: Math.max(0, Math.min(1, personaTemperature)),
           maxTokens: Math.max(700, Math.min(3200, maxTokens)),
+          personaMaxTokens: Math.max(1200, Math.min(6000, personaMaxTokens)),
+          personaChatMaxTokens: Math.max(900, Math.min(3200, personaChatMaxTokens)),
           updatedAt: FieldValue.serverTimestamp(),
           updatedBy: admin.id
         };
