@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, hashSecret, json, randomToken, storageBucket } from './_firebase.js';
+import { normalizeStoredPersona } from '../lib/music-persona.js';
 
 function cleanEmail(value) {
   return String(value || '').trim().toLowerCase().slice(0, 160);
@@ -52,6 +53,7 @@ function cleanProfile(value = {}) {
 }
 
 function publicUser(id, data, token) {
+  const userData = { id, ...data, profile: cleanProfile(data.profile || {}), publicTags: cleanList(data.publicTags, 24, 40) };
   return {
     token,
     user: {
@@ -61,12 +63,29 @@ function publicUser(id, data, token) {
       avatar: data.avatar,
       avatarUrl: data.avatarUrl || '',
       avatarDataUrl: data.avatarDataUrl || '',
-      profile: cleanProfile(data.profile || {}),
-      publicTags: cleanList(data.publicTags, 24, 40),
-      latestPersona: data.latestPersona || null,
+      profile: userData.profile,
+      publicTags: userData.publicTags,
+      latestPersona: normalizeStoredPersona(data.latestPersona, userData),
       role: data.role || 'user',
       createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
     }
+  };
+}
+
+function publicUserPayload(id, data) {
+  const userData = { id, ...data, profile: cleanProfile(data.profile || {}), publicTags: cleanList(data.publicTags, 24, 40) };
+  return {
+    id,
+    email: data.email,
+    name: data.name,
+    avatar: data.avatar,
+    avatarUrl: data.avatarUrl || '',
+    avatarDataUrl: data.avatarDataUrl || '',
+    profile: userData.profile,
+    publicTags: userData.publicTags,
+    latestPersona: normalizeStoredPersona(data.latestPersona, userData),
+    role: data.role || 'user',
+    createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
   };
 }
 
@@ -157,21 +176,7 @@ export default async function handler(req, res) {
       const { requireUser } = await import('./_firebase.js');
       const user = await requireUser(req);
       if (req.query.action === 'stats') return json(res, 200, await profileStats(user));
-      return json(res, 200, {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          avatar: user.avatar,
-          avatarUrl: user.avatarUrl || '',
-          avatarDataUrl: user.avatarDataUrl || '',
-          profile: cleanProfile(user.profile || {}),
-          publicTags: cleanList(user.publicTags, 24, 40),
-          latestPersona: user.latestPersona || null,
-          role: user.role || 'user',
-          createdAt: user.createdAt?.toMillis?.() || user.createdAt || Date.now()
-        }
-      });
+      return json(res, 200, { user: publicUserPayload(user.id, user) });
     }
 
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });

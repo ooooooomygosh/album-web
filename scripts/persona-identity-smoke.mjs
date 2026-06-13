@@ -23,6 +23,14 @@ function textBlob(value) {
   return JSON.stringify(value || {}, null, 2);
 }
 
+function assertNoDownrankLanguage(value, label) {
+  const text = textBlob(value);
+  const pattern = /弱线索|弱证据|辅助语境|辅助线索|调味料，不是主食材|真正权重仍然是你选了哪些歌|不会盖过真实音乐选择|背景线索只用来|不能替代音乐偏好本身/;
+  if (pattern.test(text)) {
+    throw new Error(`${label} still downranks profile signals: ${text.slice(0, 1000)}`);
+  }
+}
+
 const expected = {
   gender: '非二元',
   birthYear: 1998,
@@ -127,12 +135,13 @@ if ((report.identitySignals?.fields || []).length < 4) throw new Error(`identity
 if (String(report.humanSpiritMap?.text || '').length < 260 || (report.humanSpiritMap?.tensions || []).length < 3) {
   throw new Error(`humanSpiritMap is too thin: ${spiritText}`);
 }
-if (!/我爱你|李荣浩|评论|音乐|专辑|歌曲/.test(spiritText)) {
-  throw new Error(`humanSpiritMap did not connect identity with music/comment evidence: ${spiritText}`);
+if (!(/我爱你/.test(spiritText) && /李荣浩/.test(spiritText))) {
+  throw new Error(`humanSpiritMap did not cite the concrete song and artist: ${spiritText}`);
 }
-if (/弱线索|调味料，不是主食材|真正权重仍然是你选了哪些歌/.test(textBlob(report))) {
-  throw new Error(`Persona report still downranks profile signals: ${textBlob(report).slice(0, 900)}`);
+if (!(/情绪/.test(spiritText) && /干净|收得|评论/.test(spiritText))) {
+  throw new Error(`humanSpiritMap did not connect the comment evidence with the identity reading: ${spiritText}`);
 }
+assertNoDownrankLanguage(report, 'Persona report');
 if (!report.recommendations?.artists?.length || !report.recommendations?.albums?.length || !report.recommendations?.songs?.length) {
   throw new Error(`Persona recommendations incomplete: ${textBlob(report.recommendations)}`);
 }
@@ -154,6 +163,13 @@ const chat = await request('/api/ai/recommend?action=persona-chat', {
 const chatText = String(chat.answer || '');
 if (!chatText.includes(expected.mbti) || !chatText.includes(expected.major) || !chatText.includes(String(expected.birthYear)) || !chatText.includes(expected.gender)) {
   throw new Error(`Persona chat did not cite identity fields: ${chatText}`);
+}
+assertNoDownrankLanguage(chatText, 'Persona chat');
+
+const refreshed = await request('/api/auth', { method: 'GET' }, user.token);
+assertNoDownrankLanguage(refreshed.user?.latestPersona, 'Refreshed auth latestPersona');
+if (!textBlob(refreshed.user?.latestPersona?.humanSpiritMap).includes(expected.mbti)) {
+  throw new Error(`Refreshed auth latestPersona did not expose normalized spirit map: ${textBlob(refreshed.user?.latestPersona)}`);
 }
 
 console.log(JSON.stringify({
