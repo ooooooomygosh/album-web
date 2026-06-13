@@ -126,7 +126,7 @@ await page.getByText('专辑补完者').waitFor({ timeout: 5000 });
 await page.getByText('深夜人声控').waitFor({ timeout: 5000 });
 await page.getByText('Art Pop、Dream Pop').waitFor({ timeout: 5000 });
 await page.getByText('王菲、Frank Ocean').waitFor({ timeout: 5000 });
-await page.getByRole('button', { name: /公开资料之歌/ }).click();
+await page.locator('.member-modal .member-added-list button').filter({ hasText: '公开资料之歌' }).first().click();
 await page.locator('.showroom-detail').filter({ hasText: '公开资料之歌' }).waitFor({ timeout: 10000 });
 await page.locator('.credit-strip .author-chip').filter({ hasText: 'Profile Sync Owner' }).click();
 await page.locator('.member-modal').filter({ hasText: '当前房间添加' }).waitFor({ timeout: 10000 });
