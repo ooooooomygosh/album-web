@@ -479,7 +479,7 @@ async function apiWithTimeout(path, options = {}, timeoutMs = 22000) {
   try {
     return await api(path, { ...options, signal: controller.signal });
   } catch (error) {
-    if (error.name === 'AbortError') throw new Error('AI 深度导览仍在生成中，请稍后重试；本次没有写入低质兜底内容。');
+    if (error.name === 'AbortError') throw new Error('AI 生成仍在进行中，请稍后重试；本次没有写入低质兜底内容。');
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -565,6 +565,44 @@ function AddGenerationLoader({ item, phaseSteps, activePhaseIndex }) {
       <div className="loader-meter"><i /></div>
       <div className="ai-progress rich-progress loader-phases">
         <div>{phaseSteps.map(([key, label], index) => <span key={key} className={index <= activePhaseIndex ? 'active' : ''}>{label}</span>)}</div>
+      </div>
+    </div>
+  );
+}
+
+function PersonaGenerationLoader({ tone, selectedCount, profileStats }) {
+  const variants = ['oracle', 'spectrum', 'constellation'];
+  const variant = variants[stableIndex(`${tone}-${selectedCount}-${profileStats?.itemsAdded || 0}`, variants.length)];
+  const topArtists = (profileStats?.topArtists || []).slice(0, 5);
+  const recentAdds = (profileStats?.recentAdds || []).slice(0, 5);
+  const tags = (profileStats?.tags || []).slice(0, 6);
+  const commentCount = profileStats?.commentsAdded || (Array.isArray(profileStats?.comments) ? profileStats.comments.length : 0);
+
+  return (
+    <div className={`persona-loading persona-loading-${variant}`} aria-live="polite">
+      <div className="persona-oracle-stage" aria-hidden="true">
+        <div className="persona-zodiac">
+          {Array.from({ length: 12 }, (_, index) => <span key={index} style={{ '--i': index }} />)}
+        </div>
+        <div className="persona-card-stack">
+          {(recentAdds.length ? recentAdds : [{ title: 'Profile' }, { title: 'Comments' }, { title: 'Tags' }]).slice(0, 3).map((item, index) => (
+            <i key={`${item.title}-${index}`} style={{ '--i': index, '--card-cover': cssImageUrl(item.cover) }} />
+          ))}
+        </div>
+        <div className="persona-pulse-core"><Sparkles size={24} /></div>
+      </div>
+      <div className="persona-loading-copy">
+        <p className="eyebrow"><Sparkles size={14} /> deep persona</p>
+        <strong>DeepSeek v4 Pro 正在给你的歌单抽牌</strong>
+        <small>会读取个人资料、评论、所选音乐和联网资料，生成更长的人格侧写与推荐。等待会久一点，但这次会尽量把输出拉满。</small>
+      </div>
+      <div className="persona-loading-strip">
+        {[
+          ['资料', selectedCount ? `${selectedCount} 首代表作` : '个人档案'],
+          ['评论', `${commentCount} 条线索`],
+          ['艺人', topArtists[0]?.name || '偏好雷达'],
+          ['标签', tags[0]?.name || tone]
+        ].map(([label, value]) => <span key={label}><b>{label}</b>{value}</span>)}
       </div>
     </div>
   );
@@ -773,8 +811,8 @@ function App() {
   const [aiPromptDraft, setAiPromptDraft] = useState('');
   const [personaPromptDraft, setPersonaPromptDraft] = useState('');
   const [aiMaxTokens, setAiMaxTokens] = useState(2100);
-  const [personaMaxTokens, setPersonaMaxTokens] = useState(3600);
-  const [personaChatMaxTokens, setPersonaChatMaxTokens] = useState(2200);
+  const [personaMaxTokens, setPersonaMaxTokens] = useState(12000);
+  const [personaChatMaxTokens, setPersonaChatMaxTokens] = useState(5200);
   const [aiTemperature, setAiTemperature] = useState(0.5);
   const [personaTemperature, setPersonaTemperature] = useState(0.72);
   const [profileDraft, setProfileDraft] = useState(() => profileToDraft(session?.user));
@@ -1029,7 +1067,7 @@ function App() {
     setPersonaStatus('thinking');
     try {
       await saveProfile(profileDraft);
-      const data = await api('/api/ai/recommend?action=persona', {
+      const data = await apiWithTimeout('/api/ai/recommend?action=persona', {
         session,
         method: 'POST',
         body: JSON.stringify({
@@ -1037,7 +1075,7 @@ function App() {
           tone: personaTone,
           history: { mode: personaHistoryMode, selected: personaSelectedIds }
         })
-      });
+      }, 245000);
       setPersonaReport(data.report);
       setPersonaChat([]);
       const nextUser = { ...session.user, latestPersona: data.report };
@@ -1055,7 +1093,7 @@ function App() {
     setPersonaQuestion('');
     setPersonaChat((current) => [...current, { role: 'user', text }]);
     try {
-      const data = await api('/api/ai/recommend?action=persona-chat', {
+      const data = await apiWithTimeout('/api/ai/recommend?action=persona-chat', {
         session,
         method: 'POST',
         body: JSON.stringify({
@@ -1064,7 +1102,7 @@ function App() {
           report: personaReport,
           history: { mode: personaHistoryMode, selected: personaSelectedIds }
         })
-      });
+      }, 140000);
       setPersonaChat((current) => [...current, { role: 'assistant', text: data.answer, sources: data.research?.sources || [] }]);
       setPersonaChatStatus(data.fallback ? 'fallback' : 'done');
     } catch (error) {
@@ -1319,8 +1357,8 @@ function App() {
       setAiPromptDraft(data.config?.customPrompt || '');
       setPersonaPromptDraft(data.config?.personaPrompt || '');
       setAiMaxTokens(data.config?.maxTokens || 2100);
-      setPersonaMaxTokens(data.config?.personaMaxTokens || 3600);
-      setPersonaChatMaxTokens(data.config?.personaChatMaxTokens || 2200);
+      setPersonaMaxTokens(data.config?.personaMaxTokens || 12000);
+      setPersonaChatMaxTokens(data.config?.personaChatMaxTokens || 5200);
       setAiTemperature(data.config?.temperature ?? 0.5);
       setPersonaTemperature(data.config?.personaTemperature ?? 0.72);
       setAdminStatus('');
@@ -2325,8 +2363,8 @@ function ProfilePanel({ session, profileDraft, setProfileDraft, saveProfile, upl
             ))}
             {!recentAdds.length && <p className="empty-state compact-empty">刷新统计后会显示你添加过的歌曲和专辑。</p>}
           </div>
-          <button type="button" className="full-action narrow" onClick={generatePersona} disabled={personaStatus === 'thinking'}><Sparkles size={16} />{personaStatus === 'thinking' ? '正在翻你的歌单和评论' : '让 AI 拆穿我的歌单'}</button>
-          {personaStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />DeepSeek 正在读取你的资料、评论和勾选音乐，生成侧写与推荐。</div>}
+          <button type="button" className="full-action narrow" onClick={generatePersona} disabled={personaStatus === 'thinking'}><Sparkles size={16} />{personaStatus === 'thinking' ? '正在抽音乐人格牌' : '让 AI 拆穿我的歌单'}</button>
+          {personaStatus === 'thinking' && <PersonaGenerationLoader tone={personaTone} selectedCount={selectedCount} profileStats={profileStats} />}
           {personaStatus === 'fallback' && <p className="status-line">AI 暂时不可用，已生成本地临时侧写。</p>}
           {String(personaStatus).startsWith('error-') && <p className="status-line error-line">{String(personaStatus).replace('error-', '')}</p>}
         </article>
@@ -2357,8 +2395,8 @@ function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser,
           <label>音乐侧写 Prompt<textarea value={personaPromptDraft} onChange={(event) => setPersonaPromptDraft(event.target.value)} placeholder="用于个人页音乐侧写和继续对话。建议简洁写：更像朋友、更自然、根据用户资料、评论和所选歌曲分析并推荐新音乐。" /></label>
           <div className="admin-controls expanded">
             <label>Max Tokens<input type="number" min="700" max="3200" value={aiMaxTokens} onChange={(event) => setAiMaxTokens(Number(event.target.value))} /></label>
-            <label>Persona Tokens<input type="number" min="1200" max="6000" value={personaMaxTokens} onChange={(event) => setPersonaMaxTokens(Number(event.target.value))} /></label>
-            <label>Chat Tokens<input type="number" min="900" max="3200" value={personaChatMaxTokens} onChange={(event) => setPersonaChatMaxTokens(Number(event.target.value))} /></label>
+            <label>Persona Tokens<input type="number" min="1200" max="16000" value={personaMaxTokens} onChange={(event) => setPersonaMaxTokens(Number(event.target.value))} /></label>
+            <label>Chat Tokens<input type="number" min="900" max="8000" value={personaChatMaxTokens} onChange={(event) => setPersonaChatMaxTokens(Number(event.target.value))} /></label>
             <label>Temperature<input type="number" min="0" max="1" step="0.05" value={aiTemperature} onChange={(event) => setAiTemperature(Number(event.target.value))} /></label>
             <label>Persona Temp<input type="number" min="0" max="1" step="0.05" value={personaTemperature} onChange={(event) => setPersonaTemperature(Number(event.target.value))} /></label>
           </div>

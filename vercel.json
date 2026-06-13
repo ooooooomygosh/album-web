@@ -11,7 +11,7 @@
       "maxDuration": 30
     },
     "api/ai/recommend.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   },
   "rewrites": [
