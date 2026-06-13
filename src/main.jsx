@@ -1684,6 +1684,7 @@ function PersonaReport({ report, addPublicTag }) {
     ['专辑', 'album', report.recommendations?.albums],
     ['歌曲', 'song', report.recommendations?.songs]
   ].filter(([, , values]) => values?.length);
+  const identityFields = Array.isArray(report.identitySignals?.fields) ? report.identitySignals.fields.filter((item) => item?.label && item?.value) : [];
   return (
     <article className="persona-report" style={accent ? { '--persona-accent': accent } : undefined}>
       <div className="persona-title">
@@ -1699,6 +1700,26 @@ function PersonaReport({ report, addPublicTag }) {
           <p>{report.personalitySketch.text}</p>
           {report.personalitySketch.softGuess && <small>{report.personalitySketch.softGuess}</small>}
         </div>
+      )}
+      {identityFields.length > 0 && (
+        <section className="identity-signal-card">
+          <div>
+            <strong>已读取的个人线索</strong>
+            {report.identitySignals?.summary && <p>{report.identitySignals.summary}</p>}
+          </div>
+          {identityFields.length > 0 && (
+            <div className="identity-signal-grid">
+              {identityFields.map((item) => (
+                <article key={`${item.label}-${item.value}`}>
+                  <span>{item.label}</span>
+                  <b>{item.value}</b>
+                  {item.reading && <p>{item.reading}</p>}
+                </article>
+              ))}
+            </div>
+          )}
+          {report.identitySignals?.caveat && <small>{report.identitySignals.caveat}</small>}
+        </section>
       )}
       {report.preferenceReading?.length > 0 && (
         <div className="preference-reading-grid">

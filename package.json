@@ -10,7 +10,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "review": "node scripts/review.mjs",
     "api:smoke": "node scripts/api-smoke.mjs",
-    "hero:smoke": "node scripts/hero-config-smoke.mjs"
+    "hero:smoke": "node scripts/hero-config-smoke.mjs",
+    "persona:smoke": "node scripts/persona-identity-smoke.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.1.1",
