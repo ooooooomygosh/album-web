@@ -160,7 +160,8 @@ export default async function handler(req, res) {
       '你是 Album Circle 的资深音乐编辑。请为这条音乐写成“可直接展示”的中文推荐导览，不要像字段说明。',
       '只输出严格 JSON。字段：overview, genre, albumContext, creativeBackground, melodyMotif, lyricPerspective, arrangement, releaseState, listeningGuide, discussionPrompts。',
       '写作方法：先在心里把它当成一篇完整乐评推荐，再拆成这些卡片。每张卡都要有判断、有导览、有推荐理由。',
-      '每个长字段必须是完整段落，写 3-5 句：overview 220-360 字；albumContext/creativeBackground/melodyMotif/lyricPerspective/arrangement/releaseState 各 180-320 字。',
+      '总输出要像一篇完整长导览，但必须完整闭合 JSON；总中文长度控制在 2400-3600 字符，宁可克制也不能被截断。',
+      '每个长字段必须是完整段落，写 3-4 句：overview 240-380 字；albumContext/creativeBackground/melodyMotif/lyricPerspective/arrangement/releaseState 各 170-260 字。',
       '每段第一句直接说明“为什么值得听/它在作品中的功能”，后面说明“先听哪里/听完能理解什么”。必须点名标题、艺人或专辑，并包含具体线索：主歌、副歌、人声、节奏、和声、留白、发行、封面、平台来源、曲序位置或朋友评论入口。',
       '禁止使用连续问句或模板句式，例如“是否...”“可以从...理解”“建议不要急着...”。要用肯定判断写作，像一个认真推荐音乐的朋友。',
       '不要编造制作人、录音地点、幕后故事、公开资料、歌词原句、具体秒数或封面画面；除非这些信息在下面元数据或联网来源里明确出现。不确定就写“待考证”或“当前资料只能确认”。',
@@ -180,10 +181,22 @@ export default async function handler(req, res) {
       '联网检索资料：',
       researchContext
     ].filter(Boolean).join('\n');
-    const finalPrompt = aiConfig.customPrompt ? `${aiConfig.customPrompt}\n\n当前条目元数据如下，请仍然输出同一 JSON 字段：\n${prompt}` : prompt;
+    const hardPrompt = [
+      '最终硬性约束：',
+      '1. 必须返回一个完整、可 JSON.parse 的 JSON object，不要 markdown。',
+      '2. 不要超过字段字数上限，不要追加额外字段，不要在末尾解释。',
+      '3. 如果后台自定义提示和这里的字段、事实、长度、JSON 规则冲突，以这里为准。',
+      '4. 如果资料不足，写“当前资料只能确认/待考证”，但仍然给出具体听感导览。'
+    ].join('\n');
+    const customPrompt = cleanText(aiConfig.customPrompt, 2400);
+    const finalPrompt = [
+      customPrompt ? `后台自定义写作偏好（只影响风格，不得改变字段、JSON 格式、事实边界或长度上限）：\n${customPrompt}` : '',
+      prompt,
+      hardPrompt
+    ].filter(Boolean).join('\n\n');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 48000, 30000, 55000));
+    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 56000, 30000, 58000));
     let response;
     try {
       response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -201,7 +214,7 @@ export default async function handler(req, res) {
             { role: 'user', content: finalPrompt }
           ],
           temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 5200, 3200, 7600)
+          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 7200, 5200, 7800)
         })
       });
     } finally {
