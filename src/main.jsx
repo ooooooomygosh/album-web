@@ -345,6 +345,13 @@ function cssImageUrl(url) {
   return url ? `url("${String(url).replace(/["\\]/g, '\\$&')}")` : 'none';
 }
 
+function stableIndex(seed, modulo) {
+  const text = String(seed || 'album-circle');
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) hash = (hash * 33 + text.charCodeAt(index)) % 9973;
+  return hash % modulo;
+}
+
 function providerLabel(provider) {
   const labels = {
     appleMusic: 'Apple / iTunes',
@@ -450,8 +457,19 @@ async function api(path, { session, ...options } = {}) {
     ...(options.headers || {})
   };
   const response = await fetch(path, { ...options, headers });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || `Request failed: ${response.status}`);
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
+  if (!response.ok) {
+    if (!text || !Object.keys(data).length) {
+      throw new Error(response.status === 504 ? '服务器生成超时，本次没有写入展柜，请重试。' : `服务器返回异常：${response.status}`);
+    }
+    throw new Error(data.error || `Request failed: ${response.status}`);
+  }
   return data;
 }
 
@@ -499,6 +517,55 @@ function AlbumArt({ item, className = '', size = 'large' }) {
           <span>{artist}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function AddGenerationLoader({ item, phaseSteps, activePhaseIndex }) {
+  const variants = ['mosaic', 'fill', 'pressing'];
+  const variant = variants[stableIndex(item?.id || `${item?.title}-${item?.artist}`, variants.length)];
+  const progress = `${Math.max(18, Math.min(100, ((activePhaseIndex + 1) / phaseSteps.length) * 100))}%`;
+  const tiles = Array.from({ length: 16 }, (_, index) => index);
+  const title = item?.title || '这条音乐';
+  const artist = item?.artist || 'Album Circle';
+
+  return (
+    <div
+      className={`generation-loader generation-${variant}`}
+      style={{
+        '--loader-cover': cssImageUrl(item?.cover),
+        '--loader-level': progress,
+        '--loader-a': item?.palette?.[0] || 'var(--cover-a)',
+        '--loader-b': item?.palette?.[1] || 'var(--cover-b)',
+        '--loader-c': item?.palette?.[2] || 'var(--cover-c)'
+      }}
+      aria-live="polite"
+    >
+      <div className="loader-stage" aria-hidden="true">
+        <div className="loader-disc" />
+        <div className="loader-cover">
+          {item?.cover ? tiles.map((tile) => (
+            <span
+              key={tile}
+              style={{
+                '--tile-x': `${(tile % 4) * 33.333}%`,
+                '--tile-y': `${Math.floor(tile / 4) * 33.333}%`,
+                '--tile-delay': `${tile * 42}ms`
+              }}
+            />
+          )) : <AlbumArt item={item} />}
+          <i />
+        </div>
+      </div>
+      <div className="loader-copy">
+        <p className="eyebrow"><Bot size={14} /> deep guide</p>
+        <strong>{title}</strong>
+        <small>{artist} 的资料正在被整理成可读导览</small>
+      </div>
+      <div className="loader-meter"><i /></div>
+      <div className="ai-progress rich-progress loader-phases">
+        <div>{phaseSteps.map(([key, label], index) => <span key={key} className={index <= activePhaseIndex ? 'active' : ''}>{label}</span>)}</div>
+      </div>
     </div>
   );
 }
@@ -1735,9 +1802,10 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
           ))}
         </div>
         <div className="candidate-preview">
-          {selectedCandidate ? <><AlbumArt item={selectedCandidate} className="feature-art" /><p className="eyebrow"><Album size={15} /> selected {selectedType}</p><h3>{selectedCandidate.title}</h3><p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? '专辑' : selectedCandidate.albumTitle}</p><div className="tag-row compact-tags">{(selectedCandidate.tags || []).map((tag) => <span key={tag}>{tag}</span>)}</div><button type="button" className="full-action" disabled={isAdding} onClick={addSelectedToShowroom}><CirclePlus size={16} />{isAdding ? '正在深度生成' : `加入${selectedType}`}</button>{isAdding && <div className="ai-progress rich-progress"><i /><div>{phaseSteps.map(([key, label], index) => <span key={key} className={index <= activePhaseIndex ? 'active' : ''}>{label}</span>)}</div></div>}<p className="status-line">{isAdding ? '正在联网检索资料，并用 DeepSeek v4 Pro 生成更长、更具体的音乐导览；等待会更久，但不会用低质兜底替代。' : (statusLabels[backgroundStatus] || statusLabels[itemStatus] || '确认后会写入当前房间。')}</p>{addError && <p className="status-line error-line">{addError}</p>}</> : <div className="empty-state">搜索并选择一个候选。</div>}
+          {selectedCandidate ? <><AlbumArt item={selectedCandidate} className="feature-art" /><p className="eyebrow"><Album size={15} /> selected {selectedType}</p><h3>{selectedCandidate.title}</h3><p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? '专辑' : selectedCandidate.albumTitle}</p><div className="tag-row compact-tags">{(selectedCandidate.tags || []).map((tag) => <span key={tag}>{tag}</span>)}</div><button type="button" className="full-action" disabled={isAdding} onClick={addSelectedToShowroom}><CirclePlus size={16} />{isAdding ? '正在深度生成' : `加入${selectedType}`}</button>{isAdding && <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />}<p className="status-line">{isAdding ? '正在联网检索资料，并用 DeepSeek v4 Pro 生成更长、更具体的音乐导览；等待会更久，但不会用低质兜底替代。' : (statusLabels[backgroundStatus] || statusLabels[itemStatus] || '确认后会写入当前房间。')}</p>{addError && <p className="status-line error-line">{addError}</p>}</> : <div className="empty-state">搜索并选择一个候选。</div>}
         </div>
       </div>
+      {isAdding && selectedCandidate && <div className="generation-backdrop" style={{ '--loader-cover': cssImageUrl(selectedCandidate.cover) }} aria-hidden="true" />}
     </div>
   );
 }

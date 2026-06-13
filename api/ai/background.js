@@ -111,7 +111,13 @@ function sanitizeGuideText(value) {
 function isRichProfile(profile, item) {
   const fields = ['albumContext', 'creativeBackground', 'melodyMotif', 'lyricPerspective', 'arrangement', 'releaseState'];
   const body = [profile.overview, ...fields.map((field) => profile[field])].join('\n');
-  return fields.every((field) => profile[field]?.length >= 165) && profile.overview?.length >= 205 && concreteScore(body, item) >= 6;
+  return fields.every((field) => profile[field]?.length >= 170) && profile.overview?.length >= 210 && concreteScore(body, item) >= 3;
+}
+
+function hasUsableGeneratedContent(parsed = {}) {
+  const fields = ['albumContext', 'creativeBackground', 'melodyMotif', 'lyricPerspective', 'arrangement', 'releaseState'];
+  const presentFields = fields.filter((field) => cleanText(parsed[field], 900).length >= 70).length;
+  return cleanText(parsed.overview, 900).length >= 100 && presentFields >= 4;
 }
 
 function parseProfile(raw, item) {
@@ -136,9 +142,8 @@ function parseProfile(raw, item) {
       listeningGuide: cleanList(parsed.listeningGuide, fallback.listeningGuide, 10, 240).map(sanitizeGuideText).slice(0, 10),
       discussionPrompts: cleanList(parsed.discussionPrompts, fallback.discussionPrompts, 5, 120).slice(0, 5)
     };
-    return isRichProfile(profile, item)
-      ? profile
-      : { ...fallback, genre: profile.genre, listeningGuide: profile.listeningGuide, discussionPrompts: profile.discussionPrompts, qualityFallback: true };
+    if (!hasUsableGeneratedContent(parsed)) return { ...fallback, parseFallback: true };
+    return isRichProfile(profile, item) ? profile : { ...profile, qualityWarning: true };
   } catch {
     return { ...fallbackProfile(item), parseFallback: true };
   }
@@ -171,9 +176,9 @@ export default async function handler(req, res) {
     const aiConfig = configDoc?.exists ? configDoc.data() : {};
     const research = await searchMusicResearch(item, {
       intent: 'background',
-      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 5, 4, 7),
+      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 7, 4, 8),
       searchDepth: process.env.BACKGROUND_TAVILY_SEARCH_DEPTH || 'advanced',
-      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 6000, 4500, 8000)
+      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 8000, 5500, 9000)
     });
     const researchContext = compactResearchForPrompt(research);
 
@@ -217,7 +222,7 @@ export default async function handler(req, res) {
     ].filter(Boolean).join('\n\n');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 38000, 28000, 44000));
+    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 42000, 32000, 46000));
     let response;
     try {
       response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -235,7 +240,7 @@ export default async function handler(req, res) {
             { role: 'user', content: finalPrompt }
           ],
           temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 5600, 4800, 6400)
+          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 6800, 5200, 7600)
         })
       });
     } finally {
@@ -261,7 +266,8 @@ export default async function handler(req, res) {
         error: research.error || '',
         sources: publicResearchSources(research)
       },
-      generated: !profile.parseFallback && !profile.qualityFallback,
+      generated: !profile.parseFallback,
+      qualityWarning: Boolean(profile.qualityWarning),
       model,
       usage: data.usage
     });
