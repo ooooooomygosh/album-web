@@ -121,6 +121,9 @@ const persona = await request('/api/ai/recommend?action=persona', {
 }, user.token);
 
 const report = persona.report || {};
+if (persona.fallback || report.model === 'fallback') {
+  throw new Error(`Persona fell back instead of using DeepSeek: ${JSON.stringify({ fallback: persona.fallback, model: report.model, finishReason: persona.finishReason, debugError: persona.debugError })}`);
+}
 const identityText = textBlob(report.identitySignals);
 const reportText = textBlob(report);
 for (const value of Object.values(expected)) {
