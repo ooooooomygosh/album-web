@@ -2,6 +2,17 @@ import { json, requireUser } from '../_firebase.js';
 import { formatResearchForPrompt, publicResearchSources, searchMusicResearch } from './_research.js';
 import { musicPersonaHandler } from '../../lib/music-persona.js';
 
+function fallbackRecommendation(album = {}, comments = []) {
+  const title = String(album.title || album.albumTitle || '这条音乐').slice(0, 80);
+  const artist = String(album.artist || '这位艺人').slice(0, 80);
+  const tags = Array.isArray(album.tags) ? album.tags.filter(Boolean).slice(0, 3).join('、') : '';
+  const commentHint = comments.length
+    ? `朋友评论里已经出现了“${String(comments[0] || '').slice(0, 42)}”这样的入口，可以继续沿着真实听感聊下去。`
+    : '评论还不多，可以先从旋律、人声距离和适合推荐给谁这三个角度聊起。';
+  const tagHint = tags ? `它目前的标签偏向 ${tags}，下一批推荐可以从相近质感但不同语境的作品展开。` : '下一批推荐可以从同艺人、同专辑曲序和相近情绪的作品展开。';
+  return `《${title}》可以先作为 ${artist} 的一个听感入口：先抓住你被哪段旋律、歌词或音色打中，再把它放回专辑和朋友评论里理解。${commentHint}${tagHint}你更想继续找相似歌曲，还是想先把这首歌所在专辑补完整？`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return json(res, 405, { error: 'Method not allowed' });
@@ -69,8 +80,10 @@ export default async function handler(req, res) {
     if (!response.ok) throw new Error(data.error?.message || `DeepSeek failed: ${response.status}`);
 
     const message = data.choices?.[0]?.message;
+    const text = String(message?.content || '').trim();
     return json(res, 200, {
-      text: message?.content || 'AI 返回为空。请稍后重试。',
+      fallback: text.length < 12,
+      text: text.length >= 12 ? text : fallbackRecommendation(album, comments),
       research: {
         query: research.query,
         enabled: research.enabled,
