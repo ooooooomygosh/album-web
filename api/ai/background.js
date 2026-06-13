@@ -140,7 +140,29 @@ export default async function handler(req, res) {
 
     const configDoc = await db().collection('albumCircleConfig').doc('ai').get().catch(() => null);
     const aiConfig = configDoc?.exists ? configDoc.data() : {};
-    const research = await searchMusicResearch(item, { intent: 'background', maxResults: 5 });
+    const startedAt = Date.now();
+    const research = await searchMusicResearch(item, {
+      intent: 'background',
+      maxResults: 3,
+      searchDepth: 'basic',
+      timeoutMs: Number(process.env.BACKGROUND_TAVILY_TIMEOUT_MS || 3500)
+    });
+    if (Date.now() - startedAt > Number(process.env.BACKGROUND_AI_BUDGET_MS || 9500)) {
+      const profile = fallbackProfile(item);
+      return json(res, 200, {
+        fallback: true,
+        error: 'Background research used the request budget; returned local guide.',
+        background: profile.overview,
+        aiProfile: profile,
+        tags: profile.genre,
+        research: {
+          query: research.query,
+          enabled: research.enabled,
+          error: research.error || '',
+          sources: publicResearchSources(research)
+        }
+      });
+    }
     const researchContext = formatResearchForPrompt(research);
 
     const prompt = [
@@ -170,26 +192,30 @@ export default async function handler(req, res) {
     const finalPrompt = aiConfig.customPrompt ? `${aiConfig.customPrompt}\n\n当前条目元数据如下，请仍然输出同一 JSON 字段：\n${prompt}` : prompt;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 18000);
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: 'You write concrete Chinese music recommendation essays grounded in metadata. Return only valid JSON object. Never invent unverified facts.' },
-          { role: 'user', content: finalPrompt }
-        ],
-        temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-        max_tokens: Number.isFinite(aiConfig.maxTokens) ? aiConfig.maxTokens : 2100
-      })
-    });
-    clearTimeout(timeout);
+    const timeout = setTimeout(() => controller.abort(), Number(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS || 8000));
+    let response;
+    try {
+      response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'You write concrete Chinese music recommendation essays grounded in metadata. Return only valid JSON object. Never invent unverified facts.' },
+            { role: 'user', content: finalPrompt }
+          ],
+          temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
+          max_tokens: Math.max(900, Math.min(1800, Number(aiConfig.maxTokens || 1600)))
+        })
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || `DeepSeek failed: ${response.status}`);
@@ -217,7 +243,12 @@ export default async function handler(req, res) {
       error: message,
       background: profile.overview,
       aiProfile: profile,
-      tags: profile.genre
+      tags: profile.genre,
+      research: {
+        enabled: false,
+        sources: [],
+        error: message
+      }
     });
   }
 }
