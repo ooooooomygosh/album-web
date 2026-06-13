@@ -2,9 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "fluid": true,
   "functions": {
     "api/ai/background.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/ai/comment.js": {
       "maxDuration": 30

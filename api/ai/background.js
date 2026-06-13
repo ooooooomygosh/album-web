@@ -176,9 +176,9 @@ export default async function handler(req, res) {
     const aiConfig = configDoc?.exists ? configDoc.data() : {};
     const research = await searchMusicResearch(item, {
       intent: 'background',
-      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 7, 4, 8),
+      maxResults: numericConfig(process.env.BACKGROUND_TAVILY_MAX_RESULTS, 8, 5, 10),
       searchDepth: process.env.BACKGROUND_TAVILY_SEARCH_DEPTH || 'advanced',
-      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 8000, 5500, 9000)
+      timeoutMs: numericConfig(process.env.BACKGROUND_TAVILY_TIMEOUT_MS, 18000, 8000, 30000)
     });
     const researchContext = compactResearchForPrompt(research);
 
@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     ].filter(Boolean).join('\n\n');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 42000, 32000, 46000));
+    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 150000, 60000, 240000));
     let response;
     try {
       response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -240,7 +240,7 @@ export default async function handler(req, res) {
             { role: 'user', content: finalPrompt }
           ],
           temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 6800, 5200, 7600)
+          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 12000, 6800, 16000)
         })
       });
     } finally {

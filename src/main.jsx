@@ -1189,7 +1189,7 @@ function App() {
         session,
         method: 'POST',
         body: JSON.stringify({ item: candidate })
-      }, 65000);
+      }, 245000);
       if (data.fallback || data.generated !== true) {
         throw new Error(data.error || 'AI 深度导览没有完整生成，本次没有写入展柜，请重试。');
       }
