@@ -177,7 +177,7 @@ async function syncJoinedRoomProfiles(user) {
   if (roomsSnapshot.empty) return;
   const batch = db().batch();
   roomsSnapshot.docs.forEach((roomDoc) => {
-    batch.set(roomDoc.ref, { [`memberProfiles.${user.id}`]: snapshot }, { merge: true });
+    batch.update(roomDoc.ref, { [`memberProfiles.${user.id}`]: snapshot });
   });
   await batch.commit();
 }
