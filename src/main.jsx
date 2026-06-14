@@ -2148,6 +2148,15 @@ function PersonaReport({ report, addPublicTag }) {
       {(report.archetype?.summary || report.headline) && <p className="persona-headline">{report.archetype?.summary || report.headline}</p>}
       {report.summary && <p className="persona-summary">{report.summary}</p>}
       {report.the_roast && <div className="persona-roast"><Sparkles size={18} /><p>{report.the_roast}</p></div>}
+      {report.essay && (
+        <section className="persona-main-essay">
+          <div>
+            <span>SOUL READING</span>
+            <strong>完整灵魂侧写</strong>
+          </div>
+          <p>{report.essay}</p>
+        </section>
+      )}
       {report.lifeReading && (
         <section className="life-reading-card">
           <div className="life-reading-kicker">
@@ -2265,7 +2274,6 @@ function PersonaReport({ report, addPublicTag }) {
           <p>{report.ui_theme_hint.bg_animation}</p>
         </div>
       )}
-      {report.essay && <details className="persona-full-note"><summary>展开完整分析</summary><p className="persona-essay">{report.essay}</p></details>}
       {identityFields.length > 0 && (
         <details className="identity-signal-card compact-identity-card">
           <summary>本次抽到的资料牌</summary>
