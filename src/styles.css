@@ -4141,6 +4141,125 @@ input[type="range"] {
   line-height: 1.65;
 }
 
+.persona-phase-meter {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.persona-phase-meter div {
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.persona-phase-meter i {
+  display: block;
+  width: var(--persona-progress);
+  height: 100%;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--cover-c), white 18%), color-mix(in srgb, var(--cover-a), white 22%));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cover-c), transparent 20%);
+  transition: width 700ms ease;
+}
+
+.persona-phase-meter span {
+  color: color-mix(in srgb, var(--cover-c), white 12%);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.persona-phase-rail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.persona-phase-rail button,
+.persona-wait-actions button {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.persona-phase-rail button {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 8px 6px;
+  color: rgba(248, 251, 255, 0.48);
+  border-radius: 14px;
+}
+
+.persona-phase-rail button.active {
+  color: #101113;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--cover-c), white 10%);
+}
+
+.persona-phase-rail b {
+  font-size: 0.68rem;
+}
+
+.persona-phase-rail span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.persona-wait-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.persona-wait-actions button {
+  padding: 7px 10px;
+  color: rgba(248, 251, 255, 0.68);
+  border-radius: 999px;
+  font-size: 0.74rem;
+}
+
+.persona-wait-actions button.active {
+  color: #101113;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--cover-c), white 16%);
+}
+
+.persona-wait-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 12px;
+  color: rgba(248, 251, 255, 0.75);
+  border: 1px solid color-mix(in srgb, var(--cover-c), transparent 70%);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cover-c), transparent 76%), transparent 42%),
+    rgba(255, 255, 255, 0.06);
+}
+
+.persona-wait-card p {
+  margin: 0;
+  line-height: 1.58;
+}
+
 .persona-loading-strip {
   position: relative;
   z-index: 1;
@@ -5945,6 +6064,22 @@ input[type="range"] {
 
   .persona-zodiac span {
     transform: rotate(calc(var(--i) * 30deg)) translateX(min(102px, 30vw));
+  }
+
+  .persona-phase-rail {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .persona-phase-rail button {
+    min-width: 74px;
+    scroll-snap-align: start;
+  }
+
+  .persona-wait-card {
+    grid-template-columns: 1fr;
   }
 
   .persona-loading-strip {

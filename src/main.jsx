@@ -571,6 +571,16 @@ function AddGenerationLoader({ item, phaseSteps, activePhaseIndex }) {
 }
 
 function PersonaGenerationLoader({ tone, selectedCount, profileStats, user }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [focusCard, setFocusCard] = useState('phase');
+  const totalEstimate = 240;
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const variants = ['oracle', 'spectrum', 'constellation'];
   const variant = variants[stableIndex(`${tone}-${selectedCount}-${profileStats?.itemsAdded || 0}`, variants.length)];
   const topArtists = (profileStats?.topArtists || []).slice(0, 5);
@@ -592,6 +602,26 @@ function PersonaGenerationLoader({ tone, selectedCount, profileStats, user }) {
     { title: tags[0]?.name || '隐藏标签', kind: 'tag', label: tags[1]?.name || '等待揭牌' }
   ];
   const cardItems = baseCards.filter((item, index, array) => item.title && array.findIndex((candidate) => candidate.title === item.title && candidate.kind === item.kind) === index).slice(0, 6);
+  const phasePlan = [
+    { at: 0, label: '资料入阵', detail: '保存个人资料、代表作和评论切片', icon: '01', note: '先把你的资料牌、歌单牌和评论牌放到同一张桌面上。' },
+    { at: 18, label: '联网检索', detail: 'Tavily 查找相似艺人、专辑语境和评论来源', icon: '02', note: '这一步在给推荐找外部参照，不让结果只凭空想。' },
+    { at: 48, label: '音乐写手', detail: 'v4 Pro 生成音乐人格长稿', icon: '03', note: '它会盯着人声、旋律、专辑感和你留下的歌曲线索。' },
+    { at: 88, label: '生活写手', detail: 'v4 Pro 推演日常性格和相处方式', icon: '04', note: '这一步负责把歌单翻译成更像人的侧写。' },
+    { at: 128, label: '策展写手', detail: 'v4 Pro 生成推荐方向和口味边界', icon: '05', note: '新的歌手、专辑、歌曲会在这里开始成形。' },
+    { at: 168, label: '主编融合', detail: '把多份草稿熔成一篇完整灵魂侧写', icon: '06', note: '主编会删掉套话，保留最像你的句子。' },
+    { at: 212, label: '排版成卡', detail: '生成标签、主题色、彩蛋和继续追问', icon: '07', note: '最后把长文装进前端能展示的卡片和标签。' }
+  ];
+  const nextPhaseIndex = phasePlan.findIndex((phase, index) => elapsed >= phase.at && (index === phasePlan.length - 1 || elapsed < phasePlan[index + 1].at));
+  const activePhaseIndex = Math.min(phasePlan.length - 1, Math.max(0, nextPhaseIndex));
+  const activePhase = phasePlan[activePhaseIndex] || phasePlan[0];
+  const progress = Math.min(96, Math.max(7, Math.round((elapsed / totalEstimate) * 96)));
+  const remaining = Math.max(0, totalEstimate - elapsed);
+  const waitLine = remaining > 0 ? `预计还要 ${Math.ceil(remaining / 30) * 30} 秒左右` : '正在等最后一张牌落桌';
+  const interactionCards = {
+    phase: activePhase.note,
+    sources: `将参考 ${profileStats?.itemsAdded || 0} 条添加记录、${commentCount} 条评论线索和联网资料。`,
+    question: '可以先想一个问题：为什么我会喜欢这些声音？下一批要更安全还是更冒险？'
+  };
 
   return (
     <div className={`persona-loading persona-loading-${variant}`} aria-live="polite">
@@ -627,8 +657,29 @@ function PersonaGenerationLoader({ tone, selectedCount, profileStats, user }) {
       </div>
       <div className="persona-loading-copy">
         <p className="eyebrow"><Sparkles size={14} /> deep persona</p>
-        <strong>DeepSeek v4 Pro 正在给你的歌单抽牌</strong>
-        <small>会读取个人资料、评论、所选音乐和联网资料，生成更长的人格侧写与推荐。等待会久一点，但这次会尽量把输出拉满。</small>
+        <strong>{activePhase.label}</strong>
+        <small>{activePhase.detail}。{waitLine}，已等待 {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}。</small>
+      </div>
+      <div className="persona-phase-meter" style={{ '--persona-progress': `${progress}%` }}>
+        <div><i /></div>
+        <span>{progress}%</span>
+      </div>
+      <div className="persona-phase-rail">
+        {phasePlan.map((phase, index) => (
+          <button key={phase.label} type="button" className={index <= activePhaseIndex ? 'active' : ''} onClick={() => setFocusCard('phase')}>
+            <b>{phase.icon}</b>
+            <span>{phase.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="persona-wait-actions" role="group" aria-label="等待时可查看的信息">
+        <button type="button" className={focusCard === 'phase' ? 'active' : ''} onClick={() => setFocusCard('phase')}>当前阶段</button>
+        <button type="button" className={focusCard === 'sources' ? 'active' : ''} onClick={() => setFocusCard('sources')}>本次素材</button>
+        <button type="button" className={focusCard === 'question' ? 'active' : ''} onClick={() => setFocusCard('question')}>待会追问</button>
+      </div>
+      <div className="persona-wait-card">
+        <Sparkles size={15} />
+        <p>{interactionCards[focusCard]}</p>
       </div>
       <div className="persona-loading-strip">
         {[
@@ -1109,7 +1160,7 @@ function App() {
           tone: personaTone,
           history: { mode: personaHistoryMode, selected: personaSelectedIds }
         })
-      }, 245000);
+      }, 295000);
       setPersonaReport(data.report);
       setPersonaChat([]);
       const nextUser = { ...session.user, latestPersona: data.report };
