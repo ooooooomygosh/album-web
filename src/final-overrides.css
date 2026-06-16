@@ -515,59 +515,119 @@ body > .global-search-popover {
 
 .cabinet-toggle-list label {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: center;
-  min-height: 62px;
-  padding: 11px 12px;
-  color: rgba(248, 251, 255, 0.76);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 20px;
+  min-height: 58px;
+  padding: 12px 13px 12px 15px;
+  color: rgba(248, 251, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)),
-    rgba(4, 5, 7, 0.55);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.082), rgba(255, 255, 255, 0.026)),
+    rgba(8, 10, 13, 0.66);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 28px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition:
+    border-color 220ms var(--ease-soft),
+    background 220ms var(--ease-soft),
+    transform 220ms var(--ease-soft);
 }
 
-.cabinet-toggle-list input {
-  width: 42px;
-  height: 26px;
+.cabinet-toggle-list input[type="checkbox"] {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  width: 48px;
+  height: 28px;
+  margin: 0;
+  flex: 0 0 auto;
   appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  -webkit-appearance: none;
+  outline: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.35);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.115), rgba(255, 255, 255, 0.035)),
+    rgba(2, 4, 7, 0.6);
+  box-shadow:
+    inset 0 1px 4px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition:
     background 260ms var(--ease-soft),
-    border-color 260ms var(--ease-soft);
+    border-color 260ms var(--ease-soft),
+    box-shadow 260ms var(--ease-soft);
 }
 
-.cabinet-toggle-list input::before {
+.cabinet-toggle-list input[type="checkbox"]::before {
   display: block;
-  width: 20px;
-  height: 20px;
-  margin: 2px;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
   content: "";
   border-radius: 50%;
-  background: rgba(248, 251, 255, 0.88);
-  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.32);
-  transition: transform 300ms cubic-bezier(.16, 1.08, .18, 1);
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.98), rgba(234, 241, 244, 0.88) 56%, rgba(177, 190, 198, 0.72));
+  box-shadow:
+    0 6px 15px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition:
+    transform 330ms cubic-bezier(.2, 1.28, .24, 1),
+    background 260ms var(--ease-soft),
+    box-shadow 260ms var(--ease-soft);
 }
 
-.cabinet-toggle-list input:checked {
-  border-color: transparent;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--cover-c), white 12%), color-mix(in srgb, var(--cover-a), white 20%));
+.cabinet-toggle-list input[type="checkbox"]:checked {
+  border-color: color-mix(in srgb, var(--cover-c), white 34%);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--cover-c), white 18%), color-mix(in srgb, var(--cover-a), white 24%)),
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--cover-a), transparent 68%),
+    0 10px 28px color-mix(in srgb, var(--cover-c), transparent 78%),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
-.cabinet-toggle-list input:checked::before {
-  transform: translateX(16px);
-  background: #111315;
+.cabinet-toggle-list input[type="checkbox"]:checked::before {
+  transform: translateX(20px);
+  background:
+    radial-gradient(circle at 35% 25%, #fff, rgba(242, 249, 250, 0.95) 55%, rgba(197, 229, 230, 0.82));
+  box-shadow:
+    0 7px 17px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .cabinet-toggle-list span {
   display: grid;
+  grid-column: 1;
+  grid-row: 1;
   gap: 3px;
   min-width: 0;
+}
+
+.cabinet-toggle-list label:hover,
+.cabinet-toggle-list label:focus-within {
+  border-color: rgba(255, 255, 255, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035)),
+    rgba(10, 12, 16, 0.74);
+}
+
+.cabinet-toggle-list label:active {
+  transform: scale(0.992);
+}
+
+.cabinet-toggle-list input[type="checkbox"]:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.12),
+    0 0 0 5px color-mix(in srgb, var(--cover-c), transparent 68%),
+    inset 0 1px 4px rgba(0, 0, 0, 0.38);
 }
 
 .cabinet-toggle-list small {
