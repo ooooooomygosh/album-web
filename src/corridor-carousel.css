@@ -249,6 +249,14 @@ body.corridor-modal-open .global-search-popover {
   animation: corridor-wash-fade 760ms cubic-bezier(0.16, 1, 0.25, 1) both;
 }
 
+.corridor-overlay.is-moving .corridor-cover-wash {
+  filter: blur(18px) saturate(1.04);
+}
+
+.corridor-overlay.is-moving .corridor-cover-wash.is-current {
+  opacity: 0.32;
+}
+
 .corridor-glow {
   position: absolute;
   inset: 10px;
@@ -271,6 +279,12 @@ body.corridor-modal-open .global-search-popover {
   filter: blur(22px);
   content: "";
   animation: corridor-halo 8s linear infinite;
+}
+
+.corridor-overlay.is-moving .corridor-glow:after {
+  opacity: 0.12;
+  filter: blur(14px);
+  animation-play-state: paused;
 }
 
 .corridor-header {
@@ -382,7 +396,7 @@ body.corridor-modal-open .global-search-popover {
   height: clamp(260px, 26vw, 370px);
   transform-style: preserve-3d;
   transform: translate3d(0, 0, -340px) rotateX(-4deg) rotateY(var(--corridor-rotate, 0deg));
-  transition: transform 760ms cubic-bezier(0.16, 1, 0.25, 1);
+  transition: transform 620ms cubic-bezier(0.16, 1, 0.25, 1);
   will-change: transform;
 }
 
@@ -415,18 +429,23 @@ body.corridor-modal-open .global-search-popover {
   transform-origin: center;
   transform-style: preserve-3d;
   will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   cursor: pointer;
   touch-action: manipulation;
   opacity: var(--side-opacity, 0.64);
   transition:
-    opacity 360ms ease,
-    border-color 360ms ease,
-    box-shadow 360ms ease,
-    transform 760ms cubic-bezier(0.16, 1, 0.25, 1);
+    opacity 240ms ease,
+    filter 240ms ease,
+    border-color 240ms ease,
+    box-shadow 240ms ease,
+    transform 620ms cubic-bezier(0.16, 1, 0.25, 1);
 }
 
 .corridor-card:hover,
 .corridor-card.is-active {
+  --active-lift: 115px;
+  --active-scale: 1.13;
   opacity: 1;
   border-color: rgba(255, 255, 255, 0.44);
   box-shadow:
@@ -443,6 +462,25 @@ body.corridor-modal-open .global-search-popover {
     0 40px 96px rgba(0, 0, 0, 0.62),
     0 0 64px color-mix(in srgb, var(--panel-a), transparent 62%),
     0 0 120px color-mix(in srgb, var(--panel-b), transparent 82%);
+}
+
+.corridor-card.is-neighbor {
+  opacity: 0.58;
+  filter: blur(0.7px) saturate(0.88);
+}
+
+.corridor-card.is-distant {
+  opacity: 0.34;
+  filter: blur(1.5px) saturate(0.72);
+}
+
+.corridor-overlay.is-moving .corridor-card {
+  transition-duration: 180ms;
+}
+
+.corridor-overlay.is-moving .corridor-card.is-neighbor,
+.corridor-overlay.is-moving .corridor-card.is-distant {
+  filter: saturate(0.78);
 }
 
 .corridor-card-cover {
@@ -562,7 +600,20 @@ body.corridor-modal-open .global-search-popover {
     inset 0 1px rgba(255, 255, 255, 0.24),
     0 28px 84px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(28px) saturate(1.22);
+  -webkit-backdrop-filter: blur(28px) saturate(1.22);
+  transition:
+    background-color 240ms ease,
+    border-color 240ms ease,
+    backdrop-filter 240ms ease,
+    -webkit-backdrop-filter 240ms ease;
   pointer-events: auto;
+}
+
+.corridor-overlay.is-moving .corridor-info {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(8, 10, 14, 0.82);
+  backdrop-filter: blur(8px) saturate(1.02);
+  -webkit-backdrop-filter: blur(8px) saturate(1.02);
 }
 
 .corridor-index {
@@ -800,6 +851,8 @@ body.corridor-modal-open .global-search-popover {
   .corridor-card {
     position: relative;
     inset: auto;
+    --active-lift: 0px !important;
+    --active-scale: 1 !important;
     flex: 0 0 min(72vw, 320px);
     min-height: 360px;
     transform: none !important;

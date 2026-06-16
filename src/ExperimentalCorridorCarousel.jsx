@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Disc3, Pause, Play, X } from 'lucide-react';
 
@@ -65,6 +65,15 @@ function clampIndex(index, count) {
   return ((index % count) + count) % count;
 }
 
+function nearestVirtualIndex(targetIndex, currentIndex, count) {
+  if (!count) return 0;
+  const currentSlot = clampIndex(Math.round(currentIndex), count);
+  let delta = targetIndex - currentSlot;
+  if (delta > count / 2) delta -= count;
+  if (delta < -count / 2) delta += count;
+  return Math.round(currentIndex) + delta;
+}
+
 function itemSummary(item) {
   return item.aiProfile?.overview || item.background || item.context || '这张封面还在等待朋友补上它的第一段记忆。';
 }
@@ -79,18 +88,52 @@ function cssImageUrl(value) {
   return `url("${text.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}")`;
 }
 
-function nearestVirtualIndex(targetIndex, currentIndex, count) {
-  if (!count) return 0;
-  const currentSlot = clampIndex(currentIndex, count);
-  let delta = targetIndex - currentSlot;
-  if (delta > count / 2) delta -= count;
-  if (delta < -count / 2) delta += count;
-  return currentIndex + delta;
+function normalizeWheelDelta(event) {
+  const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+  if (event.deltaMode === 1) return raw * 16;
+  if (event.deltaMode === 2) return raw * window.innerHeight;
+  return raw;
 }
 
-function circularDistance(left, right, count) {
-  const distance = Math.abs(left - right);
-  return Math.min(distance, count - distance);
+function isFallbackItem(item) {
+  return !item?.id || item.id.startsWith('corridor-fallback-');
+}
+
+function scheduleIdleTask(callback) {
+  if (typeof window === 'undefined') return 0;
+  if ('requestIdleCallback' in window) {
+    return window.requestIdleCallback(callback, { timeout: 900 });
+  }
+  return window.setTimeout(callback, 120);
+}
+
+function cancelIdleTask(taskId) {
+  if (!taskId || typeof window === 'undefined') return;
+  if ('cancelIdleCallback' in window) {
+    window.cancelIdleCallback(taskId);
+    return;
+  }
+  window.clearTimeout(taskId);
+}
+
+function preloadCoverImage(src, cache) {
+  if (!src || typeof window === 'undefined') return Promise.resolve();
+  if (cache.has(src)) return cache.get(src);
+  const job = new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      if (img.decode) {
+        img.decode().catch(() => null).finally(resolve);
+        return;
+      }
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = src;
+  });
+  cache.set(src, job);
+  return job;
 }
 
 function CorridorCover({ item, active }) {
@@ -108,6 +151,9 @@ function CorridorCover({ item, active }) {
         width="480"
         height="480"
         loading={active ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={active ? 'high' : 'low'}
+        draggable="false"
         onError={() => setFailed(true)}
       />
     );
@@ -122,196 +168,281 @@ function CorridorCover({ item, active }) {
   );
 }
 
+const CorridorCard = React.memo(function CorridorCard({ item, index, initialActive, initialDistance, registerCard, onCardClick, onCardKeyDown }) {
+  const distanceClass = initialDistance === 1 ? ' is-neighbor' : initialDistance > 2 ? ' is-distant' : '';
+  return (
+    <button
+      ref={(node) => registerCard(index, node)}
+      type="button"
+      data-corridor-index={index}
+      className={`corridor-card ${initialActive ? 'is-active' : ''}${distanceClass}`}
+      style={{
+        '--i': index,
+        '--panel-a': colorAt(item, 0, '#7ed7c9'),
+        '--panel-b': colorAt(item, 1, '#ff7da8'),
+        '--panel-c': colorAt(item, 2, '#f3d74c')
+      }}
+      aria-label={`${item.artist} 的 ${item.title}`}
+      aria-current={initialActive ? 'true' : undefined}
+      tabIndex={initialActive ? 0 : -1}
+      onClick={onCardClick}
+      onKeyDown={onCardKeyDown}
+    >
+      <span className="corridor-card-cover">
+        <CorridorCover item={item} active={initialActive} />
+      </span>
+      <span className="corridor-card-copy">
+        <strong>{item.title}</strong>
+        <small>{item.artist}</small>
+      </span>
+    </button>
+  );
+});
+
 export default function ExperimentalCorridorCarousel({ open, onClose, items, activeItem, roomName, reduceMotion = false, openItemDetail }) {
   const galleryItems = useMemo(() => normalizeGalleryItems(items), [items]);
   const initialIndex = Math.max(0, galleryItems.findIndex((item) => item.id === activeItem?.id));
-  const [activeIndex, setActiveIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
+  const count = galleryItems.length || 1;
+  const step = 360 / count;
+  const [displayIndex, setDisplayIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [backdropIndex, setBackdropIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [previousBackdropIndex, setPreviousBackdropIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [isDragging, setIsDragging] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [autoSpeed, setAutoSpeed] = useState(0.8);
+  const overlayRef = useRef(null);
   const stageRef = useRef(null);
   const trackRef = useRef(null);
-  const dragRef = useRef({ active: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0, suppressClick: false });
-  const openTimerRef = useRef(0);
-  const backdropIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
+  const cardRefs = useRef([]);
+  const activeIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
+  const dragRef = useRef({ active: false, moved: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0 });
   const bodyOverflowRef = useRef('');
   const wheelRef = useRef({ total: 0, lastAt: 0, lastStepAt: 0 });
-  const stepLockRef = useRef(0);
-  const count = galleryItems.length || 1;
-  const step = 360 / count;
-  const active = galleryItems[clampIndex(activeIndex, count)] || galleryItems[0];
+  const backdropIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
+  const settleTimerRef = useRef(0);
+  const movingTimerRef = useRef(0);
+  const preloadIdleRef = useRef(0);
+  const imageCacheRef = useRef(new Map());
+  const activeSlot = clampIndex(displayIndex, count);
+  const active = galleryItems[activeSlot] || galleryItems[0];
   const backdropItem = galleryItems[clampIndex(backdropIndex, count)] || active;
   const previousBackdropItem = galleryItems[clampIndex(previousBackdropIndex, count)] || backdropItem;
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const reducedMotion = reduceMotion || prefersReducedMotion;
 
   useEffect(() => {
-    if (!open) return;
-    const next = initialIndex >= 0 ? initialIndex : 0;
-    setActiveIndex(next);
-    setBackdropIndex(next);
-    setPreviousBackdropIndex(next);
-    backdropIndexRef.current = next;
-  }, [open, initialIndex]);
-
-  useEffect(() => {
     backdropIndexRef.current = backdropIndex;
   }, [backdropIndex]);
 
-  useEffect(() => {
-    if (!open || typeof document === 'undefined') return undefined;
-    bodyOverflowRef.current = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('corridor-modal-open');
-    return () => {
-      document.body.style.overflow = bodyOverflowRef.current;
-      document.body.classList.remove('corridor-modal-open');
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const nextSlot = clampIndex(activeIndex, count);
-    if (reducedMotion) {
-      setPreviousBackdropIndex(nextSlot);
-      setBackdropIndex(nextSlot);
-      return undefined;
+  const setMoving = useCallback((moving) => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    window.clearTimeout(movingTimerRef.current);
+    if (moving) {
+      overlay.classList.add('is-moving');
+      return;
     }
-    if (isDragging) return undefined;
-
-    const track = trackRef.current;
-    let settled = false;
-    const applyBackdrop = () => {
-      if (settled) return;
-      settled = true;
-      if (nextSlot !== clampIndex(backdropIndexRef.current, count)) {
-        setPreviousBackdropIndex(backdropIndexRef.current);
-        setBackdropIndex(nextSlot);
-      }
-    };
-    const onTransitionEnd = (event) => {
-      if (event.propertyName === 'transform') applyBackdrop();
-    };
-
-    track?.addEventListener('transitionend', onTransitionEnd);
-    const timer = window.setTimeout(applyBackdrop, 860);
-    return () => {
-      settled = true;
-      window.clearTimeout(timer);
-      track?.removeEventListener('transitionend', onTransitionEnd);
-    };
-  }, [activeIndex, count, isDragging, open, reducedMotion]);
-
-  useEffect(() => () => {
-    window.clearTimeout(openTimerRef.current);
-    window.cancelAnimationFrame(dragRef.current.raf);
+    movingTimerRef.current = window.setTimeout(() => {
+      overlay.classList.remove('is-moving');
+    }, 90);
   }, []);
 
-  useEffect(() => {
-    if (!open || reducedMotion) setIsAutoPlaying(false);
-  }, [open, reducedMotion]);
+  const updateCardEmphasis = useCallback((slot) => {
+    cardRefs.current.forEach((card, index) => {
+      if (!card) return;
+      const directDistance = Math.abs(index - slot);
+      const distance = Math.min(directDistance, count - directDistance);
+      const isCurrent = distance === 0;
+      card.classList.toggle('is-active', isCurrent);
+      card.classList.toggle('is-neighbor', distance === 1);
+      card.classList.toggle('is-distant', distance > 2);
+      card.tabIndex = isCurrent ? 0 : -1;
+      if (isCurrent) {
+        card.setAttribute('aria-current', 'true');
+      } else {
+        card.removeAttribute('aria-current');
+      }
+    });
+  }, [count]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
-      if (event.key === 'ArrowRight') setActiveIndex((value) => value + 1);
-      if (event.key === 'ArrowLeft') setActiveIndex((value) => value - 1);
-      if (event.key === 'Home') setActiveIndex(0);
-      if (event.key === 'End') setActiveIndex(count - 1);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [count, onClose, open]);
+  const isFlatCarousel = useCallback(() => (
+    reducedMotion || window.matchMedia?.('(max-width: 900px), (pointer: coarse)').matches
+  ), [reducedMotion]);
 
-  useEffect(() => {
-    if (!open || reducedMotion) return undefined;
-    const track = trackRef.current;
-    if (!track) return undefined;
-    const targetRotation = -activeIndex * step;
-    track.style.setProperty('--corridor-rotate', `${targetRotation}deg`);
-    return undefined;
-  }, [activeIndex, open, reducedMotion, step]);
+  const scrollCardIntoView = useCallback((slot, immediate = false) => {
+    if (!isFlatCarousel()) return;
+    const stage = stageRef.current;
+    const card = cardRefs.current[slot];
+    if (!stage || !card) return;
+    const nextLeft = card.offsetLeft - (stage.clientWidth - card.offsetWidth) / 2;
+    stage.scrollTo({
+      left: Math.max(0, nextLeft),
+      behavior: immediate || reducedMotion ? 'auto' : 'smooth'
+    });
+  }, [isFlatCarousel, reducedMotion]);
 
-  useEffect(() => {
-    if (!open || !isAutoPlaying || reducedMotion || isDragging) return undefined;
-    const interval = Math.max(1200, 6200 - autoSpeed * 2600);
-    const timer = window.setInterval(() => {
-      setActiveIndex((value) => value + 1);
-    }, interval);
-    return () => window.clearInterval(timer);
-  }, [autoSpeed, isAutoPlaying, isDragging, open, reducedMotion]);
+  const preloadAround = useCallback((slot) => {
+    const cache = imageCacheRef.current;
+    [-3, -2, -1, 0, 1, 2, 3].forEach((offset) => {
+      const item = galleryItems[clampIndex(slot + offset, count)];
+      preloadCoverImage(item?.cover, cache);
+    });
+  }, [count, galleryItems]);
 
-  if (!open) return null;
+  const schedulePreloadAround = useCallback((slot) => {
+    cancelIdleTask(preloadIdleRef.current);
+    preloadIdleRef.current = scheduleIdleTask(() => preloadAround(slot));
+  }, [preloadAround]);
 
-  const shiftActiveIndex = (delta) => {
-    const now = window.performance.now();
-    if (now - stepLockRef.current < 240) return;
-    stepLockRef.current = now;
-    setActiveIndex((value) => value + delta);
-  };
+  const commitSettledIndex = useCallback((virtualIndex = activeIndexRef.current) => {
+    window.clearTimeout(settleTimerRef.current);
+    const slot = clampIndex(Math.round(virtualIndex), count);
+    const previousSlot = backdropIndexRef.current;
+    setDisplayIndex((current) => (current === slot ? current : slot));
+    setPreviousBackdropIndex((current) => (previousSlot === slot ? current : previousSlot));
+    setBackdropIndex((current) => (current === slot ? current : slot));
+    backdropIndexRef.current = slot;
+    updateCardEmphasis(slot);
+    scrollCardIntoView(slot, true);
+    setMoving(false);
+    schedulePreloadAround(slot);
+  }, [count, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis]);
 
-  const openItemFromCorridor = (item) => {
-    if (!item?.id || item.id.startsWith('corridor-fallback-')) return;
-    window.clearTimeout(openTimerRef.current);
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = bodyOverflowRef.current;
-      document.body.classList.remove('corridor-modal-open');
-    }
-    onClose();
-    openItemDetail?.(item.id);
-  };
-
-  const openActiveDetail = () => {
-    openItemFromCorridor(active);
-  };
-
-  const scheduleOpenItemFromCorridor = (item) => {
-    if (!item?.id || item.id.startsWith('corridor-fallback-')) return;
-    window.clearTimeout(openTimerRef.current);
-    openTimerRef.current = window.setTimeout(() => {
-      dragRef.current.suppressClick = false;
-      openItemFromCorridor(item);
-    }, 90);
-  };
-
-  const setIndexFromRotation = (rotation) => {
-    const next = Math.round(-rotation / step);
-    setActiveIndex(next);
-  };
-
-  const writeRotation = (rotation) => {
+  const writeRotation = useCallback((virtualIndex, immediate = false) => {
     const track = trackRef.current;
     if (!track) return;
     window.cancelAnimationFrame(dragRef.current.raf);
-    dragRef.current.raf = window.requestAnimationFrame(() => {
+    const rotation = -virtualIndex * step;
+    const write = () => {
       track.style.setProperty('--corridor-rotate', `${rotation}deg`);
-    });
-  };
+    };
+    if (immediate) {
+      write();
+      return;
+    }
+    dragRef.current.raf = window.requestAnimationFrame(write);
+  }, [step]);
 
-  const beginDrag = (event) => {
+  const applyFastIndex = useCallback((virtualIndex, options = {}) => {
+    const nextVirtual = Number.isFinite(virtualIndex) ? virtualIndex : 0;
+    const slot = clampIndex(Math.round(nextVirtual), count);
+    activeIndexRef.current = nextVirtual;
+    if (!options.immediate && !reducedMotion) setMoving(true);
+    writeRotation(nextVirtual, options.immediate || reducedMotion);
+    updateCardEmphasis(slot);
+    scrollCardIntoView(slot, options.immediate || reducedMotion);
+    schedulePreloadAround(slot);
+    window.clearTimeout(settleTimerRef.current);
+    if (options.settle !== false) {
+      settleTimerRef.current = window.setTimeout(() => {
+        commitSettledIndex(activeIndexRef.current);
+      }, options.immediate || reducedMotion ? 0 : 620);
+    }
+  }, [commitSettledIndex, count, reducedMotion, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis, writeRotation]);
+
+  const shiftActiveIndex = useCallback((delta, options = {}) => {
+    if (!options.keepAuto) setIsAutoPlaying(false);
+    applyFastIndex(Math.round(activeIndexRef.current) + delta, options);
+  }, [applyFastIndex]);
+
+  const restoreBodyLock = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = bodyOverflowRef.current;
+    document.body.classList.remove('corridor-modal-open');
+  }, []);
+
+  const clearMotionState = useCallback((resetUi = true) => {
+    window.cancelAnimationFrame(dragRef.current.raf);
+    window.clearTimeout(settleTimerRef.current);
+    window.clearTimeout(movingTimerRef.current);
+    cancelIdleTask(preloadIdleRef.current);
+    dragRef.current = { active: false, moved: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0 };
+    wheelRef.current = { total: 0, lastAt: 0, lastStepAt: 0 };
+    overlayRef.current?.classList.remove('is-moving');
+    if (!resetUi) return;
+    setIsDragging(false);
+    setIsAutoPlaying(false);
+  }, []);
+
+  const openItemFromCorridor = useCallback((item) => {
+    if (isFallbackItem(item)) return;
+    clearMotionState();
+    restoreBodyLock();
+    openItemDetail?.(item.id);
+    onClose();
+  }, [clearMotionState, onClose, openItemDetail, restoreBodyLock]);
+
+  const openActiveDetail = useCallback(() => {
+    const item = galleryItems[clampIndex(Math.round(activeIndexRef.current), count)];
+    openItemFromCorridor(item);
+  }, [count, galleryItems, openItemFromCorridor]);
+
+  const registerCard = useCallback((index, node) => {
+    if (node) {
+      cardRefs.current[index] = node;
+    } else {
+      delete cardRefs.current[index];
+    }
+  }, []);
+
+  const handleCardClick = useCallback((event) => {
+    event.preventDefault();
+    const targetIndex = Number(event.currentTarget.dataset.corridorIndex ?? -1);
+    if (!Number.isFinite(targetIndex) || targetIndex < 0) return;
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false;
+      return;
+    }
+    const targetVirtual = nearestVirtualIndex(targetIndex, activeIndexRef.current, count);
+    if (clampIndex(Math.round(activeIndexRef.current), count) === targetIndex) {
+      openActiveDetail();
+      return;
+    }
+    setIsAutoPlaying(false);
+    applyFastIndex(targetVirtual);
+  }, [applyFastIndex, count, openActiveDetail]);
+
+  const handleCardKeyDown = useCallback((event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    const targetIndex = Number(event.currentTarget.dataset.corridorIndex ?? -1);
+    if (!Number.isFinite(targetIndex) || targetIndex < 0) return;
+    const targetVirtual = nearestVirtualIndex(targetIndex, activeIndexRef.current, count);
+    if (clampIndex(Math.round(activeIndexRef.current), count) === targetIndex) {
+      openActiveDetail();
+      return;
+    }
+    setIsAutoPlaying(false);
+    applyFastIndex(targetVirtual);
+  }, [applyFastIndex, count, openActiveDetail]);
+
+  const beginDrag = useCallback((event) => {
     if (reducedMotion || event.button !== 0 || event.pointerType !== 'mouse') return;
     const targetIndex = Number(event.target.closest?.('.corridor-card')?.dataset?.corridorIndex ?? -1);
+    setIsAutoPlaying(false);
     stageRef.current?.setPointerCapture?.(event.pointerId);
     dragRef.current.active = true;
+    dragRef.current.moved = false;
     dragRef.current.startX = event.clientX;
-    dragRef.current.startRotation = -activeIndex * step;
+    dragRef.current.startRotation = -activeIndexRef.current * step;
     dragRef.current.targetIndex = Number.isFinite(targetIndex) ? targetIndex : -1;
-    dragRef.current.suppressClick = false;
-    setIsAutoPlaying(false);
+    window.clearTimeout(settleTimerRef.current);
     setIsDragging(true);
-  };
+    setMoving(true);
+  }, [reducedMotion, setMoving, step]);
 
-  const moveDrag = (event) => {
+  const moveDrag = useCallback((event) => {
     if (!dragRef.current.active) return;
     const delta = event.clientX - dragRef.current.startX;
-    if (Math.abs(delta) > 6) dragRef.current.suppressClick = true;
-    writeRotation(dragRef.current.startRotation + delta * 0.16);
-  };
+    if (Math.abs(delta) > 6) dragRef.current.moved = true;
+    const rotation = dragRef.current.startRotation + delta * 0.16;
+    const virtualIndex = -rotation / step;
+    activeIndexRef.current = virtualIndex;
+    writeRotation(virtualIndex);
+    updateCardEmphasis(clampIndex(Math.round(virtualIndex), count));
+  }, [count, step, updateCardEmphasis, writeRotation]);
 
-  const endDrag = (event) => {
+  const endDrag = useCallback((event) => {
     if (!dragRef.current.active) return;
     stageRef.current?.releasePointerCapture?.(event.pointerId);
     const delta = event.clientX - dragRef.current.startX;
@@ -321,53 +452,169 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     if (Math.abs(delta) < 6 && targetIndex >= 0) {
       event.preventDefault();
       event.stopPropagation();
-      dragRef.current.suppressClick = true;
-      if (targetIndex === activeSlot) {
-        scheduleOpenItemFromCorridor(galleryItems[clampIndex(targetIndex, count)]);
+      dragRef.current.moved = true;
+      if (targetIndex === clampIndex(Math.round(activeIndexRef.current), count)) {
+        openActiveDetail();
       } else {
-        setActiveIndex((value) => nearestVirtualIndex(targetIndex, value, count));
+        applyFastIndex(nearestVirtualIndex(targetIndex, activeIndexRef.current, count));
       }
       return;
     }
-    setIndexFromRotation(dragRef.current.startRotation + delta * 0.16);
-  };
+    const finalRotation = dragRef.current.startRotation + delta * 0.16;
+    const nextVirtual = Math.round(-finalRotation / step);
+    applyFastIndex(nextVirtual);
+  }, [applyFastIndex, count, openActiveDetail, step]);
 
-  const handleCardClick = (event, index, isActive) => {
-    event.preventDefault();
-    if (dragRef.current.suppressClick) {
-      dragRef.current.suppressClick = false;
-      return;
-    }
-    if (isActive) {
-      openActiveDetail();
-    } else {
-      setIsAutoPlaying(false);
-      setActiveIndex((value) => nearestVirtualIndex(index, value, count));
-    }
-  };
-
-  const handleWheel = (event) => {
+  const handleWheel = useCallback((event) => {
     if (reducedMotion) return;
     event.preventDefault();
-    const direction = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    setIsAutoPlaying(false);
+    const direction = normalizeWheelDelta(event);
     if (Math.abs(direction) < 4) return;
     const now = window.performance.now();
-    if (now - wheelRef.current.lastStepAt < 460) return;
-    if (now - wheelRef.current.lastAt > 360) wheelRef.current.total = 0;
+    if (now - wheelRef.current.lastAt > 180) wheelRef.current.total = 0;
     wheelRef.current.lastAt = now;
     wheelRef.current.total += direction;
-    if (Math.abs(wheelRef.current.total) < 220) return;
-    const stepDirection = Math.sign(wheelRef.current.total);
-    wheelRef.current.total = 0;
+    if (now - wheelRef.current.lastStepAt < 74) return;
+    if (Math.abs(wheelRef.current.total) < 82) return;
+    const rawSteps = Math.trunc(wheelRef.current.total / 82);
+    const steps = Math.max(-3, Math.min(3, rawSteps));
+    wheelRef.current.total -= steps * 82;
     wheelRef.current.lastStepAt = now;
-    setIsAutoPlaying(false);
-    shiftActiveIndex(stepDirection);
-  };
+    applyFastIndex(Math.round(activeIndexRef.current) + steps);
+  }, [applyFastIndex, reducedMotion]);
 
-  const activeSlot = clampIndex(activeIndex, count);
+  useEffect(() => {
+    if (!open) {
+      clearMotionState();
+      return undefined;
+    }
+    const startSlot = initialIndex >= 0 ? initialIndex : 0;
+    cardRefs.current = cardRefs.current.slice(0, count);
+    activeIndexRef.current = startSlot;
+    setDisplayIndex(startSlot);
+    setBackdropIndex(startSlot);
+    setPreviousBackdropIndex(startSlot);
+    const frame = window.requestAnimationFrame(() => {
+      applyFastIndex(startSlot, { immediate: true, settle: false });
+      preloadAround(startSlot);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [applyFastIndex, clearMotionState, count, initialIndex, open, preloadAround]);
+
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined;
+    bodyOverflowRef.current = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('corridor-modal-open');
+    return restoreBodyLock;
+  }, [open, restoreBodyLock]);
+
+  useEffect(() => {
+    if (!open || reducedMotion) setIsAutoPlaying(false);
+  }, [open, reducedMotion]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    updateCardEmphasis(clampIndex(displayIndex, count));
+    scrollCardIntoView(clampIndex(displayIndex, count), true);
+    return undefined;
+  }, [count, displayIndex, open, scrollCardIntoView, updateCardEmphasis]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.defaultPrevented || event.target?.closest?.('input, textarea, select')) return;
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'ArrowRight') shiftActiveIndex(1);
+      if (event.key === 'ArrowLeft') shiftActiveIndex(-1);
+      if (event.key === 'Home') {
+        setIsAutoPlaying(false);
+        applyFastIndex(nearestVirtualIndex(0, activeIndexRef.current, count));
+      }
+      if (event.key === 'End') {
+        setIsAutoPlaying(false);
+        applyFastIndex(nearestVirtualIndex(count - 1, activeIndexRef.current, count));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [applyFastIndex, count, onClose, open, shiftActiveIndex]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const overlay = overlayRef.current;
+    if (!overlay) return undefined;
+    overlay.addEventListener('wheel', handleWheel, { passive: false });
+    return () => overlay.removeEventListener('wheel', handleWheel);
+  }, [handleWheel, open]);
+
+  useEffect(() => {
+    if (!open || reducedMotion) return undefined;
+    const track = trackRef.current;
+    if (!track) return undefined;
+    const onTransitionEnd = (event) => {
+      if (event.target !== track || event.propertyName !== 'transform') return;
+      commitSettledIndex(activeIndexRef.current);
+    };
+    track.addEventListener('transitionend', onTransitionEnd);
+    return () => track.removeEventListener('transitionend', onTransitionEnd);
+  }, [commitSettledIndex, open, reducedMotion]);
+
+  useEffect(() => {
+    if (!open || !isAutoPlaying || reducedMotion || isDragging) return undefined;
+    const interval = Math.max(1000, 6200 - autoSpeed * 2600);
+    const timer = window.setInterval(() => {
+      shiftActiveIndex(1, { keepAuto: true });
+    }, interval);
+    return () => window.clearInterval(timer);
+  }, [autoSpeed, isAutoPlaying, isDragging, open, reducedMotion, shiftActiveIndex]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const stage = stageRef.current;
+    if (!stage) return undefined;
+    let scrollTimer = 0;
+    const syncScrollSelection = () => {
+      const stageBox = stage.getBoundingClientRect();
+      const center = stageBox.left + stageBox.width / 2;
+      let nextSlot = -1;
+      let nearestDistance = Infinity;
+      cardRefs.current.forEach((card, index) => {
+        if (!card) return;
+        const box = card.getBoundingClientRect();
+        const distance = Math.abs(box.left + box.width / 2 - center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nextSlot = index;
+        }
+      });
+      if (nextSlot >= 0) {
+        applyFastIndex(nearestVirtualIndex(nextSlot, activeIndexRef.current, count), { immediate: true });
+      }
+    };
+    const onScroll = () => {
+      window.clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(syncScrollSelection, 180);
+    };
+    stage.addEventListener('scroll', onScroll, { passive: true });
+    stage.addEventListener('scrollend', syncScrollSelection, { passive: true });
+    return () => {
+      window.clearTimeout(scrollTimer);
+      stage.removeEventListener('scroll', onScroll);
+      stage.removeEventListener('scrollend', syncScrollSelection);
+    };
+  }, [applyFastIndex, count, open]);
+
+  useEffect(() => () => {
+    clearMotionState(false);
+  }, [clearMotionState]);
+
+  if (!open) return null;
 
   const overlay = (
     <div
+      ref={overlayRef}
       className="corridor-overlay"
       role="dialog"
       aria-modal="true"
@@ -380,7 +627,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         '--corridor-count': count,
         '--corridor-step': `${step}deg`
       }}
-      onWheel={handleWheel}
     >
       <div className="corridor-glow" aria-hidden="true" />
       <div
@@ -431,48 +677,18 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       >
         <div className="corridor-depth-lines" aria-hidden="true" />
         <div className="corridor-track" ref={trackRef}>
-          {galleryItems.map((item, index) => {
-            const isActive = index === activeSlot;
-            const distance = circularDistance(index, activeSlot, count);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                data-corridor-index={index}
-                className={`corridor-card ${isActive ? 'is-active' : ''}`}
-                style={{
-                  '--i': index,
-                  '--panel-a': colorAt(item, 0, '#7ed7c9'),
-                  '--panel-b': colorAt(item, 1, '#ff7da8'),
-                  '--panel-c': colorAt(item, 2, '#f3d74c'),
-                  '--active-lift': isActive ? '115px' : '0px',
-                  '--active-scale': isActive ? 1.13 : 1,
-                  '--side-opacity': distance === 0 ? 1 : distance === 1 ? 0.58 : 0.34
-                }}
-                aria-label={`${item.artist} 的 ${item.title}`}
-                aria-current={isActive ? 'true' : undefined}
-                tabIndex={0}
-                onClick={(event) => handleCardClick(event, index, isActive)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
-                  event.preventDefault();
-                  if (isActive) {
-                    openActiveDetail();
-                  } else {
-                    setActiveIndex((value) => nearestVirtualIndex(index, value, count));
-                  }
-                }}
-              >
-                <span className="corridor-card-cover">
-                  <CorridorCover item={item} active={isActive} />
-                </span>
-                <span className="corridor-card-copy">
-                  <strong>{item.title}</strong>
-                  <small>{item.artist}</small>
-                </span>
-              </button>
-            );
-          })}
+          {galleryItems.map((item, index) => (
+            <CorridorCard
+              key={item.id}
+              item={item}
+              index={index}
+              initialActive={index === activeSlot}
+              initialDistance={Math.min(Math.abs(index - activeSlot), count - Math.abs(index - activeSlot))}
+              registerCard={registerCard}
+              onCardClick={handleCardClick}
+              onCardKeyDown={handleCardKeyDown}
+            />
+          ))}
         </div>
       </section>
 
