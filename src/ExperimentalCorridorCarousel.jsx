@@ -295,7 +295,16 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
           <span>Hidden Installation</span>
           <h2>{roomName || 'Album Circle'} 封面长廊</h2>
         </div>
-        <button type="button" className="corridor-close" onClick={onClose} aria-label="关闭封面长廊">
+        <button
+          type="button"
+          className="corridor-close"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+          aria-label="关闭封面长廊"
+        >
           <X size={20} aria-hidden="true" />
         </button>
       </header>
