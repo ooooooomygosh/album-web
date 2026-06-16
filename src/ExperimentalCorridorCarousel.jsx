@@ -226,6 +226,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const settleTimerRef = useRef(0);
   const movingTimerRef = useRef(0);
   const preloadIdleRef = useRef(0);
+  const flatScrollRef = useRef({ raf: 0, lastSlot: -1 });
   const imageCacheRef = useRef(new Map());
   const activeSlot = clampIndex(displayIndex, count);
   const active = galleryItems[activeSlot] || galleryItems[0];
@@ -296,6 +297,33 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     cancelIdleTask(preloadIdleRef.current);
     preloadIdleRef.current = scheduleIdleTask(() => preloadAround(slot));
   }, [preloadAround]);
+
+  const syncFlatScrollIndex = useCallback(() => {
+    if (!isFlatCarousel()) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    window.cancelAnimationFrame(flatScrollRef.current.raf);
+    flatScrollRef.current.raf = window.requestAnimationFrame(() => {
+      const center = stage.scrollLeft + stage.clientWidth / 2;
+      let closestSlot = activeSlot;
+      let closestDistance = Infinity;
+      cardRefs.current.forEach((card, index) => {
+        if (!card) return;
+        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+        const distance = Math.abs(cardCenter - center);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestSlot = index;
+        }
+      });
+      if (closestSlot === flatScrollRef.current.lastSlot) return;
+      flatScrollRef.current.lastSlot = closestSlot;
+      activeIndexRef.current = closestSlot;
+      visualIndexRef.current = closestSlot;
+      setPreviewSlot(closestSlot);
+      schedulePreloadAround(closestSlot);
+    });
+  }, [activeSlot, isFlatCarousel, schedulePreloadAround, setPreviewSlot]);
 
   const normalizeTrackRotation = useCallback((slot) => {
     const track = trackRef.current;
@@ -393,6 +421,8 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     wheelRef.current = { total: 0, lastAt: 0, lastStepAt: 0, pendingSteps: 0, raf: 0 };
     window.cancelAnimationFrame(navigationRef.current.raf);
     navigationRef.current = { pendingSteps: 0, raf: 0, keepAuto: false };
+    window.cancelAnimationFrame(flatScrollRef.current.raf);
+    flatScrollRef.current = { raf: 0, lastSlot: -1 };
     overlayRef.current?.classList.remove('is-moving');
     if (!resetUi) return;
     setIsDragging(false);
@@ -552,9 +582,13 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     const frame = window.requestAnimationFrame(() => {
       applyFastIndex(startSlot, { immediate: true, settle: false });
       preloadAround(startSlot);
+      window.requestAnimationFrame(() => {
+        flatScrollRef.current.lastSlot = startSlot;
+        scrollCardIntoView(startSlot, true);
+      });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [applyFastIndex, clearMotionState, count, initialIndex, open, preloadAround]);
+  }, [applyFastIndex, clearMotionState, count, initialIndex, open, preloadAround, scrollCardIntoView]);
 
   useEffect(() => {
     if (!open || typeof document === 'undefined') return undefined;
@@ -614,6 +648,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
 
   useEffect(() => {
     if (!open) return undefined;
+    if (isFlatCarousel()) return undefined;
     const stage = stageRef.current;
     if (!stage) return undefined;
     let scrollTimer = 0;
@@ -646,7 +681,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       stage.removeEventListener('scroll', onScroll);
       stage.removeEventListener('scrollend', syncScrollSelection);
     };
-  }, [applyFastIndex, count, open]);
+  }, [applyFastIndex, count, isFlatCarousel, open]);
 
   useEffect(() => () => {
     clearMotionState(false);
@@ -720,6 +755,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onScroll={syncFlatScrollIndex}
         aria-roledescription="carousel"
         aria-label="3D 专辑封面长廊"
       >

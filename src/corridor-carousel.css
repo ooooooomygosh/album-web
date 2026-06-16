@@ -869,13 +869,20 @@ body.corridor-modal-open .global-search-popover {
 
 @media (max-width: 900px), (pointer: coarse) {
   .corridor-overlay {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 10px;
     overflow-y: auto;
+    overflow-x: hidden;
+    contain: layout paint;
   }
 
   .corridor-stage {
     display: block;
+    justify-items: start;
+    align-items: stretch;
     min-height: auto;
-    padding: 34px 0 24px;
+    padding: 4px 0 6px;
     perspective: none;
     cursor: default;
     overflow-x: auto;
@@ -895,12 +902,14 @@ body.corridor-modal-open .global-search-popover {
 
   .corridor-track {
     display: flex;
-    gap: 14px;
+    justify-self: start;
+    gap: 10px;
     width: max-content;
     height: auto;
     min-width: 0;
     min-height: 0;
-    padding: 0 8vw;
+    padding: 0 calc((100vw - min(43vw, 158px)) / 2);
+    margin: 0 !important;
     transform: none !important;
     transition: none;
   }
@@ -910,36 +919,107 @@ body.corridor-modal-open .global-search-popover {
     inset: auto;
     --active-lift: 0px !important;
     --active-scale: 1 !important;
-    flex: 0 0 min(72vw, 320px);
-    min-height: 360px;
+    flex: 0 0 min(42vw, 168px);
+    min-height: 218px;
+    gap: 8px;
+    padding: 9px;
+    border-radius: 20px;
     transform: none !important;
     filter: none !important;
-    opacity: 1;
+    opacity: 0.58;
     scroll-snap-align: center;
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.24),
+      0 14px 32px rgba(0, 0, 0, 0.32);
+  }
+
+  .corridor-card.is-active {
+    opacity: 1;
+    transform: none !important;
+    border-color: color-mix(in srgb, var(--panel-a), white 22%);
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.34),
+      0 18px 44px rgba(0, 0, 0, 0.44),
+      0 0 28px color-mix(in srgb, var(--panel-a), transparent 72%);
+  }
+
+  .corridor-card.is-neighbor,
+  .corridor-card.is-distant {
+    filter: saturate(0.82);
+  }
+
+  .corridor-card-copy {
+    padding: 0 2px;
+  }
+
+  .corridor-card-copy strong {
+    font-size: 0.78rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .corridor-card-copy small {
+    font-size: 0.7rem;
   }
 
   .corridor-info {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     position: static;
     width: min(100%, 680px);
     margin: 0 auto;
-    padding: 18px;
+    padding: 16px;
+    border-radius: 24px;
+    min-height: 0;
+  }
+
+  .corridor-index {
+    display: none;
+  }
+
+  .corridor-copy h3 {
+    font-size: clamp(1.36rem, 7vw, 2rem);
+    -webkit-line-clamp: 2;
+  }
+
+  .corridor-copy p + p {
+    -webkit-line-clamp: 4;
   }
 
   .corridor-action-stack {
     grid-column: 1 / -1;
     justify-self: stretch;
+    gap: 9px;
+  }
+
+  .corridor-controls {
+    gap: 9px;
+  }
+
+  .corridor-controls button {
+    height: 44px;
   }
 
   .corridor-autoplay {
     justify-self: stretch;
+    min-height: 44px;
+    border-radius: 20px;
+  }
+
+  .corridor-cover-backdrop,
+  .corridor-cover-wash,
+  .corridor-glow,
+  .corridor-depth-lines {
+    display: none !important;
   }
 }
 
 @media (max-width: 560px) {
   .corridor-overlay {
-    padding: 14px;
+    padding:
+      max(10px, env(safe-area-inset-top))
+      max(10px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-left));
   }
 
   .corridor-glow {
@@ -948,7 +1028,8 @@ body.corridor-modal-open .global-search-popover {
   }
 
   .corridor-header h2 {
-    font-size: 1.28rem;
+    font-size: 1.05rem;
+    line-height: 1.15;
   }
 
   .corridor-header span,
@@ -956,12 +1037,29 @@ body.corridor-modal-open .global-search-popover {
     letter-spacing: 0.12em;
   }
 
+  .corridor-close {
+    width: 42px;
+    height: 42px;
+  }
+
+  .corridor-track {
+    padding: 0 calc((100vw - min(43vw, 158px)) / 2);
+  }
+
+  .corridor-card {
+    flex-basis: min(43vw, 158px);
+    min-height: 204px;
+  }
+
   .corridor-info {
     grid-template-columns: 1fr;
+    padding: 14px;
+    max-height: none;
   }
 
   .corridor-autoplay {
     width: 100%;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .corridor-autoplay input {
