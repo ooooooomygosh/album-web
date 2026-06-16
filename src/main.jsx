@@ -88,6 +88,7 @@ const defaultUserSettings = {
     hoverPreview: 'flip',
     title: '',
     description: '',
+    showCaptions: false,
     defaultMode: 'cabinet',
     detailMode: 'dossier'
   },
@@ -2187,6 +2188,7 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
 function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem, memberProfilesById, userSettings, saveUserSettings, currentUserId, mineOnly, setMineOnly }) {
   const layout = userSettings.showroom.wallLayout || '4x3';
   const hoverPreview = userSettings.showroom.hoverPreview || 'flip';
+  const showCaptions = Boolean(userSettings.showroom.showCaptions);
   const visibleItems = mineOnly ? items.filter((item) => item.addedById === currentUserId) : items;
   const cabinetTitle = cabinetDisplayTitle(userSettings.showroom.title, room.name);
   const cabinetDescription = (userSettings.showroom.description || '').trim() || '悬浮封面查看背面资料，点击进入专辑的黑胶开场和完整导览。';
@@ -2218,7 +2220,7 @@ function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem,
           <button type="button" className="secondary-chip" onClick={() => setMode('add')}><CirclePlus size={16} />高级添加</button>
         </div>
       </div>
-      <AlbumCabinetGrid items={visibleItems} layout={layout} hoverPreview={hoverPreview} openItemDetail={openItemDetail} ratingsByItem={ratingsByItem} memberProfilesById={memberProfilesById} coverSize={userSettings.showroom.coverSize} />
+      <AlbumCabinetGrid items={visibleItems} layout={layout} hoverPreview={hoverPreview} openItemDetail={openItemDetail} ratingsByItem={ratingsByItem} memberProfilesById={memberProfilesById} coverSize={userSettings.showroom.coverSize} showCaptions={showCaptions} />
     </section>
   );
 }
@@ -2302,6 +2304,7 @@ function CabinetSettingsPopover({ userSettings, saveUserSettings, defaultTitle, 
           </div>
           <div className="cabinet-toggle-list" aria-label="陈列柜偏好">
             <label><input type="checkbox" checked={draft.filters.mineOnly} onChange={(event) => update('filters', { mineOnly: event.target.checked })} /><span><strong>只看自己添加</strong><small>陈列柜默认筛出你添加的专辑和单曲。</small></span></label>
+            <label><input type="checkbox" checked={Boolean(draft.showroom.showCaptions)} onChange={(event) => update('showroom', { showCaptions: event.target.checked })} /><span><strong>显示专辑标题</strong><small>在封面下方显示专辑名和歌手名。</small></span></label>
             <label><input type="checkbox" checked={draft.appearance.reduceMotion} onChange={(event) => update('appearance', { reduceMotion: event.target.checked })} /><span><strong>减少动效</strong><small>关闭翻面、入场和呼吸类动画。</small></span></label>
             <label><input type="checkbox" checked={draft.appearance.rainbowStatus} onChange={(event) => update('appearance', { rainbowStatus: event.target.checked })} /><span><strong>彩虹呼吸状态</strong><small>搜索、生成和保存时显示全屏边缘状态光。</small></span></label>
           </div>
@@ -2320,41 +2323,54 @@ function CabinetSettingsPopover({ userSettings, saveUserSettings, defaultTitle, 
   );
 }
 
-function AlbumCabinetGrid({ items, layout, hoverPreview, openItemDetail, ratingsByItem, memberProfilesById, coverSize }) {
+function AlbumCabinetGrid({ items, layout, hoverPreview, openItemDetail, ratingsByItem, memberProfilesById, coverSize, showCaptions }) {
   if (!items.length) {
     return <div className="empty-state cabinet-empty"><Disc3 size={52} /><strong>展柜还没有封面</strong><span>用顶部搜索添加第一张专辑或单曲。</span></div>;
   }
   return (
-    <div className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜">
+    <div className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview} ${showCaptions ? 'cabinet-show-captions' : ''}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜">
       {items.map((item, index) => (
         <div key={item.id} className="cabinet-listitem" role="listitem">
-          <AlbumCabinetTile item={item} index={index} openItemDetail={openItemDetail} ratingSummary={ratingsByItem[item.id]} adder={item.addedById ? memberProfilesById[item.addedById] : null} />
+          <AlbumCabinetTile item={item} index={index} openItemDetail={openItemDetail} ratingSummary={ratingsByItem[item.id]} adder={item.addedById ? memberProfilesById[item.addedById] : null} showCaption={showCaptions} />
         </div>
       ))}
     </div>
   );
 }
 
-function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder }) {
+function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder, showCaption }) {
   const summary = item.aiProfile?.overview || item.background || item.context || '这张封面正在等待更多朋友写下记忆。';
   return (
-    <button
-      type="button"
-      className="cabinet-tile"
-      style={{ '--tile-index': index, '--poster-a': item.palette?.[0] || 'var(--cover-a)', '--poster-b': item.palette?.[1] || 'var(--cover-b)' }}
-      onClick={() => openItemDetail(item.id)}
-      aria-label={`打开 ${item.artist || '未知艺人'} 的 ${item.title} 详情`}
-    >
-      <span className="cabinet-card-face cabinet-card-front"><AlbumArt item={item} /></span>
-      <span className="cabinet-card-face cabinet-card-back">
-        <small>{item.type === 'album' ? 'ALBUM' : 'SONG'} · {item.year || 'unknown'}</small>
-        <strong>{item.title}</strong>
-        <em>{item.artist}</em>
-        <p>{summary}</p>
-        <span className="cabinet-meta-row"><b>{item.tracks?.length || (item.type === 'song' ? 1 : 0)} 首</b><b>{ratingSummary?.count ? `${ratingSummary.average} / 10` : '待评分'}</b></span>
-        <span className="cabinet-adder">{adder?.name || item.addedBy || 'Music friend'}</span>
-      </span>
-    </button>
+    <>
+      <button
+        type="button"
+        className="cabinet-tile"
+        style={{ '--tile-index': index, '--poster-a': item.palette?.[0] || 'var(--cover-a)', '--poster-b': item.palette?.[1] || 'var(--cover-b)' }}
+        onClick={() => openItemDetail(item.id)}
+        aria-label={`打开 ${item.artist || '未知艺人'} 的 ${item.title} 详情`}
+      >
+        <span className="cabinet-card-face cabinet-card-front"><AlbumArt item={item} /></span>
+        <span className="cabinet-card-face cabinet-card-back">
+          <small>{item.type === 'album' ? 'ALBUM' : 'SONG'} · {item.year || 'unknown'}</small>
+          <strong>{item.title}</strong>
+          <em>{item.artist}</em>
+          <p>{summary}</p>
+          <span className="cabinet-meta-row"><b>{item.tracks?.length || (item.type === 'song' ? 1 : 0)} 首</b><b>{ratingSummary?.count ? `${ratingSummary.average} / 10` : '待评分'}</b></span>
+          <span className="cabinet-adder">{adder?.name || item.addedBy || 'Music friend'}</span>
+        </span>
+      </button>
+      {showCaption && (
+        <button
+          type="button"
+          className="cabinet-caption"
+          onClick={() => openItemDetail(item.id)}
+          aria-label={`打开 ${item.artist || '未知艺人'} 的 ${item.title} 详情`}
+        >
+          <strong>{item.title}</strong>
+          <span>{item.artist || '未知艺人'}</span>
+        </button>
+      )}
+    </>
   );
 }
 
