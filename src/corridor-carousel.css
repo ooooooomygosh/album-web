@@ -200,6 +200,12 @@
   animation: corridor-enter 620ms cubic-bezier(0.18, 0.95, 0.2, 1) both;
 }
 
+.corridor-overlay.is-moving {
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.08), transparent 30%),
+    linear-gradient(180deg, #06070a, #0a0d12 48%, #030305);
+}
+
 body.corridor-modal-open .global-search-popover {
   display: none !important;
 }
@@ -229,7 +235,7 @@ body.corridor-modal-open .global-search-popover {
   background-position: center;
   background-size: cover;
   filter: blur(34px) saturate(1.25);
-  transform: translateZ(0) scale(1.08);
+  transform: scale(1.08);
   contain: paint;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -250,11 +256,14 @@ body.corridor-modal-open .global-search-popover {
 }
 
 .corridor-overlay.is-moving .corridor-cover-wash {
-  filter: blur(18px) saturate(1.04);
+  visibility: hidden;
+  opacity: 0;
+  filter: none;
+  transition: opacity 120ms ease, filter 120ms ease;
 }
 
 .corridor-overlay.is-moving .corridor-cover-wash.is-current {
-  opacity: 0.32;
+  opacity: 0;
 }
 
 .corridor-glow {
@@ -282,9 +291,11 @@ body.corridor-modal-open .global-search-popover {
 }
 
 .corridor-overlay.is-moving .corridor-glow:after {
-  opacity: 0.12;
-  filter: blur(14px);
-  animation-play-state: paused;
+  display: none;
+}
+
+.corridor-overlay.is-moving .corridor-depth-lines {
+  opacity: 0;
 }
 
 .corridor-header {
@@ -388,6 +399,7 @@ body.corridor-modal-open .global-search-popover {
   transform: rotateX(76deg) translateY(18%);
   transform-origin: center;
   pointer-events: none;
+  transition: opacity 140ms ease;
 }
 
 .corridor-track {
@@ -428,7 +440,6 @@ body.corridor-modal-open .global-search-popover {
     translateZ(0.1px);
   transform-origin: center;
   transform-style: preserve-3d;
-  will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   cursor: pointer;
@@ -466,21 +477,38 @@ body.corridor-modal-open .global-search-popover {
 
 .corridor-card.is-neighbor {
   opacity: 0.58;
-  filter: blur(0.7px) saturate(0.88);
+  filter: saturate(0.88);
 }
 
 .corridor-card.is-distant {
   opacity: 0.34;
-  filter: blur(1.5px) saturate(0.72);
+  filter: saturate(0.72);
 }
 
 .corridor-overlay.is-moving .corridor-card {
-  transition-duration: 180ms;
+  --active-lift: 0px !important;
+  --active-scale: 1 !important;
+  opacity: 0.72;
+  filter: none !important;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.18),
+    0 10px 22px rgba(0, 0, 0, 0.28);
+  transition: none;
 }
 
 .corridor-overlay.is-moving .corridor-card.is-neighbor,
 .corridor-overlay.is-moving .corridor-card.is-distant {
-  filter: saturate(0.78);
+  filter: none !important;
+}
+
+.corridor-overlay.is-moving .corridor-card.is-active {
+  z-index: auto;
+  opacity: 0.78;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.2),
+    0 12px 28px rgba(0, 0, 0, 0.3);
 }
 
 .corridor-card-cover {
@@ -491,7 +519,6 @@ body.corridor-modal-open .global-search-popover {
   border-radius: 18px;
   background: linear-gradient(135deg, var(--panel-a), var(--panel-b));
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.2);
-  transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -512,7 +539,6 @@ body.corridor-modal-open .global-search-popover {
   height: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -612,8 +638,8 @@ body.corridor-modal-open .global-search-popover {
 .corridor-overlay.is-moving .corridor-info {
   border-color: rgba(255, 255, 255, 0.12);
   background-color: rgba(8, 10, 14, 0.82);
-  backdrop-filter: blur(8px) saturate(1.02);
-  -webkit-backdrop-filter: blur(8px) saturate(1.02);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .corridor-index {
@@ -929,7 +955,15 @@ body.corridor-modal-open .global-search-popover {
   .corridor-stage {
     perspective: none;
     cursor: default;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
     transform: none;
+  }
+
+  .corridor-stage::-webkit-scrollbar {
+    display: none;
   }
 
   .corridor-track {
@@ -950,6 +984,7 @@ body.corridor-modal-open .global-search-popover {
     transform: none !important;
     filter: none !important;
     opacity: 1;
+    scroll-snap-align: center;
   }
 }
 

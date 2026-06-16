@@ -65,6 +65,11 @@ function clampIndex(index, count) {
   return ((index % count) + count) % count;
 }
 
+function compactVisualIndex(index, count) {
+  if (!count || Math.abs(index) < count * 3) return index;
+  return index - Math.trunc(index / count) * count;
+}
+
 function nearestVirtualIndex(targetIndex, currentIndex, count) {
   if (!count) return 0;
   const currentSlot = clampIndex(Math.round(currentIndex), count);
@@ -215,9 +220,11 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const trackRef = useRef(null);
   const cardRefs = useRef([]);
   const activeIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
-  const dragRef = useRef({ active: false, moved: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0 });
+  const visualIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
+  const dragRef = useRef({ active: false, moved: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0, suppressTimer: 0, tapTimer: 0 });
   const bodyOverflowRef = useRef('');
-  const wheelRef = useRef({ total: 0, lastAt: 0, lastStepAt: 0 });
+  const wheelRef = useRef({ total: 0, lastAt: 0, lastStepAt: 0, pendingSteps: 0, raf: 0 });
+  const navigationRef = useRef({ pendingSteps: 0, raf: 0, keepAuto: false });
   const backdropIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
   const settleTimerRef = useRef(0);
   const movingTimerRef = useRef(0);
@@ -294,6 +301,20 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     preloadIdleRef.current = scheduleIdleTask(() => preloadAround(slot));
   }, [preloadAround]);
 
+  const normalizeTrackRotation = useCallback((slot) => {
+    const track = trackRef.current;
+    activeIndexRef.current = slot;
+    visualIndexRef.current = slot;
+    if (!track || isFlatCarousel()) return;
+    window.cancelAnimationFrame(dragRef.current.raf);
+    const previousTransition = track.style.transition;
+    track.style.transition = 'none';
+    track.style.setProperty('--corridor-rotate', `${-slot * step}deg`);
+    dragRef.current.raf = window.requestAnimationFrame(() => {
+      track.style.transition = previousTransition || '';
+    });
+  }, [isFlatCarousel, step]);
+
   const commitSettledIndex = useCallback((virtualIndex = activeIndexRef.current) => {
     window.clearTimeout(settleTimerRef.current);
     const slot = clampIndex(Math.round(virtualIndex), count);
@@ -304,15 +325,18 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     backdropIndexRef.current = slot;
     updateCardEmphasis(slot);
     scrollCardIntoView(slot, true);
+    normalizeTrackRotation(slot);
     setMoving(false);
     schedulePreloadAround(slot);
-  }, [count, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis]);
+  }, [count, normalizeTrackRotation, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis]);
 
   const writeRotation = useCallback((virtualIndex, immediate = false) => {
     const track = trackRef.current;
     if (!track) return;
     window.cancelAnimationFrame(dragRef.current.raf);
-    const rotation = -virtualIndex * step;
+    const nextVisualIndex = compactVisualIndex(virtualIndex, count);
+    visualIndexRef.current = nextVisualIndex;
+    const rotation = -nextVisualIndex * step;
     const write = () => {
       track.style.setProperty('--corridor-rotate', `${rotation}deg`);
     };
@@ -321,29 +345,44 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       return;
     }
     dragRef.current.raf = window.requestAnimationFrame(write);
-  }, [step]);
+  }, [count, step]);
 
   const applyFastIndex = useCallback((virtualIndex, options = {}) => {
     const nextVirtual = Number.isFinite(virtualIndex) ? virtualIndex : 0;
     const slot = clampIndex(Math.round(nextVirtual), count);
-    activeIndexRef.current = nextVirtual;
+    const flatCarousel = isFlatCarousel();
+    const nextVisual = nearestVirtualIndex(slot, visualIndexRef.current, count);
+    activeIndexRef.current = nextVisual;
     if (!options.immediate && !reducedMotion) setMoving(true);
-    writeRotation(nextVirtual, options.immediate || reducedMotion);
-    updateCardEmphasis(slot);
-    scrollCardIntoView(slot, options.immediate || reducedMotion);
-    schedulePreloadAround(slot);
+    writeRotation(nextVisual, options.immediate || reducedMotion);
+    if (flatCarousel || options.immediate || reducedMotion) {
+      updateCardEmphasis(slot);
+      scrollCardIntoView(slot, options.immediate || reducedMotion);
+      schedulePreloadAround(slot);
+    }
     window.clearTimeout(settleTimerRef.current);
     if (options.settle !== false) {
       settleTimerRef.current = window.setTimeout(() => {
         commitSettledIndex(activeIndexRef.current);
-      }, options.immediate || reducedMotion ? 0 : 620);
+      }, options.immediate || reducedMotion ? 0 : flatCarousel ? 180 : 420);
     }
-  }, [commitSettledIndex, count, reducedMotion, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis, writeRotation]);
+  }, [commitSettledIndex, count, isFlatCarousel, reducedMotion, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis, writeRotation]);
 
   const shiftActiveIndex = useCallback((delta, options = {}) => {
     if (!options.keepAuto) setIsAutoPlaying(false);
-    applyFastIndex(Math.round(activeIndexRef.current) + delta, options);
-  }, [applyFastIndex]);
+    navigationRef.current.pendingSteps += delta;
+    navigationRef.current.keepAuto = navigationRef.current.keepAuto || Boolean(options.keepAuto);
+    if (navigationRef.current.raf) return;
+    navigationRef.current.raf = window.requestAnimationFrame(() => {
+      const pendingSteps = Math.max(-count, Math.min(count, navigationRef.current.pendingSteps));
+      const keepAuto = navigationRef.current.keepAuto;
+      navigationRef.current.pendingSteps = 0;
+      navigationRef.current.keepAuto = false;
+      navigationRef.current.raf = 0;
+      if (!pendingSteps) return;
+      applyFastIndex(Math.round(activeIndexRef.current) + pendingSteps, { ...options, keepAuto });
+    });
+  }, [applyFastIndex, count]);
 
   const restoreBodyLock = useCallback(() => {
     if (typeof document === 'undefined') return;
@@ -353,11 +392,16 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
 
   const clearMotionState = useCallback((resetUi = true) => {
     window.cancelAnimationFrame(dragRef.current.raf);
+    window.clearTimeout(dragRef.current.suppressTimer);
+    window.clearTimeout(dragRef.current.tapTimer);
     window.clearTimeout(settleTimerRef.current);
     window.clearTimeout(movingTimerRef.current);
     cancelIdleTask(preloadIdleRef.current);
-    dragRef.current = { active: false, moved: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0 };
-    wheelRef.current = { total: 0, lastAt: 0, lastStepAt: 0 };
+    dragRef.current = { active: false, moved: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0, suppressTimer: 0, tapTimer: 0 };
+    window.cancelAnimationFrame(wheelRef.current.raf);
+    wheelRef.current = { total: 0, lastAt: 0, lastStepAt: 0, pendingSteps: 0, raf: 0 };
+    window.cancelAnimationFrame(navigationRef.current.raf);
+    navigationRef.current = { pendingSteps: 0, raf: 0, keepAuto: false };
     overlayRef.current?.classList.remove('is-moving');
     if (!resetUi) return;
     setIsDragging(false);
@@ -387,10 +431,12 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
 
   const handleCardClick = useCallback((event) => {
     event.preventDefault();
+    event.stopPropagation();
     const targetIndex = Number(event.currentTarget.dataset.corridorIndex ?? -1);
     if (!Number.isFinite(targetIndex) || targetIndex < 0) return;
     if (dragRef.current.moved) {
       dragRef.current.moved = false;
+      setMoving(false);
       return;
     }
     const targetVirtual = nearestVirtualIndex(targetIndex, activeIndexRef.current, count);
@@ -400,7 +446,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     }
     setIsAutoPlaying(false);
     applyFastIndex(targetVirtual);
-  }, [applyFastIndex, count, openActiveDetail]);
+  }, [applyFastIndex, count, openActiveDetail, setMoving]);
 
   const handleCardKeyDown = useCallback((event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -423,13 +469,15 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     stageRef.current?.setPointerCapture?.(event.pointerId);
     dragRef.current.active = true;
     dragRef.current.moved = false;
+    window.clearTimeout(dragRef.current.suppressTimer);
+    window.clearTimeout(dragRef.current.tapTimer);
     dragRef.current.startX = event.clientX;
-    dragRef.current.startRotation = -activeIndexRef.current * step;
+    dragRef.current.startRotation = -visualIndexRef.current * step;
     dragRef.current.targetIndex = Number.isFinite(targetIndex) ? targetIndex : -1;
     window.clearTimeout(settleTimerRef.current);
     setIsDragging(true);
     setMoving(true);
-  }, [reducedMotion, setMoving, step]);
+  }, [count, reducedMotion, setMoving, step]);
 
   const moveDrag = useCallback((event) => {
     if (!dragRef.current.active) return;
@@ -439,8 +487,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     const virtualIndex = -rotation / step;
     activeIndexRef.current = virtualIndex;
     writeRotation(virtualIndex);
-    updateCardEmphasis(clampIndex(Math.round(virtualIndex), count));
-  }, [count, step, updateCardEmphasis, writeRotation]);
+  }, [step, writeRotation]);
 
   const endDrag = useCallback((event) => {
     if (!dragRef.current.active) return;
@@ -453,17 +500,26 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       event.preventDefault();
       event.stopPropagation();
       dragRef.current.moved = true;
-      if (targetIndex === clampIndex(Math.round(activeIndexRef.current), count)) {
-        openActiveDetail();
-      } else {
+      setMoving(false);
+      dragRef.current.tapTimer = window.setTimeout(() => {
+        dragRef.current.moved = false;
+        if (targetIndex === clampIndex(Math.round(activeIndexRef.current), count)) {
+          openActiveDetail();
+          return;
+        }
+        setIsAutoPlaying(false);
         applyFastIndex(nearestVirtualIndex(targetIndex, activeIndexRef.current, count));
-      }
+      }, 0);
       return;
     }
     const finalRotation = dragRef.current.startRotation + delta * 0.16;
     const nextVirtual = Math.round(-finalRotation / step);
+    dragRef.current.moved = true;
+    dragRef.current.suppressTimer = window.setTimeout(() => {
+      dragRef.current.moved = false;
+    }, 240);
     applyFastIndex(nextVirtual);
-  }, [applyFastIndex, count, openActiveDetail, step]);
+  }, [applyFastIndex, count, openActiveDetail, setMoving, step]);
 
   const handleWheel = useCallback((event) => {
     if (reducedMotion) return;
@@ -481,7 +537,14 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     const steps = Math.max(-3, Math.min(3, rawSteps));
     wheelRef.current.total -= steps * 82;
     wheelRef.current.lastStepAt = now;
-    applyFastIndex(Math.round(activeIndexRef.current) + steps);
+    wheelRef.current.pendingSteps += steps;
+    if (wheelRef.current.raf) return;
+    wheelRef.current.raf = window.requestAnimationFrame(() => {
+      const pendingSteps = Math.max(-6, Math.min(6, wheelRef.current.pendingSteps));
+      wheelRef.current.pendingSteps = 0;
+      wheelRef.current.raf = 0;
+      applyFastIndex(Math.round(activeIndexRef.current) + pendingSteps);
+    });
   }, [applyFastIndex, reducedMotion]);
 
   useEffect(() => {
@@ -492,6 +555,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     const startSlot = initialIndex >= 0 ? initialIndex : 0;
     cardRefs.current = cardRefs.current.slice(0, count);
     activeIndexRef.current = startSlot;
+    visualIndexRef.current = startSlot;
     setDisplayIndex(startSlot);
     setBackdropIndex(startSlot);
     setPreviousBackdropIndex(startSlot);
@@ -548,18 +612,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     overlay.addEventListener('wheel', handleWheel, { passive: false });
     return () => overlay.removeEventListener('wheel', handleWheel);
   }, [handleWheel, open]);
-
-  useEffect(() => {
-    if (!open || reducedMotion) return undefined;
-    const track = trackRef.current;
-    if (!track) return undefined;
-    const onTransitionEnd = (event) => {
-      if (event.target !== track || event.propertyName !== 'transform') return;
-      commitSettledIndex(activeIndexRef.current);
-    };
-    track.addEventListener('transitionend', onTransitionEnd);
-    return () => track.removeEventListener('transitionend', onTransitionEnd);
-  }, [commitSettledIndex, open, reducedMotion]);
 
   useEffect(() => {
     if (!open || !isAutoPlaying || reducedMotion || isDragging) return undefined;
