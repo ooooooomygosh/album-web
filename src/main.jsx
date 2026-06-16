@@ -143,6 +143,26 @@ function parseRoomQuery() {
   };
 }
 
+function parseRoomInput(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.includes('room=')) {
+    try {
+      return new URL(raw, window.location.origin).searchParams.get('room') || '';
+    } catch {
+      return raw.replace(/^.*room=/, '').split('&')[0].trim();
+    }
+  }
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('/')) {
+    try {
+      return new URL(raw, window.location.origin).searchParams.get('room') || raw.split('/').filter(Boolean).pop() || '';
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+}
+
 function wallLayoutStyle(layout) {
   const preset = wallLayoutPresets[layout] || wallLayoutPresets['4x3'];
   return {
@@ -780,9 +800,13 @@ function AuthGate({ session, setSession }) {
   const [authMode, setAuthMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', name: '', avatar: 'M' });
   const [status, setStatus] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submit = async () => {
+  const submit = async (event) => {
+    event?.preventDefault();
+    if (isSubmitting) return;
     setStatus('正在连接账户');
+    setIsSubmitting(true);
     try {
       const data = await api('/api/auth', {
         method: 'POST',
@@ -794,6 +818,8 @@ function AuthGate({ session, setSession }) {
       setStatus('');
     } catch (error) {
       setStatus(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -802,58 +828,76 @@ function AuthGate({ session, setSession }) {
   return (
     <main className="app auth-screen">
       <div className="aurora" aria-hidden="true" />
-      <section className="auth-shell glass-panel">
-        <div className="brand auth-brand">
-          <div className="brand-mark"><Disc3 size={22} /></div>
+      <section className="entry-shell auth-entry">
+        <div className="entry-copy">
+          <div className="brand auth-brand">
+            <div className="brand-mark"><Disc3 size={22} /></div>
+            <div>
+              <strong>Album Circle</strong>
+              <span>一起收藏专辑、单曲和评论</span>
+            </div>
+          </div>
           <div>
-            <strong>Album Circle</strong>
-            <span>为朋友创建一个共同听歌房间</span>
+            <p className="eyebrow"><LockKeyhole size={15} /> 账号</p>
+            <h1><span>把朋友的音乐推荐</span><span>放进同一个展柜。</span></h1>
+            <p>登录后同步房间、评论、评分和 AI 导览，换设备也能继续听。</p>
+          </div>
+          <div className="entry-orbit" aria-hidden="true">
+            <span><Disc3 size={18} /></span>
+            <span><MessageCircle size={18} /></span>
+            <span><Sparkles size={18} /></span>
           </div>
         </div>
-        <div>
-          <p className="eyebrow"><LockKeyhole size={15} /> account</p>
-          <h1>登录后创建房间，收藏歌曲和专辑。</h1>
-          <p>你的评论、添加记录和房间成员身份会同步保存。</p>
-        </div>
-        <div className="auth-tabs">
-          <button className={authMode === 'login' ? 'active' : ''} type="button" onClick={() => setAuthMode('login')}>登录</button>
-          <button className={authMode === 'signup' ? 'active' : ''} type="button" onClick={() => setAuthMode('signup')}>注册</button>
-        </div>
-        {authMode === 'signup' && (
+        <form className="auth-shell glass-panel entry-card" onSubmit={submit}>
+          <div className="auth-tabs" role="tablist" aria-label="账号操作">
+            <button className={authMode === 'login' ? 'active' : ''} type="button" onClick={() => setAuthMode('login')} aria-selected={authMode === 'login'}>登录</button>
+            <button className={authMode === 'signup' ? 'active' : ''} type="button" onClick={() => setAuthMode('signup')} aria-selected={authMode === 'signup'}>注册</button>
+          </div>
+          <div className="entry-card-head">
+            <strong>{authMode === 'signup' ? '创建你的听歌身份' : '回到你的音乐房间'}</strong>
+            <span>{authMode === 'signup' ? '昵称、头像和设置会跟随账号同步。' : '登录后自动载入你的房间和展柜偏好。'}</span>
+          </div>
+          {authMode === 'signup' && (
+            <label>
+              昵称
+              <input name="name" autoComplete="nickname" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder="Ming" />
+            </label>
+          )}
           <label>
-            昵称
-            <input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder="Ming" />
+            邮箱
+            <input name="email" type="email" inputMode="email" autoComplete="email" value={form.email} onChange={(event) => setForm((value) => ({ ...value, email: event.target.value }))} placeholder="you@example.com" required />
           </label>
-        )}
-        <label>
-          邮箱
-          <input value={form.email} onChange={(event) => setForm((value) => ({ ...value, email: event.target.value }))} placeholder="you@example.com" />
-        </label>
-        <label>
-          密码
-          <input type="password" value={form.password} onChange={(event) => setForm((value) => ({ ...value, password: event.target.value }))} placeholder="至少 6 位" />
-        </label>
-        {authMode === 'signup' && (
-          <div className="avatar-picker" aria-label="头像选择">
-            {avatarOptions.map((avatar) => (
-              <button key={avatar} type="button" className={form.avatar === avatar ? 'active' : ''} onClick={() => setForm((value) => ({ ...value, avatar }))}>{avatar}</button>
-            ))}
-          </div>
-        )}
-        <button type="button" className="full-action" onClick={submit}><UserRound size={16} />{authMode === 'signup' ? '创建账户' : '登录'}</button>
-        {status && <p className="status-line">{status}</p>}
+          <label>
+            密码
+            <input name={authMode === 'signup' ? 'new-password' : 'current-password'} type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} value={form.password} onChange={(event) => setForm((value) => ({ ...value, password: event.target.value }))} placeholder="至少 6 位" required />
+          </label>
+          {authMode === 'signup' && (
+            <div className="avatar-picker" aria-label="头像选择">
+              {avatarOptions.map((avatar) => (
+                <button key={avatar} type="button" className={form.avatar === avatar ? 'active' : ''} onClick={() => setForm((value) => ({ ...value, avatar }))} aria-pressed={form.avatar === avatar}>{avatar}</button>
+              ))}
+            </div>
+          )}
+          <button type="submit" className="full-action entry-primary" disabled={isSubmitting}><UserRound size={16} />{isSubmitting ? '正在进入' : (authMode === 'signup' ? '创建账户' : '登录')}</button>
+          {status && <p className={`status-line ${status.includes('正在') ? '' : 'error-line'}`}>{status}</p>}
+        </form>
       </section>
     </main>
   );
 }
 
-function RoomGate({ session, room, setRoom }) {
+function RoomGate({ session, room, setRoom, initialStatus = '' }) {
   const [name, setName] = useState('周五听歌房');
   const [joinId, setJoinId] = useState(new URLSearchParams(window.location.search).get('room') || '');
   const [joinPassword, setJoinPassword] = useState('');
   const [rooms, setRooms] = useState([]);
   const [discoverRooms, setDiscoverRooms] = useState([]);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(initialStatus);
+  const [pendingAction, setPendingAction] = useState('');
+
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
 
   useEffect(() => {
     if (!session?.token || room) return;
@@ -863,8 +907,11 @@ function RoomGate({ session, room, setRoom }) {
     ]);
   }, [room, session]);
 
-  const createRoom = async () => {
+  const createRoom = async (event) => {
+    event?.preventDefault();
+    if (pendingAction) return;
     setStatus('正在创建房间');
+    setPendingAction('create');
     try {
       const data = await api('/api/rooms', {
         session,
@@ -875,69 +922,116 @@ function RoomGate({ session, room, setRoom }) {
       window.history.replaceState(null, '', `?room=${encodeURIComponent(data.room.id)}`);
     } catch (error) {
       setStatus(error.message);
+      setPendingAction('');
     }
   };
 
-  const joinRoom = async (id = joinId) => {
-    if (!id) return;
+  const joinRoom = async (id = joinId, options = {}) => {
+    const roomId = parseRoomInput(id);
+    if (!roomId) return;
+    if (pendingAction) return;
+    const actionId = options.actionId || `join-${roomId}`;
     setStatus('正在加入房间');
+    setPendingAction(actionId);
     try {
       const data = await api('/api/rooms', {
         session,
         method: 'POST',
-        body: JSON.stringify({ action: 'join', roomId: id, password: joinPassword })
+        body: JSON.stringify({ action: 'join', roomId, password: joinPassword })
       });
       setRoom(data.room);
       window.history.replaceState(null, '', `?room=${encodeURIComponent(data.room.id)}`);
     } catch (error) {
       setStatus(error.message);
+      setPendingAction('');
     }
   };
+  const continueRoom = rooms[0] || null;
+  const isBusy = Boolean(pendingAction);
 
   if (!session?.token || room) return null;
 
   return (
     <main className="app auth-screen">
       <div className="aurora" aria-hidden="true" />
-      <section className="room-shell">
-        <article className="glass-panel room-card">
-          <p className="eyebrow"><Plus size={15} /> create room</p>
-          <h2>创建一个新的听歌房间</h2>
-          <label>
-            房间名称
-            <input value={name} onChange={(event) => setName(event.target.value)} />
-          </label>
-          <button className="full-action" type="button" onClick={createRoom}><DoorOpen size={16} />创建房间</button>
-        </article>
-        <article className="glass-panel room-card">
-          <p className="eyebrow"><Share2 size={15} /> join room</p>
-          <h2>加入已有房间</h2>
-          <label>
-            房间 ID
-            <input value={joinId} onChange={(event) => setJoinId(event.target.value)} placeholder="邀请链接里的 room" />
-          </label>
-          <label>
-            房间密码
-            <input type="password" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="公开房间可留空，密码房间必填" />
-          </label>
-          <button className="full-action" type="button" onClick={() => joinRoom()}><Users size={16} />加入房间</button>
-          {rooms.length > 0 && (
-            <div className="known-rooms">
-              {rooms.map((knownRoom) => (
-                <button key={knownRoom.id} type="button" onClick={() => joinRoom(knownRoom.id)}>{knownRoom.name}</button>
-              ))}
+      <section className="entry-shell room-entry">
+        <div className="entry-copy">
+          <div className="brand auth-brand">
+            <div className="brand-mark"><Library size={22} /></div>
+            <div>
+              <strong>{session.user?.name || 'Album Circle'}</strong>
+              <span>选择一个房间继续听</span>
+            </div>
+          </div>
+          <div>
+            <p className="eyebrow"><DoorOpen size={15} /> 房间</p>
+            <h1><span>先进入房间</span><span>再开始添加音乐。</span></h1>
+            <p>房间会保存成员、评论、评分和展柜设置。公开房间可直接加入，私密房间使用邀请 ID。</p>
+          </div>
+          {continueRoom && (
+            <button className="continue-room-card glass-panel" type="button" onClick={() => joinRoom(continueRoom.id, { actionId: 'continue' })} disabled={isBusy}>
+              <span><Radio size={18} /></span>
+              <strong>{pendingAction === 'continue' ? '正在进入' : `继续 ${continueRoom.name}`}</strong>
+              <small>{continueRoom.itemCount || 0} 个展柜条目</small>
+              <ChevronRight size={18} />
+            </button>
+          )}
+        </div>
+        <div className="room-flow">
+          <form className="glass-panel room-card join-room-card" onSubmit={(event) => { event.preventDefault(); joinRoom(joinId, { actionId: 'join-manual' }); }}>
+            <div className="entry-card-head">
+              <strong>加入已有房间</strong>
+              <span>粘贴邀请链接里的 room ID，按 Enter 也能进入。</span>
+            </div>
+            <label>
+              房间 ID
+              <input name="room-id" autoComplete="off" value={joinId} onChange={(event) => setJoinId(event.target.value)} placeholder="邀请链接里的 room" />
+            </label>
+            <label>
+              房间密码
+              <input name="room-password" type="password" autoComplete="current-password" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="公开房间可留空" />
+            </label>
+            <button className="full-action entry-primary" type="submit" disabled={isBusy || !joinId}><Users size={16} />{pendingAction === 'join-manual' ? '正在加入' : '加入房间'}</button>
+          </form>
+          <form className="glass-panel room-card create-room-card" onSubmit={createRoom}>
+            <div className="entry-card-head">
+              <strong>创建新的听歌房间</strong>
+              <span>适合给一轮主题、朋友聚会或长期歌单开一个展柜。</span>
+            </div>
+            <label>
+              房间名称
+              <input name="room-name" autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <button className="full-action entry-secondary-action" type="submit" disabled={isBusy || !name.trim()}><Plus size={16} />{pendingAction === 'create' ? '正在创建' : '创建房间'}</button>
+          </form>
+          {(rooms.length > 0 || discoverRooms.length > 0) && (
+            <div className="glass-panel room-card room-picker-card">
+              {rooms.length > 0 && (
+                <div className="known-rooms">
+                  <strong>我的房间</strong>
+                  {rooms.map((knownRoom) => (
+                    <button key={knownRoom.id} type="button" onClick={() => joinRoom(knownRoom.id, { actionId: `mine-${knownRoom.id}` })} disabled={isBusy}>
+                      <span>{knownRoom.name}</span>
+                      <small>{pendingAction === `mine-${knownRoom.id}` ? '正在进入' : `${knownRoom.itemCount || 0} 个条目`}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {discoverRooms.length > 0 && (
+                <div className="known-rooms discover-rooms">
+                  <strong>公开房间</strong>
+                  {discoverRooms.map((knownRoom) => (
+                    <button key={knownRoom.id} type="button" onClick={() => joinRoom(knownRoom.id, { actionId: `discover-${knownRoom.id}` })} disabled={isBusy}>
+                      <span>{knownRoom.name}</span>
+                      <small>{knownRoom.itemCount || 0} 条目 / {knownRoom.joinMode === 'password' ? '需要密码' : '可加入'}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          {discoverRooms.length > 0 && (
-            <div className="known-rooms discover-rooms">
-              <strong>公开房间</strong>
-              {discoverRooms.map((knownRoom) => (
-                <button key={knownRoom.id} type="button" onClick={() => { setJoinId(knownRoom.id); joinRoom(knownRoom.id); }}>{knownRoom.name}<small>{knownRoom.itemCount} 条目 · {knownRoom.joinMode === 'password' ? '需要密码' : '可加入'}</small></button>
-              ))}
-            </div>
-          )}
-        </article>
-        {status && <p className="status-line">{status}</p>}
+        </div>
+        {status && <p className={`status-line entry-status ${status.includes('正在') ? '' : 'error-line'}`}>{status}</p>}
       </section>
     </main>
   );
@@ -1129,15 +1223,22 @@ function App() {
 
   useEffect(() => {
     if (!session?.token || room) return;
-    const urlRoom = new URLSearchParams(window.location.search).get('room');
+    const urlRoom = parseRoomInput(new URLSearchParams(window.location.search).get('room'));
     if (!urlRoom) return;
+    setInviteDraft(urlRoom);
+    setRoomStatus('正在打开邀请房间');
     api('/api/rooms', {
       session,
       method: 'POST',
       body: JSON.stringify({ action: 'join', roomId: urlRoom })
     })
-      .then((data) => setRoom(data.room))
-      .catch(() => null);
+      .then((data) => {
+        setRoom(data.room);
+        setRoomStatus('');
+      })
+      .catch((error) => {
+        setRoomStatus(error.message || '这个房间需要密码或邀请确认。');
+      });
   }, [room, session]);
 
   const loadRoomData = async (targetRoom = room, options = {}) => {
@@ -1359,7 +1460,9 @@ function App() {
     await saveProfile(nextDraft);
   };
 
-  const createAnotherRoom = async () => {
+  const createAnotherRoom = async (event) => {
+    event?.preventDefault();
+    if (roomStatus.includes('正在')) return;
     setRoomStatus('正在创建房间');
     try {
       const data = await api('/api/rooms', {
@@ -1376,16 +1479,10 @@ function App() {
     }
   };
 
-  const joinAnotherRoom = async () => {
-    const raw = inviteDraft.trim();
-    let parsed = raw;
-    if (raw.includes('room=')) {
-      try {
-        parsed = new URL(raw, window.location.origin).searchParams.get('room') || '';
-      } catch {
-        parsed = raw.replace(/^.*room=/, '').split('&')[0];
-      }
-    }
+  const joinAnotherRoom = async (eventOrRoomId) => {
+    eventOrRoomId?.preventDefault?.();
+    if (roomStatus.includes('正在')) return;
+    const parsed = parseRoomInput(typeof eventOrRoomId === 'string' ? eventOrRoomId : inviteDraft);
     if (!parsed) return;
     setRoomStatus('正在加入房间');
     try {
@@ -1760,7 +1857,7 @@ function App() {
   }, [mode, session?.user?.role]);
 
   if (!session?.token) return <AuthGate session={session} setSession={setSession} />;
-  if (!room) return <RoomGate session={session} room={room} setRoom={setRoom} />;
+  if (!room) return <RoomGate session={session} room={room} setRoom={setRoom} initialStatus={roomStatus} />;
   const isWorking = searchStatus === 'searching' || backgroundStatus === 'thinking' || itemStatus === 'adding' || ratingStatus === 'saving';
   const isDetailPage = mode === 'showroom' && routeState.itemId && routeItem;
   const isCabinetPage = mode === 'showroom' && !isDetailPage;
@@ -1898,7 +1995,7 @@ function App() {
             {mode === 'add' && <AddMusic query={query} setQuery={setQuery} artistQuery={artistQuery} setArtistQuery={setArtistQuery} link={link} setLink={setLink} searchType={searchType} setSearchType={setSearchType} setSearchStatus={setSearchStatus} setCandidates={setCandidates} resolvedLink={resolvedLink} runOnlineSearch={runOnlineSearch} searchStatus={searchStatus} candidates={candidates} selectedCandidate={selectedCandidate} setSelectedCandidate={setSelectedCandidate} addSelectedToShowroom={addSelectedToShowroom} backgroundStatus={backgroundStatus} itemStatus={itemStatus} addPhase={addPhase} addError={addError} />}
             {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={confirmDeleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
             {mode === 'ai' && <Ai selected={activeItem} aiInsight={aiInsight} aiStatus={aiStatus} askAi={askAi} />}
-            {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} userSettings={userSettings} saveUserSettings={saveUserSettings} />}
+            {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} setRoomStatus={setRoomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} userSettings={userSettings} saveUserSettings={saveUserSettings} />}
             {mode === 'profile' && <ProfilePanel session={session} profileDraft={profileDraft} setProfileDraft={setProfileDraft} saveProfile={saveProfile} uploadAvatar={uploadAvatar} profileStats={profileStats} profileStatus={profileStatus} loadProfileStats={loadProfileStats} fillProfileFromHistory={fillProfileFromHistory} personaTone={personaTone} setPersonaTone={setPersonaTone} personaHistoryMode={personaHistoryMode} setPersonaHistoryMode={setPersonaHistoryMode} personaSelectedIds={personaSelectedIds} togglePersonaItem={togglePersonaItem} generatePersona={generatePersona} personaStatus={personaStatus} personaReport={personaReport} addPublicTag={addPublicTag} personaQuestion={personaQuestion} setPersonaQuestion={setPersonaQuestion} askPersona={askPersona} personaChat={personaChat} personaChatStatus={personaChatStatus} />}
             {mode === 'admin' && <AdminPanel adminData={adminData} adminStatus={adminStatus} loadAdmin={loadAdmin} deleteRoom={confirmAdminDeleteRoom} deleteUser={confirmAdminDeleteUser} aiPromptDraft={aiPromptDraft} setAiPromptDraft={setAiPromptDraft} personaPromptDraft={personaPromptDraft} setPersonaPromptDraft={setPersonaPromptDraft} aiMaxTokens={aiMaxTokens} setAiMaxTokens={setAiMaxTokens} personaMaxTokens={personaMaxTokens} setPersonaMaxTokens={setPersonaMaxTokens} personaChatMaxTokens={personaChatMaxTokens} setPersonaChatMaxTokens={setPersonaChatMaxTokens} aiTemperature={aiTemperature} setAiTemperature={setAiTemperature} personaTemperature={personaTemperature} setPersonaTemperature={setPersonaTemperature} saveAiConfig={saveAiConfig} />}
           </section>
@@ -3192,8 +3289,9 @@ function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser,
   );
 }
 
-function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discoverRooms, switchRoom, roomDraft, setRoomDraft, createAnotherRoom, inviteDraft, setInviteDraft, invitePassword, setInvitePassword, joinAnotherRoom, roomStatus, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings, userSettings, saveUserSettings }) {
+function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discoverRooms, switchRoom, roomDraft, setRoomDraft, createAnotherRoom, inviteDraft, setInviteDraft, invitePassword, setInvitePassword, joinAnotherRoom, roomStatus, setRoomStatus, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings, userSettings, saveUserSettings }) {
   const canEditRoom = room.ownerId === session.user.id || session.user.role === 'admin';
+  const roomBusy = String(roomStatus || '').includes('正在');
   const heroDraft = editableHeroConfig(roomSettingsDraft.heroConfig, room);
   const updateHeroDraft = (patch) => {
     setRoomSettingsDraft((current) => ({
@@ -3227,25 +3325,31 @@ function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discov
           <div className="section-title"><Search size={18} /><h3>公开房间</h3></div>
           <div className="room-list">
             {(discoverRooms || []).map((knownRoom) => (
-              <button key={knownRoom.id} type="button" onClick={() => switchRoom(knownRoom.id)}>
+              <button key={knownRoom.id} type="button" onClick={async () => {
+                await switchRoom(knownRoom.id);
+                if (knownRoom.joinMode === 'password') {
+                  setInviteDraft(knownRoom.id);
+                  setRoomStatus('公开房间已打开。需要评论或添加时，请在加入邀请里输入密码。');
+                }
+              }} disabled={roomBusy}>
                 <strong>{knownRoom.name}</strong>
-                <span>{knownRoom.itemCount} 条目 · {knownRoom.joinMode === 'password' ? '密码加入' : '开放加入'}</span>
+                <span>{knownRoom.itemCount} 条目 / {knownRoom.joinMode === 'password' ? '可浏览，密码加入' : '可浏览'}</span>
               </button>
             ))}
             {!discoverRooms?.length && <p className="empty-state compact-empty">还没有公开房间。</p>}
           </div>
         </article>
-        <article>
+        <form onSubmit={createAnotherRoom}>
           <div className="section-title"><Plus size={18} /><h3>创建新房间</h3></div>
-          <label>房间名称<input value={roomDraft} onChange={(event) => setRoomDraft(event.target.value)} /></label>
-          <button type="button" onClick={createAnotherRoom}>创建并切换</button>
-        </article>
-        <article>
+          <label>房间名称<input name="new-room-name" autoComplete="off" value={roomDraft} onChange={(event) => setRoomDraft(event.target.value)} /></label>
+          <button type="submit" disabled={roomBusy || !roomDraft.trim()}>创建并切换</button>
+        </form>
+        <form onSubmit={joinAnotherRoom}>
           <div className="section-title"><Share2 size={18} /><h3>加入邀请</h3></div>
-          <label>邀请链接或房间 ID<input value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="https://.../?room=..." /></label>
-          <label>房间密码<input type="password" value={invitePassword} onChange={(event) => setInvitePassword(event.target.value)} placeholder="公开房间可留空" /></label>
-          <button type="button" onClick={joinAnotherRoom}>加入并切换</button>
-        </article>
+          <label>邀请链接或房间 ID<input name="invite-room-id" autoComplete="off" value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="https://.../?room=..." /></label>
+          <label>房间密码<input name="invite-room-password" type="password" autoComplete="current-password" value={invitePassword} onChange={(event) => setInvitePassword(event.target.value)} placeholder="公开房间可留空" /></label>
+          <button type="submit" disabled={roomBusy || !inviteDraft.trim()}>加入并切换</button>
+        </form>
         <article className="room-settings-card">
           <div className="section-title"><LockKeyhole size={18} /><h3>房间设置</h3></div>
           <label>可见性<select disabled={!canEditRoom} value={roomSettingsDraft.visibility} onChange={(event) => setRoomSettingsDraft((current) => ({ ...current, visibility: event.target.value, discoverable: event.target.value === 'public' ? current.discoverable : false }))}><option value="unlisted">不公开</option><option value="public">公开浏览</option><option value="private">私密</option></select></label>
