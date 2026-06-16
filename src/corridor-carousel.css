@@ -202,7 +202,7 @@
 
 .corridor-overlay.is-moving {
   background:
-    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.08), transparent 30%),
+    radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--corridor-a), transparent 68%), transparent 30%),
     linear-gradient(180deg, #06070a, #0a0d12 48%, #030305);
 }
 
@@ -221,6 +221,31 @@ body.corridor-modal-open .global-search-popover {
   mask-image: radial-gradient(circle at center, black 0 42%, transparent 72%);
   opacity: 0.22;
   content: "";
+}
+
+.corridor-cover-backdrop {
+  position: absolute;
+  inset: 5% 3% 16%;
+  z-index: -1;
+  border-radius: 42px;
+  background:
+    linear-gradient(90deg, rgba(3, 4, 7, 0.82), rgba(3, 4, 7, 0.26) 42%, rgba(3, 4, 7, 0.8)),
+    radial-gradient(circle at 48% 34%, color-mix(in srgb, var(--backdrop-a, var(--corridor-a)), transparent 66%), transparent 42%),
+    var(--backdrop-cover-image, var(--corridor-cover-image));
+  background-position: center;
+  background-size: cover;
+  opacity: 0.34;
+  pointer-events: none;
+  transform: scale(1.02);
+  transition:
+    opacity 220ms ease,
+    transform 420ms cubic-bezier(0.16, 1, 0.25, 1),
+    background 180ms ease;
+}
+
+.corridor-overlay.is-moving .corridor-cover-backdrop {
+  opacity: 0.32;
+  transform: scale(1.025);
 }
 
 .corridor-cover-wash {
@@ -476,39 +501,45 @@ body.corridor-modal-open .global-search-popover {
 }
 
 .corridor-card.is-neighbor {
-  opacity: 0.58;
-  filter: saturate(0.88);
+  opacity: 0.52;
+  filter: saturate(0.78);
 }
 
 .corridor-card.is-distant {
-  opacity: 0.34;
-  filter: saturate(0.72);
+  opacity: 0.28;
+  filter: saturate(0.62);
 }
 
 .corridor-overlay.is-moving .corridor-card {
-  --active-lift: 0px !important;
-  --active-scale: 1 !important;
-  opacity: 0.72;
-  filter: none !important;
+  opacity: 0.48;
   border-color: rgba(255, 255, 255, 0.16);
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.18),
-    0 10px 22px rgba(0, 0, 0, 0.28);
-  transition: none;
+    0 12px 28px rgba(0, 0, 0, 0.3);
+  transition:
+    opacity 180ms ease,
+    filter 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 620ms cubic-bezier(0.16, 1, 0.25, 1);
 }
 
 .corridor-overlay.is-moving .corridor-card.is-neighbor,
 .corridor-overlay.is-moving .corridor-card.is-distant {
-  filter: none !important;
+  filter: saturate(0.58);
 }
 
 .corridor-overlay.is-moving .corridor-card.is-active {
-  z-index: auto;
-  opacity: 0.78;
-  border-color: rgba(255, 255, 255, 0.2);
+  --active-lift: 115px;
+  --active-scale: 1.13;
+  z-index: 2;
+  opacity: 1;
+  filter: none;
+  border-color: color-mix(in srgb, var(--panel-a), white 24%);
   box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.2),
-    0 12px 28px rgba(0, 0, 0, 0.3);
+    inset 0 1px rgba(255, 255, 255, 0.34),
+    0 30px 72px rgba(0, 0, 0, 0.48),
+    0 0 54px color-mix(in srgb, var(--panel-a), transparent 70%);
 }
 
 .corridor-card-cover {

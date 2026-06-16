@@ -210,8 +210,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const count = galleryItems.length || 1;
   const step = 360 / count;
   const [displayIndex, setDisplayIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
-  const [backdropIndex, setBackdropIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
-  const [previousBackdropIndex, setPreviousBackdropIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [isDragging, setIsDragging] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [autoSpeed, setAutoSpeed] = useState(0.8);
@@ -225,21 +223,14 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const bodyOverflowRef = useRef('');
   const wheelRef = useRef({ total: 0, lastAt: 0, lastStepAt: 0, pendingSteps: 0, raf: 0 });
   const navigationRef = useRef({ pendingSteps: 0, raf: 0, keepAuto: false });
-  const backdropIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
   const settleTimerRef = useRef(0);
   const movingTimerRef = useRef(0);
   const preloadIdleRef = useRef(0);
   const imageCacheRef = useRef(new Map());
   const activeSlot = clampIndex(displayIndex, count);
   const active = galleryItems[activeSlot] || galleryItems[0];
-  const backdropItem = galleryItems[clampIndex(backdropIndex, count)] || active;
-  const previousBackdropItem = galleryItems[clampIndex(previousBackdropIndex, count)] || backdropItem;
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const reducedMotion = reduceMotion || prefersReducedMotion;
-
-  useEffect(() => {
-    backdropIndexRef.current = backdropIndex;
-  }, [backdropIndex]);
 
   const setMoving = useCallback((moving) => {
     const overlay = overlayRef.current;
@@ -271,6 +262,11 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       }
     });
   }, [count]);
+
+  const setPreviewSlot = useCallback((slot) => {
+    setDisplayIndex((current) => (current === slot ? current : slot));
+    updateCardEmphasis(slot);
+  }, [updateCardEmphasis]);
 
   const isFlatCarousel = useCallback(() => (
     reducedMotion || window.matchMedia?.('(max-width: 900px), (pointer: coarse)').matches
@@ -318,17 +314,12 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const commitSettledIndex = useCallback((virtualIndex = activeIndexRef.current) => {
     window.clearTimeout(settleTimerRef.current);
     const slot = clampIndex(Math.round(virtualIndex), count);
-    const previousSlot = backdropIndexRef.current;
-    setDisplayIndex((current) => (current === slot ? current : slot));
-    setPreviousBackdropIndex((current) => (previousSlot === slot ? current : previousSlot));
-    setBackdropIndex((current) => (current === slot ? current : slot));
-    backdropIndexRef.current = slot;
-    updateCardEmphasis(slot);
+    setPreviewSlot(slot);
     scrollCardIntoView(slot, true);
     normalizeTrackRotation(slot);
     setMoving(false);
     schedulePreloadAround(slot);
-  }, [count, normalizeTrackRotation, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis]);
+  }, [count, normalizeTrackRotation, schedulePreloadAround, scrollCardIntoView, setMoving, setPreviewSlot]);
 
   const writeRotation = useCallback((virtualIndex, immediate = false) => {
     const track = trackRef.current;
@@ -355,8 +346,8 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     activeIndexRef.current = nextVisual;
     if (!options.immediate && !reducedMotion) setMoving(true);
     writeRotation(nextVisual, options.immediate || reducedMotion);
+    setPreviewSlot(slot);
     if (flatCarousel || options.immediate || reducedMotion) {
-      updateCardEmphasis(slot);
       scrollCardIntoView(slot, options.immediate || reducedMotion);
       schedulePreloadAround(slot);
     }
@@ -366,7 +357,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         commitSettledIndex(activeIndexRef.current);
       }, options.immediate || reducedMotion ? 0 : flatCarousel ? 180 : 420);
     }
-  }, [commitSettledIndex, count, isFlatCarousel, reducedMotion, schedulePreloadAround, scrollCardIntoView, setMoving, updateCardEmphasis, writeRotation]);
+  }, [commitSettledIndex, count, isFlatCarousel, reducedMotion, schedulePreloadAround, scrollCardIntoView, setMoving, setPreviewSlot, writeRotation]);
 
   const shiftActiveIndex = useCallback((delta, options = {}) => {
     if (!options.keepAuto) setIsAutoPlaying(false);
@@ -487,7 +478,8 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     const virtualIndex = -rotation / step;
     activeIndexRef.current = virtualIndex;
     writeRotation(virtualIndex);
-  }, [step, writeRotation]);
+    setPreviewSlot(clampIndex(Math.round(virtualIndex), count));
+  }, [count, setPreviewSlot, step, writeRotation]);
 
   const endDrag = useCallback((event) => {
     if (!dragRef.current.active) return;
@@ -557,8 +549,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     activeIndexRef.current = startSlot;
     visualIndexRef.current = startSlot;
     setDisplayIndex(startSlot);
-    setBackdropIndex(startSlot);
-    setPreviousBackdropIndex(startSlot);
     const frame = window.requestAnimationFrame(() => {
       applyFastIndex(startSlot, { immediate: true, settle: false });
       preloadAround(startSlot);
@@ -672,38 +662,35 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       aria-modal="true"
       aria-label="隐藏封面长廊"
       style={{
-        '--corridor-a': colorAt(backdropItem, 0, '#7ed7c9'),
-        '--corridor-b': colorAt(backdropItem, 1, '#ff7da8'),
-        '--corridor-c': colorAt(backdropItem, 2, '#f3d74c'),
-        '--corridor-cover-image': cssImageUrl(backdropItem.cover),
+        '--corridor-a': colorAt(active, 0, '#7ed7c9'),
+        '--corridor-b': colorAt(active, 1, '#ff7da8'),
+        '--corridor-c': colorAt(active, 2, '#f3d74c'),
+        '--corridor-cover-image': cssImageUrl(active.cover),
         '--corridor-count': count,
         '--corridor-step': `${step}deg`
       }}
     >
+      <div
+        className="corridor-cover-backdrop"
+        aria-hidden="true"
+        style={{
+          '--backdrop-a': colorAt(active, 0, '#7ed7c9'),
+          '--backdrop-cover-image': cssImageUrl(active.cover)
+        }}
+      />
       {/*
-        Temporarily disabled for the corridor performance experiment:
+        Temporarily disabled after performance/taste review:
         - corridor-glow: rotating background halo
-        - corridor-cover-wash: blurred cover-based backdrop
+        - corridor-cover-wash: heavy blurred cover crossfade
       */}
       {/*
       <div className="corridor-glow" aria-hidden="true" />
-      */}
-      {/*
       <div
-        className="corridor-cover-wash is-previous"
-        aria-hidden="true"
-        style={{
-          '--wash-a': colorAt(previousBackdropItem, 0, '#7ed7c9'),
-          '--wash-cover-image': cssImageUrl(previousBackdropItem.cover)
-        }}
-      />
-      <div
-        key={`${backdropItem.id || 'backdrop'}-${backdropIndex}`}
         className="corridor-cover-wash is-current"
         aria-hidden="true"
         style={{
-          '--wash-a': colorAt(backdropItem, 0, '#7ed7c9'),
-          '--wash-cover-image': cssImageUrl(backdropItem.cover)
+          '--wash-a': colorAt(active, 0, '#7ed7c9'),
+          '--wash-cover-image': cssImageUrl(active.cover)
         }}
       />
       */}
