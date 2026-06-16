@@ -84,7 +84,7 @@ async function itunesSearchByType(term, country, type, signal) {
   apiUrl.searchParams.set('term', term);
   apiUrl.searchParams.set('media', 'music');
   apiUrl.searchParams.set('entity', type === 'album' ? 'album' : 'song');
-  apiUrl.searchParams.set('limit', '18');
+  apiUrl.searchParams.set('limit', '30');
   apiUrl.searchParams.set('country', country);
   apiUrl.searchParams.set('lang', country === 'CN' ? 'zh_cn' : 'en_us');
 
@@ -97,7 +97,7 @@ async function itunesSearchByType(term, country, type, signal) {
 async function albumLookup(collectionIds, country, signal) {
   if (!collectionIds.length) return [];
   const apiUrl = new URL('https://itunes.apple.com/lookup');
-  apiUrl.searchParams.set('id', collectionIds.slice(0, 10).join(','));
+  apiUrl.searchParams.set('id', collectionIds.slice(0, 15).join(','));
   apiUrl.searchParams.set('country', country);
   apiUrl.searchParams.set('entity', 'song');
 
@@ -353,7 +353,7 @@ export default async function handler(req, res) {
         country
       }))
       .sort((a, b) => b.match - a.match)
-      .slice(0, 10);
+      .slice(0, 15);
 
     const enriched = await Promise.all(
       baseCandidates.map(async (candidate, index) => {

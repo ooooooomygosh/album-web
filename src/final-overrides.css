@@ -1125,6 +1125,270 @@ body > .global-search-popover {
   transition: none !important;
 }
 
+/* EOF lock: global search must remain one-field after all responsive overrides. */
+.global-search-field {
+  grid-template-areas: none !important;
+  grid-template-columns: auto minmax(0, 1fr) 48px !important;
+  min-height: 58px !important;
+}
+
+.global-search-field input,
+.global-search-field input:last-of-type {
+  grid-area: auto !important;
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+.global-search-popover.is-adding {
+  width: min(980px, calc(100vw - 48px)) !important;
+  min-height: min(640px, calc(100dvh - 150px)) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+
+.global-search-popover.is-adding .generation-loader,
+.global-adding-focus .generation-loader {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.global-search-popover .popover-close,
+body > .global-search-popover .popover-close {
+  z-index: 5 !important;
+  pointer-events: auto !important;
+}
+
+@media (max-width: 760px) {
+  .global-search-field {
+    grid-template-areas: none !important;
+    grid-template-columns: auto minmax(0, 1fr) 46px !important;
+    min-height: 58px !important;
+  }
+
+  .global-search-popover.is-adding {
+    min-height: min(78dvh, 680px) !important;
+  }
+}
+
+/* Final cascade lock for the global search redesign. Keep this at EOF. */
+.global-search-field {
+  grid-template-areas: none !important;
+  grid-template-columns: auto minmax(0, 1fr) 48px !important;
+  min-height: 58px !important;
+}
+
+.global-search-field input,
+.global-search-field input:last-of-type {
+  grid-area: auto !important;
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+.global-search-popover.is-adding {
+  width: min(980px, calc(100vw - 48px)) !important;
+  min-height: min(640px, calc(100dvh - 150px)) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+
+.global-search-popover .popover-close,
+body > .global-search-popover .popover-close {
+  z-index: 5 !important;
+  pointer-events: auto !important;
+}
+
+@media (max-width: 760px) {
+  .global-search-field {
+    grid-template-areas: none !important;
+    grid-template-columns: auto minmax(0, 1fr) 46px !important;
+    min-height: 58px !important;
+  }
+
+  .global-search-popover.is-adding {
+    min-height: min(78dvh, 680px) !important;
+  }
+}
+
+/* Search/add polish: single fuzzy box and focused adding state. */
+.global-search-field {
+  grid-template-areas: none !important;
+  grid-template-columns: auto minmax(0, 1fr) 48px !important;
+  min-height: 58px !important;
+}
+
+.global-search-field input {
+  grid-area: auto !important;
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+.global-search-field input:last-of-type {
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+.global-search-popover .popover-close,
+body > .global-search-popover .popover-close {
+  z-index: 5 !important;
+  pointer-events: auto !important;
+}
+
+.global-search-popover.is-adding {
+  width: min(980px, calc(100vw - 48px)) !important;
+  min-height: min(640px, calc(100dvh - 150px));
+  grid-template-rows: minmax(0, 1fr) !important;
+  place-items: stretch;
+}
+
+.global-adding-focus {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(18px, 2.4vw, 32px);
+  min-height: 100%;
+  padding: clamp(22px, 3vw, 36px);
+  overflow: hidden;
+  border-radius: 24px;
+  isolation: isolate;
+}
+
+.global-adding-coverwash {
+  position: absolute;
+  inset: -12%;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--cover-c), transparent 58%), transparent 28%),
+    linear-gradient(90deg, rgba(6, 8, 10, 0.35), rgba(6, 8, 10, 0.88)),
+    var(--adding-cover);
+  background-position: center;
+  background-size: cover;
+  filter: blur(34px) saturate(1.2);
+  opacity: 0.72;
+  transform: scale(1.08);
+}
+
+.global-adding-hero {
+  display: grid;
+  grid-template-columns: clamp(150px, 19vw, 230px) minmax(0, 1fr);
+  grid-column: 1 / -1;
+  gap: clamp(18px, 2.4vw, 30px);
+  align-items: center;
+  min-width: 0;
+}
+
+.global-adding-art {
+  width: 100% !important;
+  aspect-ratio: 1;
+  border-radius: 28px !important;
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.18);
+  animation: adding-cover-float-final 2.8s cubic-bezier(.2, .8, .2, 1) infinite alternate;
+}
+
+.global-adding-hero h3 {
+  margin: 8px 0 8px;
+  overflow-wrap: anywhere;
+  font-size: clamp(2.4rem, 5vw, 5.8rem);
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+.global-adding-hero p:not(.eyebrow) {
+  margin: 0;
+  color: rgba(248, 251, 255, 0.72);
+  font-size: clamp(1rem, 1.3vw, 1.22rem);
+}
+
+.global-adding-focus .generation-loader {
+  grid-column: 1 / -1;
+  min-height: clamp(220px, 28vh, 310px);
+  grid-template-columns: minmax(190px, 0.42fr) minmax(0, 1fr);
+  gap: clamp(16px, 2vw, 28px);
+  padding: clamp(18px, 2.4vw, 30px);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 22% 4%, color-mix(in srgb, var(--loader-c), transparent 62%), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.045)),
+    rgba(5, 6, 8, 0.78) !important;
+}
+
+.global-adding-focus .loader-stage {
+  min-height: 210px;
+}
+
+.global-adding-focus .loader-copy,
+.global-adding-focus .loader-meter,
+.global-adding-focus .loader-phases {
+  grid-column: 2;
+}
+
+.global-adding-process {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  color: rgba(248, 251, 255, 0.7);
+}
+
+.global-adding-process strong {
+  color: #f8fbff;
+}
+
+.global-adding-focus .error-line {
+  grid-column: 1 / -1;
+}
+
+@keyframes adding-cover-float-final {
+  from {
+    transform: translateY(0) rotate(-1deg) scale(1);
+    filter: saturate(1.04);
+  }
+  to {
+    transform: translateY(-10px) rotate(1deg) scale(1.025);
+    filter: saturate(1.18);
+  }
+}
+
+@media (max-width: 760px) {
+  .global-search-field {
+    grid-template-areas: none !important;
+    grid-template-columns: auto minmax(0, 1fr) 46px !important;
+    min-height: 58px !important;
+  }
+
+  .global-search-popover.is-adding {
+    min-height: min(78dvh, 680px);
+  }
+
+  .global-adding-focus {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .global-adding-hero {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .global-adding-hero h3 {
+    font-size: clamp(1.8rem, 10vw, 3.1rem);
+  }
+
+  .global-adding-focus .generation-loader {
+    grid-template-columns: 1fr;
+  }
+
+  .global-adding-focus .loader-copy,
+  .global-adding-focus .loader-meter,
+  .global-adding-focus .loader-phases {
+    grid-column: 1;
+  }
+
+  .global-adding-process {
+    grid-template-columns: 1fr;
+  }
+}
+
 .reduce-motion .detail-entry-animation {
   opacity: 0 !important;
 }
@@ -1544,4 +1808,49 @@ body > .global-search-popover {
 .reduce-motion .cabinet-card-face {
   animation: none !important;
   transition: none !important;
+}
+
+
+/* TRUE EOF lock: global search single-field and adding focus. */
+.global-search-field {
+  grid-template-areas: none !important;
+  grid-template-columns: auto minmax(0, 1fr) 48px !important;
+  min-height: 58px !important;
+}
+
+.global-search-field input,
+.global-search-field input:last-of-type {
+  grid-area: auto !important;
+  padding-left: 0 !important;
+  border-left: 0 !important;
+}
+
+.global-search-popover.is-adding {
+  width: min(980px, calc(100vw - 48px)) !important;
+  min-height: min(640px, calc(100dvh - 150px)) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+}
+
+.global-search-popover.is-adding .generation-loader,
+.global-adding-focus .generation-loader {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.global-search-popover .popover-close,
+body > .global-search-popover .popover-close {
+  z-index: 5 !important;
+  pointer-events: auto !important;
+}
+
+@media (max-width: 760px) {
+  .global-search-field {
+    grid-template-areas: none !important;
+    grid-template-columns: auto minmax(0, 1fr) 46px !important;
+    min-height: 58px !important;
+  }
+
+  .global-search-popover.is-adding {
+    min-height: min(78dvh, 680px) !important;
+  }
 }

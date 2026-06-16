@@ -1548,7 +1548,7 @@ function App() {
   };
 
   const addSelectedToShowroom = async () => {
-    if (!selectedCandidate || !room) return;
+    if (!selectedCandidate || !room) return false;
     setItemStatus('adding');
     setAddPhase('metadata');
     setAddError('');
@@ -1566,11 +1566,13 @@ function App() {
       setItemStatus('cloud');
       await loadRoomData(room, { preserveActive: true });
       setAddPhase('done');
+      return true;
     } catch (error) {
       setAddError(error.message);
       setItemStatus('error');
       setBackgroundStatus('error');
       setAddPhase('error');
+      return false;
     }
   };
 
@@ -1949,7 +1951,7 @@ function App() {
 function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQuery, artistQuery, setArtistQuery, link, setLink, searchStatus, candidates, selectedCandidate, setSelectedCandidate, addSelectedToShowroom, isAdding, addPhase, addError }) {
   const [open, setOpen] = useState(false);
   const [localQuery, setLocalQuery] = useState(query || '');
-  const [localArtist, setLocalArtist] = useState(artistQuery || '');
+  const [addingElapsed, setAddingElapsed] = useState(0);
   const searchRef = useRef(null);
   const popoverRef = useRef(null);
   const queryInputRef = useRef(null);
@@ -1959,6 +1961,9 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
     ['writing', '写入展柜']
   ];
   const activePhaseIndex = addPhase === 'done' ? phaseSteps.length : Math.max(0, phaseSteps.findIndex(([key]) => key === addPhase));
+  const isAddingSelection = Boolean(isAdding && selectedCandidate);
+  const activePhaseLabel = phaseSteps[Math.max(0, Math.min(activePhaseIndex, phaseSteps.length - 1))]?.[1] || '整理资料';
+  const elapsedLabel = `${Math.floor(addingElapsed / 60)}:${String(addingElapsed % 60).padStart(2, '0')}`;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -1983,12 +1988,30 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!isAddingSelection) {
+      setAddingElapsed(0);
+      return undefined;
+    }
+    const startedAt = Date.now();
+    setAddingElapsed(0);
+    const timer = window.setInterval(() => {
+      setAddingElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isAddingSelection, selectedCandidate?.id]);
+
+  const closePopover = () => {
+    setOpen(false);
+    window.requestAnimationFrame(() => queryInputRef.current?.focus());
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     setQuery(localQuery);
-    setArtistQuery(localArtist);
+    setArtistQuery('');
     setOpen(true);
-    await runSearch({ query: localQuery, artistQuery: localArtist, link });
+    await runSearch({ query: localQuery, artistQuery: '', link });
   };
 
   const chooseCandidate = (candidate) => {
@@ -1997,8 +2020,8 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
   };
 
   const addAndClose = async () => {
-    await addSelectedToShowroom();
-    setOpen(false);
+    const added = await addSelectedToShowroom();
+    if (added !== false) setOpen(false);
   };
 
   const submitLink = async (event) => {
@@ -2008,55 +2031,87 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
   };
 
   const popover = (
-    <div id="global-search-popover" className="global-search-popover" role="dialog" aria-label="音乐搜索结果" ref={popoverRef}>
-      <button type="button" className="popover-close" onClick={() => { setOpen(false); queryInputRef.current?.focus(); }} aria-label="关闭搜索结果">×</button>
-      <div className="global-popover-head">
-        <form className="link-inline" onSubmit={submitLink}>
-          <label>分享链接
-            <input type="url" inputMode="url" name="global-share-link" autoComplete="off" spellCheck={false} value={link} onChange={(event) => setLink(event.target.value)} placeholder="Spotify / Apple / 网易云 / QQ 链接…" />
-          </label>
-        </form>
-        <div className="search-live-status" aria-live="polite">
-          {searchStatus === 'idle' && '输入音乐名后按 Enter 搜索。'}
-          {searchStatus === 'searching' && '正在从曲库里匹配候选…'}
-          {searchStatus.startsWith('found-') && `找到 ${searchStatus.replace('found-', '')} 个候选。`}
-          {searchStatus.startsWith('error-') && `搜索失败：${searchStatus.replace('error-', '')}`}
-        </div>
-      </div>
-      <div className="global-popover-body">
-        <div className="global-results-pane">
-          {searchStatus === 'searching' && <div className="candidate-skeleton-grid">{Array.from({ length: 4 }).map((_, index) => <span key={index} />)}</div>}
-          {searchStatus.startsWith('found-') && candidates.length === 0 && <p className="empty-state compact-empty">没有找到候选，试试补上艺人名或换成分享链接。</p>}
-          <div className="global-candidate-grid" role="list" aria-label="候选音乐">
-            {candidates.map((candidate) => (
-              <button key={candidate.id} type="button" role="listitem" aria-pressed={selectedCandidate?.id === candidate.id} className={selectedCandidate?.id === candidate.id ? 'global-candidate selected' : 'global-candidate'} onClick={() => chooseCandidate(candidate)}>
-                <AlbumArt item={candidate} size="thumb" />
-                <span><strong>{candidate.title}</strong><small>{candidate.artist} · {candidate.year || candidate.albumTitle}</small><small>{candidate.type === 'album' ? '专辑' : '单曲'} · {candidate.source} · {candidate.match}%</small></span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <aside className="global-confirm">
-          {selectedCandidate ? (
-            <>
-              <AlbumArt item={selectedCandidate} size="thumb" />
-              <div>
-                <strong>{selectedCandidate.title}</strong>
-                <span>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? `${selectedCandidate.tracks?.length || 0} 首曲目` : selectedCandidate.albumTitle}</span>
-              </div>
-              <button type="button" onClick={addAndClose} disabled={isAdding}><CirclePlus size={15} />{isAdding ? '添加中' : '加入展柜'}</button>
-            </>
-          ) : (
-            <div className="global-confirm-empty">
-              <Disc3 size={28} />
-              <strong>选择一个候选</strong>
-              <span>封面、艺人、年份和来源会在这里确认。</span>
+    <div id="global-search-popover" className={`global-search-popover ${isAddingSelection ? 'is-adding' : ''}`} role="dialog" aria-label="音乐搜索结果" ref={popoverRef}>
+      <button
+        type="button"
+        className="popover-close"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          closePopover();
+        }}
+        aria-label="关闭搜索结果"
+      >
+        ×
+      </button>
+      {isAddingSelection ? (
+        <div className="global-adding-focus" style={{ '--adding-cover': cssImageUrl(selectedCandidate.cover) }}>
+          <div className="global-adding-coverwash" aria-hidden="true" />
+          <div className="global-adding-hero">
+            <AlbumArt item={selectedCandidate} className="global-adding-art" />
+            <div>
+              <p className="eyebrow"><Sparkles size={14} /> 正在加入展柜</p>
+              <h3>{selectedCandidate.title}</h3>
+              <p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? `${selectedCandidate.tracks?.length || 0} 首曲目` : selectedCandidate.albumTitle || '单曲'}</p>
             </div>
-          )}
-        </aside>
-      </div>
-      {isAdding && selectedCandidate && <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />}
-      {addError && <p className="status-line error-line">{addError}</p>}
+          </div>
+          <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />
+          <div className="global-adding-process" aria-live="polite">
+            <strong>{activePhaseLabel}</strong>
+            <span>已等待 {elapsedLabel} · 深度资料通常需要 1-3 分钟，请保持页面打开。</span>
+          </div>
+          {addError && <p className="status-line error-line">{addError}</p>}
+        </div>
+      ) : (
+        <>
+          <div className="global-popover-head">
+            <form className="link-inline" onSubmit={submitLink}>
+              <label>分享链接
+                <input type="url" inputMode="url" name="global-share-link" autoComplete="off" spellCheck={false} value={link} onChange={(event) => setLink(event.target.value)} placeholder="Spotify / Apple / 网易云 / QQ 链接…" />
+              </label>
+            </form>
+            <div className="search-live-status" aria-live="polite">
+              {searchStatus === 'idle' && '输入专辑、歌曲、艺人，或用空格组合后按 Enter 搜索。'}
+              {searchStatus === 'searching' && '正在从曲库里匹配候选…'}
+              {searchStatus.startsWith('found-') && `找到 ${searchStatus.replace('found-', '')} 个候选。`}
+              {searchStatus.startsWith('error-') && `搜索失败：${searchStatus.replace('error-', '')}`}
+            </div>
+          </div>
+          <div className="global-popover-body">
+            <div className="global-results-pane">
+              {searchStatus === 'searching' && <div className="candidate-skeleton-grid">{Array.from({ length: 5 }).map((_, index) => <span key={index} />)}</div>}
+              {searchStatus.startsWith('found-') && candidates.length === 0 && <p className="empty-state compact-empty">没有找到候选，试试补上艺人名或换成分享链接。</p>}
+              <div className="global-candidate-grid" role="list" aria-label="候选音乐">
+                {candidates.map((candidate) => (
+                  <button key={candidate.id} type="button" role="listitem" aria-pressed={selectedCandidate?.id === candidate.id} className={selectedCandidate?.id === candidate.id ? 'global-candidate selected' : 'global-candidate'} onClick={() => chooseCandidate(candidate)}>
+                    <AlbumArt item={candidate} size="thumb" />
+                    <span><strong>{candidate.title}</strong><small>{candidate.artist} · {candidate.year || candidate.albumTitle}</small><small>{candidate.type === 'album' ? '专辑' : '单曲'} · {candidate.source} · {candidate.match}%</small></span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <aside className="global-confirm">
+              {selectedCandidate ? (
+                <>
+                  <AlbumArt item={selectedCandidate} size="thumb" />
+                  <div>
+                    <strong>{selectedCandidate.title}</strong>
+                    <span>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? `${selectedCandidate.tracks?.length || 0} 首曲目` : selectedCandidate.albumTitle}</span>
+                  </div>
+                  <button type="button" onClick={addAndClose} disabled={isAdding}><CirclePlus size={15} />加入展柜</button>
+                </>
+              ) : (
+                <div className="global-confirm-empty">
+                  <Disc3 size={28} />
+                  <strong>选择一个候选</strong>
+                  <span>封面、艺人、年份和来源会在这里确认。</span>
+                </div>
+              )}
+            </aside>
+          </div>
+          {addError && <p className="status-line error-line">{addError}</p>}
+        </>
+      )}
     </div>
   );
 
@@ -2073,21 +2128,10 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
           value={localQuery}
           onFocus={() => setOpen(true)}
           onChange={(event) => setLocalQuery(event.target.value)}
-          placeholder="快速搜索专辑、歌曲或粘贴链接…"
+          placeholder="专辑 / 艺人 / 歌曲 / 链接…"
           aria-label="快速搜索专辑或歌曲"
           aria-expanded={open}
           aria-controls="global-search-popover"
-        />
-        <input
-          type="search"
-          name="global-artist-search"
-          autoComplete="off"
-          spellCheck={false}
-          value={localArtist}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => setLocalArtist(event.target.value)}
-          placeholder="艺人…"
-          aria-label="艺人"
         />
         <button type="submit" disabled={searchStatus === 'searching'} aria-label="搜索音乐">
           {searchStatus === 'searching' ? <Sparkles size={16} /> : <Search size={16} />}
