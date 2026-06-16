@@ -1,6 +1,9 @@
 node_modules/
 dist/
 artifacts/
+.agents/
+skills-lock.json
+tmp/
 .env
 .env.*
 !.env.example

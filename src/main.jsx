@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createPortal } from 'react-dom';
 import {
   Album,
   Bot,
@@ -10,10 +11,8 @@ import {
   Grid3X3,
   Library,
   LockKeyhole,
-  LogOut,
   MessageCircle,
   Music2,
-  Pencil,
   Radio,
   Plus,
   Search,
@@ -27,7 +26,10 @@ import {
   Wand2
 } from 'lucide-react';
 import { initAnalytics } from './firebaseClient';
+import ExperimentalCorridorCarousel from './ExperimentalCorridorCarousel';
 import './styles.css';
+import './final-overrides.css';
+import './corridor-carousel.css';
 
 const avatarOptions = ['M', 'L', 'R', 'A', 'K', '🎧', '♪', '星'];
 const memberColors = ['#5cb7ff', '#ffb86b', '#8fe388', '#ff7da8', '#f3d74c'];
@@ -72,6 +74,38 @@ const defaultHeroConfig = {
   motionLevel: 'ambient'
 };
 
+const defaultUserSettings = {
+  appearance: {
+    glass: 62,
+    reduceMotion: false,
+    rainbowStatus: true,
+    themeStrategy: 'cover',
+    customTheme: '#7ed7c9'
+  },
+  showroom: {
+    coverSize: 'comfortable',
+    wallLayout: '4x3',
+    hoverPreview: 'flip',
+    title: '',
+    description: '',
+    defaultMode: 'cabinet',
+    detailMode: 'dossier'
+  },
+  filters: {
+    mineOnly: false
+  },
+  persona: {
+    tone: 'warm',
+    historyMode: 'mine'
+  }
+};
+
+const hoverPreviewLabels = {
+  flip: '翻面资料',
+  blur: '高斯简介',
+  lift: '浮层简介'
+};
+
 const wallLayoutPresets = {
   '2x2': { label: '2x2', cols: 2, rows: 2 },
   '3x3': { label: '3x3', cols: 3, rows: 3 },
@@ -80,12 +114,49 @@ const wallLayoutPresets = {
   auto: { label: '自动', cols: 0, rows: 0 }
 };
 
+function mergeUserSettings(settings = {}) {
+  return {
+    appearance: { ...defaultUserSettings.appearance, ...(settings.appearance || {}) },
+    showroom: { ...defaultUserSettings.showroom, ...(settings.showroom || {}) },
+    filters: { ...defaultUserSettings.filters, ...(settings.filters || {}) },
+    persona: { ...defaultUserSettings.persona, ...(settings.persona || {}) }
+  };
+}
+
+function roomQueryUrl(roomId, params = {}) {
+  const query = new URLSearchParams();
+  if (roomId) query.set('room', roomId);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+  });
+  return `${window.location.pathname}?${query.toString()}`;
+}
+
+function parseRoomQuery() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    roomId: params.get('room') || '',
+    view: params.get('view') || '',
+    itemId: params.get('item') || '',
+    mineOnly: params.get('mine') === '1'
+  };
+}
+
 function wallLayoutStyle(layout) {
   const preset = wallLayoutPresets[layout] || wallLayoutPresets['4x3'];
   return {
     '--wall-cols': preset.cols || 'auto',
     '--wall-rows': preset.rows || 'auto'
   };
+}
+
+function cabinetDisplayTitle(value, roomName = '') {
+  const title = String(value || '').trim();
+  const roomTitle = String(roomName || '').trim();
+  if (!title) return '专辑陈列柜';
+  if (roomTitle && title === `${roomTitle} 的专辑陈列柜`) return '专辑陈列柜';
+  if (/^.+\s*的专辑陈列柜$/.test(title)) return '专辑陈列柜';
+  return title;
 }
 
 function loadJson(key, fallback) {
@@ -281,6 +352,17 @@ function normalizeMusicText(value) {
     .trim();
 }
 
+function trackTitle(track) {
+  if (typeof track === 'string') return track;
+  if (track && typeof track === 'object') return String(track.title || track.trackName || track.name || '').trim();
+  return '';
+}
+
+function trackArtist(track, fallback = '') {
+  if (track && typeof track === 'object') return String(track.artist || track.artistName || '').trim() || fallback;
+  return fallback;
+}
+
 function albumKey(item) {
   if (!item) return '';
   if (item.collectionId) return `collection:${item.collectionId}`;
@@ -295,7 +377,7 @@ function sameAlbum(left, right) {
 }
 
 function trackMatchesTitle(track, title) {
-  const normalizedTrack = normalizeMusicText(track);
+  const normalizedTrack = normalizeMusicText(trackTitle(track) || track);
   const normalizedTitle = normalizeMusicText(title);
   return Boolean(normalizedTrack && normalizedTitle && (normalizedTrack === normalizedTitle || normalizedTrack.includes(normalizedTitle) || normalizedTitle.includes(normalizedTrack)));
 }
@@ -509,7 +591,7 @@ function AlbumArt({ item, className = '', size = 'large' }) {
       }}
     >
       {!failed && item?.cover ? (
-        <img src={item.cover} alt={`${title} 封面`} onError={() => setFailed(true)} />
+        <img src={item.cover} alt={`${title} 封面`} width="640" height="640" loading={size === 'thumb' ? 'lazy' : 'eager'} onError={() => setFailed(true)} />
       ) : (
         <div className="art-fallback">
           <Disc3 size={size === 'thumb' ? 18 : 42} />
@@ -862,6 +944,8 @@ function RoomGate({ session, room, setRoom }) {
 
 function App() {
   const [session, setSession] = useState(() => loadJson('album-circle-session', null));
+  const [routeState, setRouteState] = useState(() => parseRoomQuery());
+  const [userSettings, setUserSettings] = useState(() => mergeUserSettings(session?.user?.settings));
   const [room, setRoom] = useState(null);
   const [knownRooms, setKnownRooms] = useState([]);
   const [roomDraft, setRoomDraft] = useState('新的听歌房间');
@@ -878,8 +962,9 @@ function App() {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [draft, setDraft] = useState('');
   const [comments, setComments] = useState([]);
-  const [glass, setGlass] = useState(62);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [glass, setGlass] = useState(() => mergeUserSettings(session?.user?.settings).appearance.glass);
+  const [reduceMotion, setReduceMotion] = useState(() => mergeUserSettings(session?.user?.settings).appearance.reduceMotion);
   const [candidates, setCandidates] = useState([]);
   const [searchStatus, setSearchStatus] = useState('idle');
   const [aiInsight, setAiInsight] = useState('');
@@ -912,15 +997,16 @@ function App() {
   const [personaChatStatus, setPersonaChatStatus] = useState('idle');
   const [personaChat, setPersonaChat] = useState([]);
   const [discoverRooms, setDiscoverRooms] = useState([]);
-  const [heroEditing, setHeroEditing] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [ratingsByItem, setRatingsByItem] = useState({});
+  const [ratingStatus, setRatingStatus] = useState('idle');
+  const [corridorOpen, setCorridorOpen] = useState(false);
   const [roomSettingsDraft, setRoomSettingsDraft] = useState({ visibility: 'unlisted', joinMode: 'open', discoverable: false, description: '', password: '', heroConfig: defaultHeroConfig });
 
-  const activeItem = items.find((item) => item.id === activeId) || items[0];
-  const heroConfig = normalizeHeroConfig(room?.heroConfig, room || {});
+  const routeItem = routeState.itemId ? items.find((item) => item.id === routeState.itemId) : null;
+  const activeItem = routeItem || items.find((item) => item.id === activeId) || items[0];
   const palette = useCoverPalette(activeItem);
   const roomUrl = room ? `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(room.id)}` : '';
-  const canEditRoom = room && (room.ownerId === session?.user?.id || session?.user?.role === 'admin');
   const activeComments = activeItem ? comments.filter((comment) => {
     if (comment.albumId === activeItem.id || comment.albumTitle === activeItem.title) return true;
     const commentedItem = items.find((item) => item.id === comment.albumId);
@@ -942,6 +1028,8 @@ function App() {
     });
     return merged.slice(0, 8);
   }, [room, session]);
+  const visibleTopbarMembers = roomMembers.slice(0, 5);
+  const hiddenTopbarMemberCount = Math.max(0, roomMembers.length - visibleTopbarMembers.length);
   const memberProfilesById = useMemo(() => {
     const profiles = {};
     Object.entries(room?.memberProfiles || {}).forEach(([id, member]) => {
@@ -987,6 +1075,32 @@ function App() {
   useEffect(() => {
     initAnalytics().catch(() => null);
   }, []);
+
+  useEffect(() => {
+    const onPopState = () => setRouteState(parseRoomQuery());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (!room?.id || routeState.itemId || routeState.view === 'cabinet' || mode !== 'showroom') return;
+    const nextUrl = roomQueryUrl(room.id, { view: 'cabinet', mine: routeState.mineOnly ? '1' : '' });
+    window.history.replaceState(null, '', nextUrl);
+    setRouteState(parseRoomQuery());
+  }, [room?.id, routeState.view, routeState.itemId, routeState.mineOnly, mode]);
+
+  useEffect(() => {
+    setRouteState(parseRoomQuery());
+  }, [mode]);
+
+  useEffect(() => {
+    const settings = mergeUserSettings(session?.user?.settings);
+    setUserSettings(settings);
+    setGlass(settings.appearance.glass);
+    setReduceMotion(settings.appearance.reduceMotion);
+    setPersonaTone(settings.persona.tone);
+    setPersonaHistoryMode(settings.persona.historyMode);
+  }, [session?.user?.id, session?.user?.settings]);
 
   useEffect(() => {
     refreshRooms().catch(() => null);
@@ -1056,6 +1170,25 @@ function App() {
     });
   }, [room?.id, room?.visibility, room?.joinMode, room?.discoverable, room?.description, room?.heroConfig]);
 
+  useEffect(() => {
+    if (!items.length) return;
+    if (routeState.itemId && items.some((item) => item.id === routeState.itemId)) {
+      setActiveId(routeState.itemId);
+      setMode('showroom');
+    }
+  }, [items, routeState.itemId]);
+
+  useEffect(() => {
+    if (activeItem?.id) loadRatingSummary(activeItem.id);
+  }, [activeItem?.id, room?.id, session?.token]);
+
+  useEffect(() => {
+    if (!room?.id || !items.length || !session?.token) return;
+    items.slice(0, 24).forEach((item) => {
+      if (!ratingsByItem[item.id]) loadRatingSummary(item.id);
+    });
+  }, [room?.id, items.length, session?.token]);
+
   const loadProfileStats = async () => {
     if (!session?.token) return;
     setProfileStatus('正在读取个人音乐档案');
@@ -1089,6 +1222,29 @@ function App() {
     const next = { ...session, user };
     setSession(next);
     saveJson('album-circle-session', next);
+  };
+
+  const saveUserSettings = async (patch) => {
+    const nextSettings = mergeUserSettings({
+      ...userSettings,
+      ...patch,
+      appearance: { ...userSettings.appearance, ...(patch.appearance || {}) },
+      showroom: { ...userSettings.showroom, ...(patch.showroom || {}) },
+      filters: { ...userSettings.filters, ...(patch.filters || {}) },
+      persona: { ...userSettings.persona, ...(patch.persona || {}) }
+    });
+    setUserSettings(nextSettings);
+    setGlass(nextSettings.appearance.glass);
+    setReduceMotion(nextSettings.appearance.reduceMotion);
+    setPersonaTone(nextSettings.persona.tone);
+    setPersonaHistoryMode(nextSettings.persona.historyMode);
+    const data = await api('/api/auth', {
+      session,
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateSettings', settings: nextSettings })
+    });
+    updateSessionUser(data.user);
+    return data.user.settings;
   };
 
   const saveProfile = async (draft = profileDraft) => {
@@ -1278,23 +1434,82 @@ function App() {
       setActiveId('');
       setMode('showroom');
       window.history.replaceState(null, '', `?room=${encodeURIComponent(data.room.id)}`);
+      setRouteState(parseRoomQuery());
       setRoomStatus('');
     } catch (error) {
       setRoomStatus(error.message);
     }
   };
 
-  const runOnlineSearch = async () => {
+  const openCabinet = (options = {}) => {
+    if (!room) return;
+    const mine = options.mineOnly ?? (routeState.mineOnly || userSettings.filters.mineOnly);
+    const nextUrl = roomQueryUrl(room.id, { view: 'cabinet', mine: mine ? '1' : '' });
+    window.history.pushState(null, '', nextUrl);
+    setRouteState(parseRoomQuery());
+    setMode('showroom');
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }));
+  };
+
+  const openItemDetail = (itemId) => {
+    if (!room || !itemId) return;
+    setActiveId(itemId);
+    const nextUrl = roomQueryUrl(room.id, { item: itemId, mine: routeState.mineOnly ? '1' : '' });
+    window.history.pushState(null, '', nextUrl);
+    setRouteState(parseRoomQuery());
+    setMode('showroom');
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }));
+  };
+
+  const loadRatingSummary = async (itemId = activeItem?.id) => {
+    if (!room?.id || !itemId || !session?.token) return;
+    try {
+      const data = await api(`/api/ratings?roomId=${encodeURIComponent(room.id)}&itemId=${encodeURIComponent(itemId)}`, { session });
+      setRatingsByItem((current) => ({ ...current, [itemId]: data }));
+    } catch {
+      setRatingsByItem((current) => ({ ...current, [itemId]: { average: 0, count: 0, mine: null } }));
+    }
+  };
+
+  const submitRating = async (score) => {
+    if (!room?.id || !activeItem?.id) return;
+    setRatingStatus('saving');
+    try {
+      await api(`/api/ratings?roomId=${encodeURIComponent(room.id)}`, {
+        session,
+        method: 'POST',
+        body: JSON.stringify({ itemId: activeItem.id, score })
+      });
+      await loadRatingSummary(activeItem.id);
+      setRatingStatus('cloud');
+    } catch (error) {
+      setRatingStatus(error.message);
+    }
+  };
+
+  const runOnlineSearch = async (overrides = {}) => {
     setSearchStatus('searching');
     setAddError('');
     setSelectedCandidate(null);
     try {
-      if (link) {
-        const resolvedData = await api(`/api/resolve-link?input=${encodeURIComponent(link)}`);
+      const nextQuery = String(overrides.query ?? query).trim();
+      const nextArtistQuery = String(overrides.artistQuery ?? artistQuery).trim();
+      const explicitLink = String(overrides.link ?? link).trim();
+      const pastedLink = explicitLink || (/^https?:\/\//i.test(nextQuery) ? nextQuery : '');
+      if (pastedLink) {
+        const resolvedData = await api(`/api/resolve-link?input=${encodeURIComponent(pastedLink)}`);
         setResolvedLink(resolvedData);
+      } else {
+        setResolvedLink(null);
       }
-      const searchTerm = [artistQuery, query].filter(Boolean).join(' ').trim() || link;
-      const params = new URLSearchParams({ term: searchTerm, type: searchType, title: query, artist: artistQuery });
+      const searchTerm = pastedLink || [nextArtistQuery, nextQuery].filter(Boolean).join(' ').trim();
+      const params = new URLSearchParams({
+        term: searchTerm,
+        type: searchType,
+        title: pastedLink ? '' : nextQuery,
+        artist: pastedLink ? '' : nextArtistQuery,
+        link: pastedLink
+      });
       const data = await api(`/api/search?${params.toString()}`);
       setCandidates(data.candidates || []);
       setSelectedCandidate(data.candidates?.[0] || null);
@@ -1347,7 +1562,7 @@ function App() {
       });
       setItems((current) => [data.item, ...current.filter((item) => item.id !== data.item.id)]);
       setActiveId(data.item.id);
-      setMode('showroom');
+      openItemDetail(data.item.id);
       setItemStatus('cloud');
       await loadRoomData(room, { preserveActive: true });
       setAddPhase('done');
@@ -1433,6 +1648,26 @@ function App() {
     }
   };
 
+  const requestConfirm = ({ title, message, confirmLabel = '确认', tone = 'danger', action }) => {
+    setConfirmAction({ title, message, confirmLabel, tone, action });
+  };
+
+  const closeConfirm = () => setConfirmAction(null);
+
+  const confirmDeleteItem = (item) => requestConfirm({
+    title: '删除这个展柜条目？',
+    message: `《${item?.title || '这个条目'}》会从当前房间移除，相关评论不会自动改写。`,
+    confirmLabel: '删除条目',
+    action: () => deleteItem(item)
+  });
+
+  const confirmDeleteComment = (comment) => requestConfirm({
+    title: '删除这条评论？',
+    message: '这条评论会从房间里移除。删除后不能从界面恢复。',
+    confirmLabel: '删除评论',
+    action: () => deleteComment(comment)
+  });
+
   const loadAdmin = async () => {
     if (session?.user?.role !== 'admin') return;
     setAdminStatus('正在加载管理数据');
@@ -1502,6 +1737,20 @@ function App() {
     }
   };
 
+  const confirmAdminDeleteRoom = (roomId) => requestConfirm({
+    title: '删除这个房间？',
+    message: `房间 ${roomId} 的展柜、评论和成员记录都会被移除。`,
+    confirmLabel: '删除房间',
+    action: () => adminDeleteRoom(roomId)
+  });
+
+  const confirmAdminDeleteUser = (userId) => requestConfirm({
+    title: '删除这个用户？',
+    message: `用户 ${userId} 将无法继续使用当前账号数据。`,
+    confirmLabel: '删除用户',
+    action: () => adminDeleteUser(userId)
+  });
+
   useEffect(() => {
     if (mode === 'admin') loadAdmin();
     if (mode === 'profile') loadProfileStats();
@@ -1509,19 +1758,29 @@ function App() {
 
   if (!session?.token) return <AuthGate session={session} setSession={setSession} />;
   if (!room) return <RoomGate session={session} room={room} setRoom={setRoom} />;
+  const isWorking = searchStatus === 'searching' || backgroundStatus === 'thinking' || itemStatus === 'adding' || ratingStatus === 'saving';
+  const isDetailPage = mode === 'showroom' && routeState.itemId && routeItem;
+  const isCabinetPage = mode === 'showroom' && !isDetailPage;
+  const showInspector = mode === 'room';
 
   return (
-    <main className={reduceMotion ? 'app reduce-motion' : 'app'} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': cssImageUrl(heroBackgroundImage(heroConfig, activeItem)), '--glass-alpha': glass / 100 }}>
+    <main className={`${reduceMotion ? 'app reduce-motion' : 'app'} ${isWorking && userSettings.appearance.rainbowStatus ? 'app-breathing' : ''}`} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': cssImageUrl(activeItem?.cover || ''), '--glass-alpha': glass / 100 }}>
       <div className="aurora" aria-hidden="true" />
+      {isWorking && userSettings.appearance.rainbowStatus && <div className="rainbow-status-frame" aria-hidden="true" />}
       <section className="shell">
+        <a className="skip-link" href="#main-content">跳到主要内容</a>
         <header className="topbar glass-panel">
-          <div className="brand">
-            <div className="brand-mark"><Disc3 size={22} /></div>
-            <div>
+          <button type="button" className="brand corridor-secret-trigger" onClick={() => setCorridorOpen(true)} aria-label="打开隐藏封面长廊" title="隐藏封面长廊">
+            <span className="brand-mark">
+              <span className="brand-vinyl-mark" aria-hidden="true">
+                <span />
+              </span>
+            </span>
+            <span className="brand-copy">
               <strong>{room.name}</strong>
               <span>Album Circle · {items.length} 个展柜条目</span>
-            </div>
-          </div>
+            </span>
+          </button>
           <nav className="mode-tabs" aria-label="模式">
             {[
               ['showroom', Grid3X3, '展柜'],
@@ -1532,49 +1791,115 @@ function App() {
               ['profile', UserRound, '我的'],
               ...(session.user.role === 'admin' ? [['admin', LockKeyhole, '管理']] : [])
             ].map(([key, Icon, label]) => (
-              <button key={key} className={mode === key ? 'active' : ''} onClick={() => setMode(key)} type="button"><Icon size={17} /><span>{label}</span></button>
+              <button
+                key={key}
+                className={mode === key ? 'active' : ''}
+                onClick={() => {
+                  if (key === 'showroom') {
+                    openCabinet({ mineOnly: routeState.mineOnly || userSettings.filters.mineOnly });
+                    return;
+                  }
+                  setMode(key);
+                }}
+                type="button"
+              >
+                <Icon size={17} /><span>{label}</span>
+              </button>
             ))}
           </nav>
-          <div className="member-stack" aria-label="房间成员">
-            {roomMembers.map((member) => (
-              <button key={member.id || member.name} type="button" title={`查看 ${member.name} 的公开资料`} style={{ '--dot': member.color }} onClick={() => setSelectedMemberId(member.id)}>
+          <GlobalMusicSearch
+            room={room}
+            session={session}
+            searchType={searchType}
+            setSearchType={setSearchType}
+            runSearch={runOnlineSearch}
+            query={query}
+            setQuery={setQuery}
+            artistQuery={artistQuery}
+            setArtistQuery={setArtistQuery}
+            link={link}
+            setLink={setLink}
+            searchStatus={searchStatus}
+            candidates={candidates}
+            selectedCandidate={selectedCandidate}
+            setSelectedCandidate={setSelectedCandidate}
+            addSelectedToShowroom={addSelectedToShowroom}
+            isAdding={backgroundStatus === 'thinking' || itemStatus === 'adding'}
+            addPhase={addPhase}
+            addError={addError}
+          />
+          <div className="member-stack" role="group" aria-label="房间成员">
+            {visibleTopbarMembers.map((member) => (
+              <button key={member.id || member.name} type="button" aria-label={`查看 ${member.name} 的公开资料`} title={`查看 ${member.name} 的公开资料`} style={{ '--dot': member.color }} onClick={() => setSelectedMemberId(member.id)}>
                 <UserAvatar user={member} />
               </button>
             ))}
+            {hiddenTopbarMemberCount > 0 && (
+              <button type="button" className="member-count" aria-label={`还有 ${hiddenTopbarMemberCount} 位房间成员，进入房间查看`} title={`还有 ${hiddenTopbarMemberCount} 位房间成员`} onClick={() => setMode('room')}>
+                +{hiddenTopbarMemberCount}
+              </button>
+            )}
           </div>
         </header>
 
-        <RoomHero
-          room={room}
-          heroConfig={heroConfig}
-          roomSettingsDraft={roomSettingsDraft}
-          setRoomSettingsDraft={setRoomSettingsDraft}
-          saveRoomSettings={saveRoomSettings}
-          roomStatus={roomStatus}
-          canEditRoom={canEditRoom}
-          heroEditing={heroEditing}
-          setHeroEditing={setHeroEditing}
-          activeItem={activeItem}
-          items={items}
-          comments={comments}
-          roomMembers={roomMembers}
-          roomUrl={roomUrl}
-          setMode={setMode}
-          setActiveId={setActiveId}
-          logout={logout}
-        />
-
-        <section className="workspace single-workspace">
+        <section id="main-content" className={`workspace single-workspace ${isDetailPage ? 'detail-workspace' : ''} ${isCabinetPage ? 'cabinet-workspace' : ''} ${!showInspector ? 'no-inspector-workspace' : ''}`}>
           <section className="main-stage wide-stage">
-            {mode === 'showroom' && <Showroom items={items} activeItem={activeItem} activeComments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} setActiveId={setActiveId} setMode={setMode} askAi={askAi} itemStatus={itemStatus} session={session} deleteItem={deleteItem} deleteComment={deleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
+            {mode === 'showroom' && (
+              routeState.itemId && routeItem ? (
+                <AlbumDetailPage
+                  items={items}
+                  activeItem={activeItem}
+                  activeComments={activeComments}
+                  draft={draft}
+                  setDraft={setDraft}
+                  submitComment={submitComment}
+                  commentStatus={commentStatus}
+                  commentAiStatus={commentAiStatus}
+                  setActiveId={setActiveId}
+                  setMode={setMode}
+                  openCabinet={openCabinet}
+                  openItemDetail={openItemDetail}
+                  askAi={askAi}
+                  itemStatus={itemStatus}
+                  session={session}
+                  deleteItem={confirmDeleteItem}
+                  deleteComment={confirmDeleteComment}
+                  memberProfilesById={memberProfilesById}
+                  openMember={setSelectedMemberId}
+                  ratingSummary={ratingsByItem[activeItem.id]}
+                  submitRating={submitRating}
+                  ratingStatus={ratingStatus}
+                  userSettings={userSettings}
+                />
+              ) : (
+                <AlbumCabinetPage
+                  room={room}
+                  items={items}
+                  activeItem={activeItem}
+                  openItemDetail={openItemDetail}
+                  setMode={setMode}
+                  ratingsByItem={ratingsByItem}
+                  memberProfilesById={memberProfilesById}
+                  userSettings={userSettings}
+                  saveUserSettings={saveUserSettings}
+                  currentUserId={session.user.id}
+                  mineOnly={routeState.mineOnly || userSettings.filters.mineOnly}
+                  setMineOnly={(value) => {
+                    const nextUrl = roomQueryUrl(room.id, { view: 'cabinet', mine: value ? '1' : '' });
+                    window.history.pushState(null, '', nextUrl);
+                    setRouteState(parseRoomQuery());
+                  }}
+                />
+              )
+            )}
             {mode === 'add' && <AddMusic query={query} setQuery={setQuery} artistQuery={artistQuery} setArtistQuery={setArtistQuery} link={link} setLink={setLink} searchType={searchType} setSearchType={setSearchType} setSearchStatus={setSearchStatus} setCandidates={setCandidates} resolvedLink={resolvedLink} runOnlineSearch={runOnlineSearch} searchStatus={searchStatus} candidates={candidates} selectedCandidate={selectedCandidate} setSelectedCandidate={setSelectedCandidate} addSelectedToShowroom={addSelectedToShowroom} backgroundStatus={backgroundStatus} itemStatus={itemStatus} addPhase={addPhase} addError={addError} />}
-            {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={deleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
+            {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={confirmDeleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
             {mode === 'ai' && <Ai selected={activeItem} aiInsight={aiInsight} aiStatus={aiStatus} askAi={askAi} />}
-            {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} />}
+            {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} userSettings={userSettings} saveUserSettings={saveUserSettings} />}
             {mode === 'profile' && <ProfilePanel session={session} profileDraft={profileDraft} setProfileDraft={setProfileDraft} saveProfile={saveProfile} uploadAvatar={uploadAvatar} profileStats={profileStats} profileStatus={profileStatus} loadProfileStats={loadProfileStats} fillProfileFromHistory={fillProfileFromHistory} personaTone={personaTone} setPersonaTone={setPersonaTone} personaHistoryMode={personaHistoryMode} setPersonaHistoryMode={setPersonaHistoryMode} personaSelectedIds={personaSelectedIds} togglePersonaItem={togglePersonaItem} generatePersona={generatePersona} personaStatus={personaStatus} personaReport={personaReport} addPublicTag={addPublicTag} personaQuestion={personaQuestion} setPersonaQuestion={setPersonaQuestion} askPersona={askPersona} personaChat={personaChat} personaChatStatus={personaChatStatus} />}
-            {mode === 'admin' && <AdminPanel adminData={adminData} adminStatus={adminStatus} loadAdmin={loadAdmin} deleteRoom={adminDeleteRoom} deleteUser={adminDeleteUser} aiPromptDraft={aiPromptDraft} setAiPromptDraft={setAiPromptDraft} personaPromptDraft={personaPromptDraft} setPersonaPromptDraft={setPersonaPromptDraft} aiMaxTokens={aiMaxTokens} setAiMaxTokens={setAiMaxTokens} personaMaxTokens={personaMaxTokens} setPersonaMaxTokens={setPersonaMaxTokens} personaChatMaxTokens={personaChatMaxTokens} setPersonaChatMaxTokens={setPersonaChatMaxTokens} aiTemperature={aiTemperature} setAiTemperature={setAiTemperature} personaTemperature={personaTemperature} setPersonaTemperature={setPersonaTemperature} saveAiConfig={saveAiConfig} />}
+            {mode === 'admin' && <AdminPanel adminData={adminData} adminStatus={adminStatus} loadAdmin={loadAdmin} deleteRoom={confirmAdminDeleteRoom} deleteUser={confirmAdminDeleteUser} aiPromptDraft={aiPromptDraft} setAiPromptDraft={setAiPromptDraft} personaPromptDraft={personaPromptDraft} setPersonaPromptDraft={setPersonaPromptDraft} aiMaxTokens={aiMaxTokens} setAiMaxTokens={setAiMaxTokens} personaMaxTokens={personaMaxTokens} setPersonaMaxTokens={setPersonaMaxTokens} personaChatMaxTokens={personaChatMaxTokens} setPersonaChatMaxTokens={setPersonaChatMaxTokens} aiTemperature={aiTemperature} setAiTemperature={setAiTemperature} personaTemperature={personaTemperature} setPersonaTemperature={setPersonaTemperature} saveAiConfig={saveAiConfig} />}
           </section>
-          <aside className="inspector glass-panel">
+          {showInspector && <aside className="inspector glass-panel">
             <div className="section-title"><Wand2 size={18} /><h2>房间状态</h2></div>
             <div className="agent-feed">
               {[
@@ -1593,7 +1918,7 @@ function App() {
               <label>玻璃强度<input type="range" min="35" max="82" value={glass} onChange={(event) => setGlass(Number(event.target.value))} /></label>
               <button type="button" onClick={() => setReduceMotion((value) => !value)}>{reduceMotion ? '恢复动效' : '减少动效'}</button>
             </div>
-          </aside>
+          </aside>}
         </section>
         {selectedMember && (
           <MemberProfileModal
@@ -1601,97 +1926,363 @@ function App() {
             items={selectedMemberItems}
             close={() => setSelectedMemberId('')}
             openItem={(itemId) => {
-              setActiveId(itemId);
-              setMode('showroom');
               setSelectedMemberId('');
+              openItemDetail(itemId);
             }}
           />
         )}
+        <ExperimentalCorridorCarousel
+          open={corridorOpen}
+          onClose={() => setCorridorOpen(false)}
+          items={items}
+          activeItem={activeItem}
+          roomName={room.name}
+          reduceMotion={reduceMotion}
+          openItemDetail={openItemDetail}
+        />
+        {confirmAction && <ConfirmDialog config={confirmAction} close={closeConfirm} />}
       </section>
     </main>
   );
 }
 
-function AlbumWall({ items, activeItem, setActiveId, layout, setLayout, variant = 'hero', showToolbar = true }) {
-  const wallItems = variant === 'hero' && layout !== 'auto'
-    ? items.slice(0, (wallLayoutPresets[layout]?.cols || 4) * (wallLayoutPresets[layout]?.rows || 3))
-    : items;
-  const placeholderCount = Math.min(12, Math.max(6, (wallLayoutPresets[layout]?.cols || 4) * (wallLayoutPresets[layout]?.rows || 3)));
-  const runTransition = (callback) => {
-    if (typeof document !== 'undefined' && document.startViewTransition) {
-      document.startViewTransition(callback);
-    } else {
-      callback();
-    }
-  };
-  const selectItem = (id) => runTransition(() => setActiveId(id));
-  const changeLayout = (nextLayout) => runTransition(() => setLayout(nextLayout));
-  const toolbar = showToolbar ? (
-    <div className="wall-toolbar" aria-label="陈列布局">
-      <div className="wall-label">
-        <strong>专辑陈列柜</strong>
-        <span>{items.length ? `${items.length} 张封面` : '等待第一张封面'}</span>
-      </div>
-      <div className="wall-layout-buttons">
-        {Object.entries(wallLayoutPresets).map(([key, preset]) => (
-          <button key={key} type="button" className={layout === key ? 'active' : ''} onClick={() => changeLayout(key)}>{preset.label}</button>
-        ))}
-      </div>
-    </div>
-  ) : null;
+function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQuery, artistQuery, setArtistQuery, link, setLink, searchStatus, candidates, selectedCandidate, setSelectedCandidate, addSelectedToShowroom, isAdding, addPhase, addError }) {
+  const [open, setOpen] = useState(false);
+  const [localQuery, setLocalQuery] = useState(query || '');
+  const [localArtist, setLocalArtist] = useState(artistQuery || '');
+  const searchRef = useRef(null);
+  const popoverRef = useRef(null);
+  const queryInputRef = useRef(null);
+  const phaseSteps = [
+    ['metadata', '读取资料'],
+    ['ai', '生成导览'],
+    ['writing', '写入展柜']
+  ];
+  const activePhaseIndex = addPhase === 'done' ? phaseSteps.length : Math.max(0, phaseSteps.findIndex(([key]) => key === addPhase));
 
-  if (!items.length) {
-    if (variant === 'hero') {
-      return (
-        <div className={`album-wall album-wall-${variant} empty-album-wall empty-poster-wall wall-${layout}`} style={wallLayoutStyle(layout)}>
-          {toolbar}
-          <div className="poster-grid ghost-poster-grid" aria-hidden="true">
-            {Array.from({ length: placeholderCount }).map((_, index) => (
-              <span key={index} className="ghost-poster" style={{ '--tile-index': index }} />
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutside = (event) => {
+      const insideSearch = searchRef.current?.contains(event.target);
+      const insidePopover = popoverRef.current?.contains(event.target);
+      if (!insideSearch && !insidePopover) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        queryInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setQuery(localQuery);
+    setArtistQuery(localArtist);
+    setOpen(true);
+    await runSearch({ query: localQuery, artistQuery: localArtist, link });
+  };
+
+  const chooseCandidate = (candidate) => {
+    setSelectedCandidate(candidate);
+    setOpen(true);
+  };
+
+  const addAndClose = async () => {
+    await addSelectedToShowroom();
+    setOpen(false);
+  };
+
+  const submitLink = async (event) => {
+    event.preventDefault();
+    setOpen(true);
+    await runSearch({ query: '', artistQuery: '', link });
+  };
+
+  const popover = (
+    <div id="global-search-popover" className="global-search-popover" role="dialog" aria-label="音乐搜索结果" ref={popoverRef}>
+      <button type="button" className="popover-close" onClick={() => { setOpen(false); queryInputRef.current?.focus(); }} aria-label="关闭搜索结果">×</button>
+      <div className="global-popover-head">
+        <form className="link-inline" onSubmit={submitLink}>
+          <label>分享链接
+            <input type="url" inputMode="url" name="global-share-link" autoComplete="off" spellCheck={false} value={link} onChange={(event) => setLink(event.target.value)} placeholder="Spotify / Apple / 网易云 / QQ 链接…" />
+          </label>
+        </form>
+        <div className="search-live-status" aria-live="polite">
+          {searchStatus === 'idle' && '输入音乐名后按 Enter 搜索。'}
+          {searchStatus === 'searching' && '正在从曲库里匹配候选…'}
+          {searchStatus.startsWith('found-') && `找到 ${searchStatus.replace('found-', '')} 个候选。`}
+          {searchStatus.startsWith('error-') && `搜索失败：${searchStatus.replace('error-', '')}`}
+        </div>
+      </div>
+      <div className="global-popover-body">
+        <div className="global-results-pane">
+          {searchStatus === 'searching' && <div className="candidate-skeleton-grid">{Array.from({ length: 4 }).map((_, index) => <span key={index} />)}</div>}
+          {searchStatus.startsWith('found-') && candidates.length === 0 && <p className="empty-state compact-empty">没有找到候选，试试补上艺人名或换成分享链接。</p>}
+          <div className="global-candidate-grid" role="list" aria-label="候选音乐">
+            {candidates.map((candidate) => (
+              <button key={candidate.id} type="button" role="listitem" aria-pressed={selectedCandidate?.id === candidate.id} className={selectedCandidate?.id === candidate.id ? 'global-candidate selected' : 'global-candidate'} onClick={() => chooseCandidate(candidate)}>
+                <AlbumArt item={candidate} size="thumb" />
+                <span><strong>{candidate.title}</strong><small>{candidate.artist} · {candidate.year || candidate.albumTitle}</small><small>{candidate.type === 'album' ? '专辑' : '单曲'} · {candidate.source} · {candidate.match}%</small></span>
+              </button>
             ))}
           </div>
         </div>
-      );
-    }
-    return (
-      <div className={`album-wall album-wall-${variant} empty-album-wall wall-${layout}`} style={wallLayoutStyle(layout)}>
-        {toolbar}
-        <div className="poster-empty">
-          <Disc3 size={58} />
-          <strong>第一张封面还在路上</strong>
-          <span>添加歌曲或专辑后，这里会变成房间的专辑陈列柜。</span>
-        </div>
+        <aside className="global-confirm">
+          {selectedCandidate ? (
+            <>
+              <AlbumArt item={selectedCandidate} size="thumb" />
+              <div>
+                <strong>{selectedCandidate.title}</strong>
+                <span>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? `${selectedCandidate.tracks?.length || 0} 首曲目` : selectedCandidate.albumTitle}</span>
+              </div>
+              <button type="button" onClick={addAndClose} disabled={isAdding}><CirclePlus size={15} />{isAdding ? '添加中' : '加入展柜'}</button>
+            </>
+          ) : (
+            <div className="global-confirm-empty">
+              <Disc3 size={28} />
+              <strong>选择一个候选</strong>
+              <span>封面、艺人、年份和来源会在这里确认。</span>
+            </div>
+          )}
+        </aside>
       </div>
-    );
-  }
+      {isAdding && selectedCandidate && <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />}
+      {addError && <p className="status-line error-line">{addError}</p>}
+    </div>
+  );
 
   return (
-    <div className={`album-wall album-wall-${variant} wall-${layout}`} style={wallLayoutStyle(layout)}>
-      {toolbar}
-      <div className="poster-grid" aria-label="专辑陈列墙">
-        {wallItems.map((item, index) => (
-          <button
-            key={item.id}
-            type="button"
-            className={activeItem?.id === item.id ? 'poster-tile active' : 'poster-tile'}
-            aria-label={`${item.type === 'album' ? '专辑' : '歌曲'} ${item.title} ${item.artist}`}
-            onClick={() => selectItem(item.id)}
-            style={{ '--tile-index': index, '--poster-a': item.palette?.[0] || 'var(--cover-a)', '--poster-b': item.palette?.[1] || 'var(--cover-b)' }}
-          >
-            <AlbumArt item={item} />
-            <span>{item.type === 'album' ? 'album' : 'song'}</span>
-            <strong>{item.title}</strong>
-            <small>{item.artist}</small>
-          </button>
-        ))}
+    <form className="global-search" role="search" onSubmit={submit} ref={searchRef}>
+      <div className="global-search-field">
+        <Search size={16} aria-hidden="true" />
+        <input
+          type="search"
+          name="global-music-search"
+          autoComplete="off"
+          spellCheck={false}
+          ref={queryInputRef}
+          value={localQuery}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => setLocalQuery(event.target.value)}
+          placeholder="快速搜索专辑、歌曲或粘贴链接…"
+          aria-label="快速搜索专辑或歌曲"
+          aria-expanded={open}
+          aria-controls="global-search-popover"
+        />
+        <input
+          type="search"
+          name="global-artist-search"
+          autoComplete="off"
+          spellCheck={false}
+          value={localArtist}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => setLocalArtist(event.target.value)}
+          placeholder="艺人…"
+          aria-label="艺人"
+        />
+        <button type="submit" disabled={searchStatus === 'searching'} aria-label="搜索音乐">
+          {searchStatus === 'searching' ? <Sparkles size={16} /> : <Search size={16} />}
+        </button>
       </div>
-      {showToolbar && layout !== 'auto' && items.length > wallItems.length && <p className="wall-more">还有 {items.length - wallItems.length} 张封面收在展柜里，切换“自动”查看全部。</p>}
+      <div className="global-search-types" role="group" aria-label="搜索类型">
+        {[
+          ['all', '全部'],
+          ['album', '专辑'],
+          ['song', '单曲']
+        ].map(([key, label]) => <button key={key} type="button" aria-pressed={searchType === key} className={searchType === key ? 'active' : ''} onClick={() => { setSearchType(key); setOpen(true); }}>{label}</button>)}
+      </div>
+      {open && createPortal(popover, document.body)}
+    </form>
+  );
+}
+
+function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem, memberProfilesById, userSettings, saveUserSettings, currentUserId, mineOnly, setMineOnly }) {
+  const layout = userSettings.showroom.wallLayout || '4x3';
+  const hoverPreview = userSettings.showroom.hoverPreview || 'flip';
+  const visibleItems = mineOnly ? items.filter((item) => item.addedById === currentUserId) : items;
+  const cabinetTitle = cabinetDisplayTitle(userSettings.showroom.title, room.name);
+  const cabinetDescription = (userSettings.showroom.description || '').trim() || '悬浮封面查看背面资料，点击进入专辑的黑胶开场和完整导览。';
+  const layoutLabel = wallLayoutPresets[layout]?.label || wallLayoutPresets['4x3'].label;
+  const hoverLabel = hoverPreviewLabels[hoverPreview] || hoverPreviewLabels.flip;
+
+  return (
+    <section className="panel-content cabinet-page">
+      <div className="cabinet-head">
+        <div className="cabinet-title-block">
+          <p className="eyebrow"><Grid3X3 size={15} /> {room.name} / album cabinet</p>
+          <div className="cabinet-title-row">
+            <h1>{cabinetTitle}</h1>
+            <CabinetSettingsPopover
+              userSettings={userSettings}
+              saveUserSettings={saveUserSettings}
+              defaultTitle="专辑陈列柜"
+              defaultDescription="悬浮封面查看背面资料，点击进入专辑的黑胶开场和完整导览。"
+              mineOnly={mineOnly}
+              setMineOnly={setMineOnly}
+            />
+          </div>
+          <p>{cabinetDescription}</p>
+        </div>
+        <div className="cabinet-actions" aria-label="陈列柜摘要">
+          <span className="cabinet-summary-chip"><Grid3X3 size={15} />{layoutLabel}</span>
+          <span className="cabinet-summary-chip"><Sparkles size={15} />{hoverLabel}</span>
+          {mineOnly && <span className="cabinet-summary-chip active"><UserRound size={15} />只看自己</span>}
+          <button type="button" className="secondary-chip" onClick={() => setMode('add')}><CirclePlus size={16} />高级添加</button>
+        </div>
+      </div>
+      <AlbumCabinetGrid items={visibleItems} layout={layout} hoverPreview={hoverPreview} openItemDetail={openItemDetail} ratingsByItem={ratingsByItem} memberProfilesById={memberProfilesById} coverSize={userSettings.showroom.coverSize} />
+    </section>
+  );
+}
+
+function CabinetSettingsPopover({ userSettings, saveUserSettings, defaultTitle, defaultDescription, mineOnly, setMineOnly }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(() => mergeUserSettings({ ...userSettings, filters: { ...(userSettings.filters || {}), mineOnly: Boolean(mineOnly) } }));
+  const [status, setStatus] = useState('');
+  const panelRef = useRef(null);
+  const triggerRef = useRef(null);
+
+  useEffect(() => {
+    setDraft(mergeUserSettings({ ...userSettings, filters: { ...(userSettings.filters || {}), mineOnly: Boolean(mineOnly) } }));
+  }, [userSettings, mineOnly]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutside = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  const update = (group, patch) => setDraft((current) => mergeUserSettings({ ...current, [group]: { ...(current[group] || {}), ...patch } }));
+
+  const save = async () => {
+    setStatus('正在同步');
+    try {
+      await saveUserSettings({
+        appearance: draft.appearance,
+        showroom: draft.showroom,
+        filters: draft.filters
+      });
+      if (draft.filters.mineOnly !== mineOnly) setMineOnly?.(draft.filters.mineOnly);
+      setStatus('已同步到账号');
+    } catch (error) {
+      setStatus(error.message);
+    }
+  };
+
+  const resetCopy = () => {
+    update('showroom', { title: '', description: '' });
+    setStatus('已恢复默认文案，保存后同步');
+  };
+  const previewTitle = cabinetDisplayTitle(draft.showroom.title, defaultTitle.replace(/\s*的专辑陈列柜$/, ''));
+
+  return (
+    <div className="cabinet-settings" ref={panelRef}>
+      <button type="button" ref={triggerRef} className="cabinet-settings-trigger" aria-expanded={open} aria-controls="cabinet-settings-panel" onClick={() => setOpen((value) => !value)}><Wand2 size={16} /><span>陈列设置</span></button>
+      {open && (
+        <div id="cabinet-settings-panel" className="cabinet-settings-panel" role="dialog" aria-modal="false" aria-label="陈列柜设置">
+          <div className="cabinet-settings-head">
+            <span><Sparkles size={16} /> 展柜视觉</span>
+            <button type="button" className="popover-close compact" onClick={() => setOpen(false)} aria-label="关闭陈列柜设置">×</button>
+          </div>
+          <div className="cabinet-settings-preview">
+            <span style={{ background: draft.appearance.customTheme }} />
+            <div>
+              <strong>{previewTitle}</strong>
+              <small>{wallLayoutPresets[draft.showroom.wallLayout]?.label || '4x3'} / {hoverPreviewLabels[draft.showroom.hoverPreview] || hoverPreviewLabels.flip} / {draft.filters.mineOnly ? '只看自己' : '全房间'}</small>
+            </div>
+          </div>
+          <div className="cabinet-settings-grid">
+            <label>封面大小<select value={draft.showroom.coverSize} onChange={(event) => update('showroom', { coverSize: event.target.value })}><option value="compact">紧凑</option><option value="comfortable">舒适</option><option value="large">大封面</option></select></label>
+            <label>默认布局<select value={draft.showroom.wallLayout} onChange={(event) => update('showroom', { wallLayout: event.target.value })}>{Object.entries(wallLayoutPresets).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}</select></label>
+            <label>悬浮方式<select value={draft.showroom.hoverPreview || 'flip'} onChange={(event) => update('showroom', { hoverPreview: event.target.value })}><option value="flip">翻面资料</option><option value="blur">高斯简介</option><option value="lift">轻浮层简介</option></select></label>
+            <label>主题策略<select value={draft.appearance.themeStrategy} onChange={(event) => update('appearance', { themeStrategy: event.target.value })}><option value="cover">跟随封面</option><option value="room">跟随房间</option><option value="custom">自定义</option></select></label>
+            <label className="color-field">自定义主题<input type="color" value={draft.appearance.customTheme} onChange={(event) => update('appearance', { customTheme: event.target.value })} /></label>
+            <label>玻璃强度<input type="range" min="35" max="82" value={draft.appearance.glass} onChange={(event) => update('appearance', { glass: Number(event.target.value) })} /></label>
+          </div>
+          <div className="cabinet-toggle-list" aria-label="陈列柜偏好">
+            <label><input type="checkbox" checked={draft.filters.mineOnly} onChange={(event) => update('filters', { mineOnly: event.target.checked })} /><span><strong>只看自己添加</strong><small>陈列柜默认筛出你添加的专辑和单曲。</small></span></label>
+            <label><input type="checkbox" checked={draft.appearance.reduceMotion} onChange={(event) => update('appearance', { reduceMotion: event.target.checked })} /><span><strong>减少动效</strong><small>关闭翻面、入场和呼吸类动画。</small></span></label>
+            <label><input type="checkbox" checked={draft.appearance.rainbowStatus} onChange={(event) => update('appearance', { rainbowStatus: event.target.checked })} /><span><strong>彩虹呼吸状态</strong><small>搜索、生成和保存时显示全屏边缘状态光。</small></span></label>
+          </div>
+          <div className="cabinet-copy-editor">
+            <label>标题<input value={draft.showroom.title || ''} onChange={(event) => update('showroom', { title: event.target.value })} placeholder={defaultTitle} maxLength={80} /></label>
+            <label>说明<textarea value={draft.showroom.description || ''} onChange={(event) => update('showroom', { description: event.target.value })} placeholder={defaultDescription} maxLength={220} /></label>
+          </div>
+          <div className="cabinet-settings-footer">
+            <button type="button" className="secondary-chip" onClick={resetCopy}>恢复默认文案</button>
+            <button type="button" className="filter-chip active" onClick={save}><Sparkles size={15} />保存展柜设置</button>
+          </div>
+          {status && <p className="status-line">{status}</p>}
+        </div>
+      )}
     </div>
+  );
+}
+
+function AlbumCabinetGrid({ items, layout, hoverPreview, openItemDetail, ratingsByItem, memberProfilesById, coverSize }) {
+  if (!items.length) {
+    return <div className="empty-state cabinet-empty"><Disc3 size={52} /><strong>展柜还没有封面</strong><span>用顶部搜索添加第一张专辑或单曲。</span></div>;
+  }
+  return (
+    <div className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜">
+      {items.map((item, index) => (
+        <div key={item.id} className="cabinet-listitem" role="listitem">
+          <AlbumCabinetTile item={item} index={index} openItemDetail={openItemDetail} ratingSummary={ratingsByItem[item.id]} adder={item.addedById ? memberProfilesById[item.addedById] : null} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder }) {
+  const summary = item.aiProfile?.overview || item.background || item.context || '这张封面正在等待更多朋友写下记忆。';
+  return (
+    <button
+      type="button"
+      className="cabinet-tile"
+      style={{ '--tile-index': index, '--poster-a': item.palette?.[0] || 'var(--cover-a)', '--poster-b': item.palette?.[1] || 'var(--cover-b)' }}
+      onClick={() => openItemDetail(item.id)}
+      aria-label={`打开 ${item.artist || '未知艺人'} 的 ${item.title} 详情`}
+    >
+      <span className="cabinet-card-face cabinet-card-front"><AlbumArt item={item} /></span>
+      <span className="cabinet-card-face cabinet-card-back">
+        <small>{item.type === 'album' ? 'ALBUM' : 'SONG'} · {item.year || 'unknown'}</small>
+        <strong>{item.title}</strong>
+        <em>{item.artist}</em>
+        <p>{summary}</p>
+        <span className="cabinet-meta-row"><b>{item.tracks?.length || (item.type === 'song' ? 1 : 0)} 首</b><b>{ratingSummary?.count ? `${ratingSummary.average} / 10` : '待评分'}</b></span>
+        <span className="cabinet-adder">{adder?.name || item.addedBy || 'Music friend'}</span>
+      </span>
+    </button>
   );
 }
 
 function MemberProfileModal({ member, items, close, openItem }) {
   const profile = member.profile || {};
+  const modalRef = useRef(null);
+  const closeButtonRef = useRef(null);
   const chips = [
     ['所在地', profile.location || member.location],
     ['喜欢风格', profile.favoriteGenres],
@@ -1706,10 +2297,40 @@ function MemberProfileModal({ member, items, close, openItem }) {
   const albums = items.filter((item) => item.type === 'album').length;
   const songs = items.length - albums;
 
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return;
+      const focusable = [...modalRef.current.querySelectorAll('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.disabled && element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+    };
+  }, [close]);
+
   return (
     <div className="member-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <aside className="member-modal glass-panel" role="dialog" aria-modal="true" aria-label={`${member.name} 的公开资料`}>
-        <button type="button" className="modal-close" aria-label="关闭" onClick={close}>×</button>
+      <aside className="member-modal glass-panel" role="dialog" aria-modal="true" aria-label={`${member.name} 的公开资料`} ref={modalRef}>
+        <button type="button" className="modal-close" aria-label="关闭" onClick={close} ref={closeButtonRef}>×</button>
         <header className="member-profile-head">
           <div className="member-profile-avatar"><UserAvatar user={member} /></div>
           <div>
@@ -1755,127 +2376,68 @@ function MemberProfileModal({ member, items, close, openItem }) {
   );
 }
 
-function RoomHero({ room, heroConfig, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings, roomStatus, canEditRoom, heroEditing, setHeroEditing, activeItem, items, comments, roomMembers, roomUrl, setMode, setActiveId, logout }) {
-  const heroRef = useRef(null);
-  const pointerFrame = useRef(0);
-  const [wallLayout, setWallLayout] = useState('4x3');
-  const themeClass = `hero-${heroConfig.visualMode} motion-${heroConfig.motionLevel}`;
+function ConfirmDialog({ config, close }) {
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(null);
+  const [busy, setBusy] = useState(false);
 
-  const updateHeroDraft = (patch) => {
-    setRoomSettingsDraft((current) => ({
-      ...current,
-      heroConfig: editableHeroConfig({ ...(current.heroConfig || {}), ...patch }, room)
-    }));
-  };
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    cancelRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = [...dialogRef.current.querySelectorAll('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.disabled && element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+    };
+  }, [busy, close]);
 
-  useEffect(() => () => {
-    if (pointerFrame.current) cancelAnimationFrame(pointerFrame.current);
-  }, []);
-
-  const updatePointer = (event) => {
-    if (heroConfig.motionLevel === 'still' || !heroRef.current) return;
-    const target = event.currentTarget;
-    const { clientX, clientY } = event;
-    if (pointerFrame.current) cancelAnimationFrame(pointerFrame.current);
-    pointerFrame.current = requestAnimationFrame(() => {
-      const rect = target.getBoundingClientRect();
-      target.style.setProperty('--hero-x', `${Math.round(((clientX - rect.left) / rect.width) * 100)}%`);
-      target.style.setProperty('--hero-y', `${Math.round(((clientY - rect.top) / rect.height) * 100)}%`);
-      pointerFrame.current = 0;
-    });
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await config.action?.();
+      close();
+    } catch {
+      setBusy(false);
+    }
   };
 
   return (
-    <section
-      ref={heroRef}
-      className={`hero compact-hero room-hero gallery-only-hero ${themeClass}`}
-      onPointerMove={updatePointer}
-      style={{ '--hero-x': '50%', '--hero-y': '42%' }}
-    >
-      <div className="hero-field" aria-hidden="true">
-        <span className="field-ring ring-one" />
-        <span className="field-ring ring-two" />
-        <span className="field-scanline" />
-      </div>
-      <div className="hero-wall-stage">
-        <AlbumWall items={items} activeItem={activeItem} setActiveId={setActiveId} layout={wallLayout} setLayout={setWallLayout} variant="hero" />
-      </div>
-      {canEditRoom && (
-        <button type="button" className="hero-edit-button" aria-label="编辑首页" title="编辑首页" aria-expanded={heroEditing} onClick={() => setHeroEditing((value) => !value)}><Pencil size={16} /></button>
-      )}
-      {heroEditing && canEditRoom && (
-        <HeroEditor
-          draft={roomSettingsDraft.heroConfig || heroConfig}
-          updateHeroDraft={updateHeroDraft}
-          saveRoomSettings={saveRoomSettings}
-          roomStatus={roomStatus}
-          close={() => setHeroEditing(false)}
-        />
-      )}
-    </section>
-  );
-}
-
-function HeroRecordStage({ activeItem, items, orbitStats, roomMembers, setMode }) {
-  if (!activeItem) {
-    return (
-      <div className="now-card hero-stage glass-panel empty-hero-card">
-        <div className="empty-record" aria-hidden="true"><Disc3 size={54} /></div>
-        <h2>展柜是空的</h2>
-        <p>添加第一首歌曲或第一张专辑。</p>
-        <button type="button" className="full-action narrow" onClick={() => setMode('add')}><CirclePlus size={16} />添加音乐</button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="now-card hero-stage glass-panel">
-      <div className="record-orbit" aria-hidden="true">
-        {orbitStats.map(([label, value], index) => (
-          <span key={label} style={{ '--i': index }}><strong>{value || 0}</strong><small>{label}</small></span>
-        ))}
-      </div>
-      <div className="record-core">
-        <div className="vinyl-disc" aria-hidden="true" />
-        <div className="cover-wrap hero-cover-wrap"><AlbumArt item={activeItem} /></div>
-      </div>
-      <div className="now-meta hero-now-meta">
-        <span>{activeItem.type === 'album' ? '专辑' : '歌曲'} · {activeItem.year || activeItem.albumTitle || '未知年份'}</span>
-        <h2>{activeItem.title}</h2>
-        <p>{activeItem.artist}</p>
-      </div>
-      <div className="hero-stage-footer">
-        <div className="member-dots">
-          {roomMembers.slice(0, 4).map((member) => <span key={member.name} title={member.name} style={{ '--dot': member.color }}>{member.avatar}</span>)}
+    <div className="confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) close(); }}>
+      <section className="confirm-dialog glass-panel" role="dialog" aria-modal="true" aria-labelledby="confirm-title" ref={dialogRef}>
+        <div>
+          <p className="eyebrow"><Trash2 size={15} /> careful action</p>
+          <h2 id="confirm-title">{config.title}</h2>
+          <p>{config.message}</p>
         </div>
-        <div className="platform-pills">{(activeItem.platforms || []).slice(0, 4).map((name) => <span key={name}>{name}</span>)}</div>
-        <div className="meter"><span>当前展柜</span><strong>{items.length}</strong></div>
-      </div>
+        <div className="confirm-actions">
+          <button type="button" className="secondary-chip" onClick={close} disabled={busy} ref={cancelRef}>取消</button>
+          <button type="button" className={`danger-confirm ${config.tone === 'danger' ? 'danger' : ''}`} onClick={confirm} disabled={busy}>
+            <Trash2 size={15} />{busy ? '处理中…' : config.confirmLabel}
+          </button>
+        </div>
+      </section>
     </div>
-  );
-}
-
-function HeroEditor({ draft, updateHeroDraft, saveRoomSettings, roomStatus, close }) {
-  const heroDraft = editableHeroConfig(draft);
-  return (
-    <aside className="hero-editor glass-panel" role="region" tabIndex="-1" aria-label="首页主题编辑">
-      <div className="section-title"><Pencil size={18} /><h2>首页主题</h2></div>
-      <label>小标题<input value={heroDraft.eyebrow} onChange={(event) => updateHeroDraft({ eyebrow: event.target.value })} /></label>
-      <label>主标题<input value={heroDraft.title} onChange={(event) => updateHeroDraft({ title: event.target.value })} placeholder="留空则使用房间名" /></label>
-      <label>副标题<input value={heroDraft.titleSuffix} onChange={(event) => updateHeroDraft({ titleSuffix: event.target.value })} /></label>
-      <label>首页文案<textarea value={heroDraft.description} onChange={(event) => updateHeroDraft({ description: event.target.value })} /></label>
-      <div className="theme-form-grid">
-        <label>视觉模式<select value={heroDraft.visualMode} onChange={(event) => updateHeroDraft({ visualMode: event.target.value })}><option value="observatory">观测室</option><option value="vinyl">黑胶舞台</option><option value="editorial">杂志大片</option></select></label>
-        <label>动效强度<select value={heroDraft.motionLevel} onChange={(event) => updateHeroDraft({ motionLevel: event.target.value })}><option value="ambient">轻动效</option><option value="cinematic">电影感</option><option value="still">静态</option></select></label>
-      </div>
-      <label>主题名<input value={heroDraft.accentName} onChange={(event) => updateHeroDraft({ accentName: event.target.value })} /></label>
-      <label>背景图 URL<input value={heroDraft.backgroundUrl} onChange={(event) => updateHeroDraft({ backgroundUrl: event.target.value })} placeholder="可留空，默认跟随当前专辑封面" /></label>
-      <div className="hero-editor-actions">
-        <button type="button" className="secondary-action" onClick={close}>收起</button>
-        <button type="button" className="primary-action" onClick={saveRoomSettings}>保存首页</button>
-      </div>
-      {roomStatus && <p className="status-line">{roomStatus}</p>}
-    </aside>
   );
 }
 
@@ -1933,17 +2495,11 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
   );
 }
 
-function Showroom({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, askAi, itemStatus, session, deleteItem, deleteComment, memberProfilesById, openMember }) {
-  const [showcaseMode, setShowcaseMode] = useState('tracks');
-  const [wallLayout, setWallLayout] = useState('4x3');
-  const runTransition = (callback) => {
-    if (typeof document !== 'undefined' && document.startViewTransition) {
-      document.startViewTransition(callback);
-    } else {
-      callback();
-    }
+function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, openCabinet, openItemDetail, askAi, itemStatus, session, deleteItem, deleteComment, memberProfilesById, openMember, ratingSummary, submitRating, ratingStatus }) {
+  const selectItem = (id) => {
+    setActiveId(id);
+    openItemDetail(id);
   };
-  const switchShowcaseMode = (nextMode) => runTransition(() => setShowcaseMode(nextMode));
   const parentAlbum = activeItem?.type === 'song'
     ? items.find((item) => item.type === 'album' && sameAlbum(item, activeItem))
     : null;
@@ -1958,51 +2514,20 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
   const activeTrackIndex = activeItem?.type === 'song' ? tracks.findIndex((track) => trackMatchesTitle(track, activeItem.title)) : -1;
   const profile = activeItem?.aiProfile || {};
   const genreTags = profile.genre?.length ? profile.genre : activeItem?.tags || [];
-  const guide = profile.listeningGuide?.length ? profile.listeningGuide : tracks.slice(0, 5).map((track, index) => `${index + 1}. ${track}`);
+  const guide = profile.listeningGuide?.length ? profile.listeningGuide : tracks.slice(0, 5).map((track, index) => `${index + 1}. ${trackTitle(track) || `Track ${index + 1}`}`);
   const prompts = profile.discussionPrompts?.length ? profile.discussionPrompts : ['你最先被哪一个段落吸引？', '这首歌适合推荐给谁？', '你会从同专辑继续听哪一首？'];
   const listeningLinks = listeningLinksFor(activeItem);
-  const modeIcon = showcaseMode === 'spotlight' ? Sparkles : showcaseMode === 'tracks' ? Music2 : Grid3X3;
-  const ModeIcon = modeIcon;
   const canDeleteActive = activeItem && (activeItem.addedById === session?.user?.id || session?.user?.role === 'admin');
   const activeAdder = activeItem?.addedById ? memberProfilesById?.[activeItem.addedById] : null;
 
   if (!items.length) return <div className="panel-content empty-showroom"><Disc3 size={48} /><h2>展柜还没有内容</h2><p>从歌曲或专辑开始，把朋友的推荐放进这个房间。</p><button className="full-action narrow" type="button" onClick={() => setMode('add')}><CirclePlus size={16} />添加第一条</button></div>;
   return (
-    <div className={`panel-content showroom-panel showcase-${showcaseMode}`}>
-      <div className="showroom-command">
-        <div>
-          <p className="eyebrow"><ModeIcon size={15} /> core showroom</p>
-          <h2>{showcaseMode === 'tracks' ? '轨道' : showcaseMode === 'spotlight' ? '聚光' : '封面墙'}</h2>
-          <p>左右滑动封面，点击切换条目，再进入曲目、评论和聆听入口。</p>
-        </div>
-        <div className="showroom-views" aria-label="展柜形态">
-          {[
-            ['wall', Grid3X3, '封面墙'],
-            ['spotlight', Sparkles, '聚光'],
-            ['tracks', Music2, '轨道']
-          ].map(([key, Icon, label]) => (
-            <button key={key} className={showcaseMode === key ? 'active' : ''} type="button" onClick={() => switchShowcaseMode(key)}><Icon size={16} />{label}</button>
-          ))}
-        </div>
-      </div>
-
-      {showcaseMode === 'spotlight' && activeItem && (
-        <section className="spotlight-stage">
-          <button className="spotlight-cover" type="button" onClick={() => setShowcaseMode('wall')}><AlbumArt item={activeItem} /></button>
-          <div className="spotlight-copy">
-            <p className="eyebrow"><Album size={15} /> {activeItem.type === 'album' ? 'album focus' : 'song focus'}</p>
-            <h3>{activeItem.title}</h3>
-            <p>{activeItem.artist} · {activeItem.albumTitle || activeItem.year}</p>
-            <div className="spotlight-stats"><span>{tracks.length} 首曲目</span><span>{siblingSongs.length || relatedSongs.length} 首已收录歌曲</span><span>{activeComments.length} 条评论</span></div>
-          </div>
-        </section>
-      )}
-
-      <AlbumWall items={items} activeItem={activeItem} setActiveId={setActiveId} layout={wallLayout} setLayout={setWallLayout} variant={showcaseMode === 'tracks' ? 'rail' : 'showroom'} showToolbar={showcaseMode !== 'tracks'} />
-
+    <div className="panel-content album-detail-page exclusive-detail">
+      <div className="detail-entry-animation" aria-hidden="true"><span /><i /></div>
       {activeItem && (
-        <div className="detail-drawer glass-panel showroom-detail">
+        <div className="detail-drawer showroom-detail">
           <div className="detail-art-stack">
+            <button type="button" className="detail-back" onClick={openCabinet}><Grid3X3 size={16} />返回展柜</button>
             <AlbumArt item={activeItem} className="feature-art" />
             <div className="vinyl-shadow" aria-hidden="true" />
           </div>
@@ -2010,6 +2535,11 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
             <p className="eyebrow"><Album size={15} /> {activeItem.type === 'album' ? 'album' : 'song'} in showroom</p>
             <h2>{activeItem.title}</h2>
             <p>{activeItem.artist} · {activeItem.albumTitle || activeItem.year}</p>
+            <div className="detail-stat-row">
+              <span>{tracks.length} 首曲目</span>
+              <span>{siblingSongs.length || relatedSongs.length} 首已收录歌曲</span>
+              <span>{activeComments.length} 条评论</span>
+            </div>
             <p>{profile.overview || activeItem.background || activeItem.context}</p>
             <div className="tag-row compact-tags profile-tags">{genreTags.slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div>
             <div className="detail-actions">
@@ -2017,6 +2547,7 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
               <button type="button" onClick={() => setMode('add')}><CirclePlus size={16} />继续添加</button>
               {canDeleteActive && <button type="button" className="danger-action" onClick={() => deleteItem(activeItem)}><Trash2 size={16} />删除条目</button>}
             </div>
+            <RatingPanel ratingSummary={ratingSummary} submitRating={submitRating} ratingStatus={ratingStatus} />
             {listeningLinks.length > 0 && (
               <div className="listening-links">
                 <strong><Radio size={16} />聆听入口</strong>
@@ -2048,23 +2579,26 @@ function Showroom({ items, activeItem, activeComments, draft, setDraft, submitCo
                   <strong>{activeItem.albumTitle || parentAlbum?.title || '未知专辑'}</strong>
                   <p>{parentAlbum ? `${parentAlbum.tracks?.length || tracks.length} 首曲目已同步，可从这里回到整张专辑。` : '这首歌已带入专辑名；加入同名专辑后会自动合并到完整曲目上下文。'}</p>
                 </div>
-                {parentAlbum && <button type="button" onClick={() => setActiveId(parentAlbum.id)}>查看专辑</button>}
+                {parentAlbum && <button type="button" onClick={() => selectItem(parentAlbum.id)}>查看专辑</button>}
               </div>
             )}
             <div className="showroom-tracklist">
-              {tracks.map((track, index) => (
-                <button key={`${track}-${index}`} type="button" className={activeTrackIndex === index ? 'showroom-track current' : 'showroom-track'}>
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <strong>{track}</strong>
-                  <small>{activeTrackIndex === index ? '当前歌曲' : albumContextItem.artist}</small>
-                </button>
-              ))}
+              {tracks.map((track, index) => {
+                const title = trackTitle(track) || `Track ${index + 1}`;
+                return (
+                  <button key={`${title}-${index}`} type="button" className={activeTrackIndex === index ? 'showroom-track current' : 'showroom-track'}>
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <strong>{title}</strong>
+                    <small>{activeTrackIndex === index ? '当前歌曲' : trackArtist(track, albumContextItem.artist)}</small>
+                  </button>
+                );
+              })}
             </div>
             {activeItem.type === 'album' && (
               <div className="related-song-panel">
                 <strong>房间已收录歌曲</strong>
                 {relatedSongs.length ? relatedSongs.map((song) => (
-                  <button key={song.id} type="button" className="related-song" onClick={() => setActiveId(song.id)}>
+                  <button key={song.id} type="button" className="related-song" onClick={() => selectItem(song.id)}>
                     <span><AlbumArt item={song} size="thumb" /></span>
                     <div><b>{song.title}</b><small>{song.artist} · 来自这张专辑</small></div>
                     <ChevronRight size={15} />
@@ -2137,16 +2671,57 @@ function Review({ selected, comments, draft, setDraft, submitComment, commentSta
   return <div className="panel-content"><div className="review-composer"><p className="eyebrow"><MessageCircle size={15} /> comments</p><h2>评论 {selected.title}</h2><textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="写下你推荐它的原因" /><button type="button" onClick={submitComment}><Send size={17} /> 发布评论</button><p className="status-line">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>{commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}</div><div className="comment-list">{comments.length ? comments.map((comment) => { const author = comment.userId ? memberProfilesById?.[comment.userId] : null; return <article key={comment.id} className="comment"><div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div><p>{comment.text}</p>{(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}</article>; }) : <p className="empty-state">还没有评论。</p>}</div></div>;
 }
 
+function RatingPanel({ ratingSummary, submitRating, ratingStatus }) {
+  const [score, setScore] = useState(ratingSummary?.mine?.score || ratingSummary?.average || 8);
+
+  useEffect(() => {
+    setScore(ratingSummary?.mine?.score || ratingSummary?.average || 8);
+  }, [ratingSummary?.mine?.score, ratingSummary?.average]);
+
+  const quickScores = [6, 7, 8, 9, 10];
+  return (
+    <section className="rating-panel" aria-label="专辑评分">
+      <div>
+        <span>好友均分</span>
+        <strong>{ratingSummary?.count ? ratingSummary.average.toFixed(1) : '待评分'}</strong>
+        <small>{ratingSummary?.count ? `${ratingSummary.count} 人评分` : '给它第一颗星'}</small>
+      </div>
+      <label>
+        我的评分 <b>{Number(score).toFixed(1)}</b>
+        <input type="range" min="0" max="10" step="0.5" value={score} onChange={(event) => setScore(Number(event.target.value))} />
+      </label>
+      <div className="rating-buttons">
+        {quickScores.map((value) => <button key={value} type="button" className={Number(score) === value ? 'active' : ''} onClick={() => setScore(value)}><Star size={13} />{value}</button>)}
+        <button type="button" className="save-rating" onClick={() => submitRating(score)} disabled={ratingStatus === 'saving'}>{ratingStatus === 'saving' ? '保存中' : '保存评分'}</button>
+      </div>
+      {ratingStatus && !['idle', 'cloud', 'saving'].includes(ratingStatus) && <p className="status-line error-line">{ratingStatus}</p>}
+    </section>
+  );
+}
+
 function Ai({ selected, aiInsight, aiStatus, askAi }) {
   if (!selected) return <div className="panel-content empty-state">添加音乐后即可请求 AI 推荐。</div>;
   return <div className="panel-content ai-grid"><article className="ai-card wide"><p className="eyebrow"><Bot size={15} /> recommendation</p><h2>围绕 {selected.title} 生成推荐</h2><p>{selected.background || selected.context}</p><button type="button" onClick={askAi}>{aiStatus === 'thinking' ? '生成中' : '生成推荐与追问'} <ChevronRight size={15} /></button>{aiInsight && <p className="ai-insight spacious">{aiInsight}</p>}</article>{recommendations.map(([title, reason]) => <article className="ai-card" key={title}><Music2 size={19} /><strong>{title}</strong><p>{reason}</p></article>)}</div>;
 }
 
 function EditableList({ label, value, onChange, placeholder }) {
+  const [text, setText] = useState(() => listToText(value));
+
+  useEffect(() => {
+    setText(listToText(value));
+  }, [Array.isArray(value) ? value.join('\u0001') : value]);
+
   return (
     <label>
       {label}
-      <input value={listToText(value)} onChange={(event) => onChange(textToList(event.target.value))} placeholder={placeholder} />
+      <input
+        value={text}
+        name={label}
+        autoComplete="off"
+        onChange={(event) => setText(event.target.value)}
+        onBlur={() => onChange(textToList(text))}
+        placeholder={placeholder}
+      />
     </label>
   );
 }
@@ -2522,7 +3097,7 @@ function AdminPanel({ adminData, adminStatus, loadAdmin, deleteRoom, deleteUser,
   );
 }
 
-function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discoverRooms, switchRoom, roomDraft, setRoomDraft, createAnotherRoom, inviteDraft, setInviteDraft, invitePassword, setInvitePassword, joinAnotherRoom, roomStatus, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings }) {
+function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discoverRooms, switchRoom, roomDraft, setRoomDraft, createAnotherRoom, inviteDraft, setInviteDraft, invitePassword, setInvitePassword, joinAnotherRoom, roomStatus, roomSettingsDraft, setRoomSettingsDraft, saveRoomSettings, userSettings, saveUserSettings }) {
   const canEditRoom = room.ownerId === session.user.id || session.user.role === 'admin';
   const heroDraft = editableHeroConfig(roomSettingsDraft.heroConfig, room);
   const updateHeroDraft = (patch) => {
@@ -2598,9 +3173,51 @@ function RoomPanel({ room, roomUrl, session, comments, items, knownRooms, discov
           </div>
           <button type="button" disabled={!canEditRoom} onClick={saveRoomSettings}>保存设置</button>
         </article>
+        <UserSettingsCard userSettings={userSettings} saveUserSettings={saveUserSettings} />
       </section>
       {roomStatus && <p className="status-line">{roomStatus}</p>}
     </div>
+  );
+}
+
+function UserSettingsCard({ userSettings, saveUserSettings }) {
+  const [draft, setDraft] = useState(() => mergeUserSettings(userSettings));
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    setDraft(mergeUserSettings(userSettings));
+  }, [userSettings]);
+
+  const update = (group, patch) => setDraft((current) => mergeUserSettings({ ...current, [group]: { ...(current[group] || {}), ...patch } }));
+
+  const save = async () => {
+    setStatus('正在同步到账号');
+    try {
+      await saveUserSettings(draft);
+      setStatus('设置已同步到账号');
+    } catch (error) {
+      setStatus(error.message);
+    }
+  };
+
+  return (
+    <article className="room-settings-card user-settings-card">
+      <div className="section-title"><Sparkles size={18} /><h3>我的显示设置</h3></div>
+      <div className="theme-form-grid">
+        <label>主题策略<select value={draft.appearance.themeStrategy} onChange={(event) => update('appearance', { themeStrategy: event.target.value })}><option value="cover">跟随封面</option><option value="room">跟随房间</option><option value="custom">自定义</option></select></label>
+        <label>自定义主题<input type="color" value={draft.appearance.customTheme} onChange={(event) => update('appearance', { customTheme: event.target.value })} /></label>
+      </div>
+      <label>玻璃强度<input type="range" min="35" max="82" value={draft.appearance.glass} onChange={(event) => update('appearance', { glass: Number(event.target.value) })} /></label>
+      <label className="checkbox-line"><input type="checkbox" checked={draft.appearance.reduceMotion} onChange={(event) => update('appearance', { reduceMotion: event.target.checked })} />减少动效</label>
+      <label className="checkbox-line"><input type="checkbox" checked={draft.appearance.rainbowStatus} onChange={(event) => update('appearance', { rainbowStatus: event.target.checked })} />搜索和 AI 生成时显示彩虹呼吸边缘</label>
+      <label className="checkbox-line"><input type="checkbox" checked={draft.filters.mineOnly} onChange={(event) => update('filters', { mineOnly: event.target.checked })} />默认只看自己添加</label>
+      <div className="theme-form-grid">
+        <label>AI 语气<select value={draft.persona.tone} onChange={(event) => update('persona', { tone: event.target.value })}><option value="warm">温暖</option><option value="mystic">神秘</option><option value="critic">乐评</option><option value="playful">好玩</option></select></label>
+        <label>分析范围<select value={draft.persona.historyMode} onChange={(event) => update('persona', { historyMode: event.target.value })}><option value="selected">只分析勾选</option><option value="mine">我添加的全部音乐</option><option value="room">所在房间全部音乐</option><option value="none">只使用填写资料</option></select></label>
+      </div>
+      <button type="button" onClick={save}>保存我的设置</button>
+      {status && <p className="status-line">{status}</p>}
+    </article>
   );
 }
 

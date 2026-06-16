@@ -119,7 +119,7 @@ Behavior:
 - Current cover is larger, brighter, and pushed forward; side covers are lower opacity and blurred.
 - Background uses the current cover as a blurred “cover wash” when a cover image exists, with palette fallback.
 - Manual controls: drag, wheel, previous/next buttons, ArrowLeft/ArrowRight, Home/End, Escape close.
-- Detail navigation: click the active cover or `进入详情` to close the corridor and call `openItemDetail(active.id)`.
+- Detail navigation: click the active cover to close the corridor and call `openItemDetail(active.id)`.
 - Autoplay: `自动/暂停` button plus `速度` range control. It is off by default and disabled when reduced motion is active.
 - Mobile/coarse pointer fallback: horizontal scroll-snap rail instead of full 3D transforms.
 - Reduced motion fallback: disables transform animations and autoplay.

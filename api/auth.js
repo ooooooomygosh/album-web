@@ -53,6 +53,76 @@ function cleanProfile(value = {}) {
   };
 }
 
+const defaultSettings = {
+  appearance: {
+    glass: 62,
+    reduceMotion: false,
+    rainbowStatus: true,
+    themeStrategy: 'cover',
+    customTheme: '#7ed7c9'
+  },
+  showroom: {
+    coverSize: 'comfortable',
+    wallLayout: '4x3',
+    hoverPreview: 'flip',
+    title: '',
+    description: '',
+    defaultMode: 'cabinet',
+    detailMode: 'dossier'
+  },
+  filters: {
+    mineOnly: false
+  },
+  persona: {
+    tone: 'warm',
+    historyMode: 'mine'
+  }
+};
+
+function clampNumber(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(number)));
+}
+
+function cleanHex(value, fallback = '#7ed7c9') {
+  const text = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+}
+
+function cleanSettings(value = {}, fallback = defaultSettings) {
+  const source = value && typeof value === 'object' ? value : {};
+  const appearance = source.appearance && typeof source.appearance === 'object' ? source.appearance : {};
+  const showroom = source.showroom && typeof source.showroom === 'object' ? source.showroom : {};
+  const filters = source.filters && typeof source.filters === 'object' ? source.filters : {};
+  const persona = source.persona && typeof source.persona === 'object' ? source.persona : {};
+  return {
+    appearance: {
+      glass: clampNumber(appearance.glass, fallback.appearance?.glass ?? defaultSettings.appearance.glass, 35, 82),
+      reduceMotion: Boolean(appearance.reduceMotion ?? fallback.appearance?.reduceMotion ?? false),
+      rainbowStatus: Boolean(appearance.rainbowStatus ?? fallback.appearance?.rainbowStatus ?? true),
+      themeStrategy: ['cover', 'custom', 'room'].includes(appearance.themeStrategy) ? appearance.themeStrategy : fallback.appearance?.themeStrategy || 'cover',
+      customTheme: cleanHex(appearance.customTheme, fallback.appearance?.customTheme || defaultSettings.appearance.customTheme)
+    },
+    showroom: {
+      coverSize: ['compact', 'comfortable', 'large'].includes(showroom.coverSize) ? showroom.coverSize : fallback.showroom?.coverSize || 'comfortable',
+      wallLayout: ['2x2', '3x3', '4x3', '5x4', 'auto'].includes(showroom.wallLayout) ? showroom.wallLayout : fallback.showroom?.wallLayout || '4x3',
+      hoverPreview: ['flip', 'blur', 'lift'].includes(showroom.hoverPreview) ? showroom.hoverPreview : fallback.showroom?.hoverPreview || 'flip',
+      title: typeof showroom.title === 'string' ? showroom.title.slice(0, 80) : fallback.showroom?.title || '',
+      description: typeof showroom.description === 'string' ? showroom.description.slice(0, 220) : fallback.showroom?.description || '',
+      defaultMode: ['cabinet', 'detail'].includes(showroom.defaultMode) ? showroom.defaultMode : fallback.showroom?.defaultMode || 'cabinet',
+      detailMode: ['dossier', 'comments', 'tracks'].includes(showroom.detailMode) ? showroom.detailMode : fallback.showroom?.detailMode || 'dossier'
+    },
+    filters: {
+      mineOnly: Boolean(filters.mineOnly ?? fallback.filters?.mineOnly ?? false)
+    },
+    persona: {
+      tone: ['warm', 'mystic', 'critic', 'playful'].includes(persona.tone) ? persona.tone : fallback.persona?.tone || 'warm',
+      historyMode: ['selected', 'mine', 'room', 'none'].includes(persona.historyMode) ? persona.historyMode : fallback.persona?.historyMode || 'mine'
+    }
+  };
+}
+
 function publicUser(id, data, token) {
   const userData = { id, ...data, profile: cleanProfile(data.profile || {}), publicTags: cleanList(data.publicTags, 24, 40) };
   return {
@@ -66,6 +136,7 @@ function publicUser(id, data, token) {
       avatarDataUrl: data.avatarDataUrl || '',
       profile: userData.profile,
       publicTags: userData.publicTags,
+      settings: cleanSettings(data.settings || {}),
       latestPersona: normalizeStoredPersona(data.latestPersona, userData),
       role: data.role || 'user',
       createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
@@ -84,6 +155,7 @@ function publicUserPayload(id, data) {
     avatarDataUrl: data.avatarDataUrl || '',
     profile: userData.profile,
     publicTags: userData.publicTags,
+    settings: cleanSettings(data.settings || {}),
     latestPersona: normalizeStoredPersona(data.latestPersona, userData),
     role: data.role || 'user',
     createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
@@ -225,6 +297,18 @@ export default async function handler(req, res) {
       return json(res, 200, publicUser(user.id, nextUser, req.headers.authorization?.replace(/^Bearer\s+/i, '')));
     }
 
+    if (action === 'updateSettings') {
+      const { requireUser } = await import('./_firebase.js');
+      const user = await requireUser(req);
+      const settings = cleanSettings(body.settings || {}, cleanSettings(user.settings || {}));
+      const patch = {
+        settings,
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      await db().collection('albumCircleUsers').doc(user.id).set(patch, { merge: true });
+      return json(res, 200, publicUser(user.id, { ...user, ...patch }, req.headers.authorization?.replace(/^Bearer\s+/i, '')));
+    }
+
     if (action === 'avatar') {
       const { requireUser } = await import('./_firebase.js');
       const user = await requireUser(req);
@@ -260,23 +344,38 @@ export default async function handler(req, res) {
 
     if (isBootstrapAdmin) {
       const token = randomToken();
-      const adminData = {
+      const sessionHash = hashSecret(token);
+      const baseAdminData = {
         email,
         name: 'Admin',
         avatar: 'A',
         role: 'admin',
         passwordHash,
         tokenHash: hashSecret(token),
+        sessionHashes: [sessionHash],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       };
       if (existing.empty) {
+        const adminData = { ...baseAdminData, settings: cleanSettings({}) };
         const doc = await users.add(adminData);
         return json(res, 201, publicUser(doc.id, { ...adminData, createdAt: Date.now() }, token));
       }
       const doc = existing.docs[0];
-      await doc.ref.set({ ...adminData, createdAt: doc.data().createdAt || FieldValue.serverTimestamp() }, { merge: true });
-      return json(res, 200, publicUser(doc.id, { ...doc.data(), ...adminData }, token));
+      const existingData = doc.data();
+      const adminPatch = {
+        email,
+        name: existingData.name || 'Admin',
+        avatar: existingData.avatar || 'A',
+        role: 'admin',
+        passwordHash,
+        tokenHash: hashSecret(token),
+        sessionHashes: FieldValue.arrayUnion(sessionHash),
+        createdAt: existingData.createdAt || FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      await doc.ref.set(adminPatch, { merge: true });
+      return json(res, 200, publicUser(doc.id, { ...existingData, ...adminPatch, sessionHashes: [...(existingData.sessionHashes || []), sessionHash] }, token));
     }
 
     if (action === 'signup' || action === 'register') {
@@ -288,6 +387,8 @@ export default async function handler(req, res) {
         avatar,
         passwordHash,
         tokenHash: hashSecret(token),
+        sessionHashes: [hashSecret(token)],
+        settings: cleanSettings({}),
         role: 'user',
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
@@ -304,6 +405,7 @@ export default async function handler(req, res) {
     await doc.ref.set(
       {
         tokenHash: hashSecret(token),
+        sessionHashes: FieldValue.arrayUnion(hashSecret(token)),
         updatedAt: FieldValue.serverTimestamp()
       },
       { merge: true }

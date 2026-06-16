@@ -70,10 +70,20 @@ export async function requireUser(req) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : req.headers['x-album-circle-token'];
   if (!token) throw Object.assign(new Error('Authentication required.'), { status: 401 });
 
-  const snapshot = await db().collection('albumCircleUsers').where('tokenHash', '==', hashSecret(token)).limit(1).get();
-  if (snapshot.empty) throw Object.assign(new Error('Invalid session.'), { status: 401 });
-  const doc = snapshot.docs[0];
-  return { id: doc.id, ...doc.data() };
+  const tokenHash = hashSecret(token);
+  const snapshot = await db().collection('albumCircleUsers').where('sessionHashes', 'array-contains', tokenHash).limit(1).get();
+  if (!snapshot.empty) {
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() };
+  }
+
+  const legacySnapshot = await db().collection('albumCircleUsers').where('tokenHash', '==', tokenHash).limit(1).get();
+  if (!legacySnapshot.empty) {
+    const doc = legacySnapshot.docs[0];
+    return { id: doc.id, ...doc.data() };
+  }
+
+  throw Object.assign(new Error('Invalid session.'), { status: 401 });
 }
 
 export async function requireAdmin(req) {
