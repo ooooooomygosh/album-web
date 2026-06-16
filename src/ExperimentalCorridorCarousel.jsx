@@ -680,7 +680,15 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         '--corridor-step': `${step}deg`
       }}
     >
+      {/*
+        Temporarily disabled for the corridor performance experiment:
+        - corridor-glow: rotating background halo
+        - corridor-cover-wash: blurred cover-based backdrop
+      */}
+      {/*
       <div className="corridor-glow" aria-hidden="true" />
+      */}
+      {/*
       <div
         className="corridor-cover-wash is-previous"
         aria-hidden="true"
@@ -698,6 +706,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
           '--wash-cover-image': cssImageUrl(backdropItem.cover)
         }}
       />
+      */}
       <header className="corridor-header" onPointerDown={(event) => event.stopPropagation()}>
         <div>
           <span>Hidden Installation</span>
