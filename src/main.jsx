@@ -1963,6 +1963,12 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
   const activePhaseIndex = addPhase === 'done' ? phaseSteps.length : Math.max(0, phaseSteps.findIndex(([key]) => key === addPhase));
   const isAddingSelection = Boolean(isAdding && selectedCandidate);
   const activePhaseLabel = phaseSteps[Math.max(0, Math.min(activePhaseIndex, phaseSteps.length - 1))]?.[1] || '整理资料';
+  const addingProgress = `${Math.max(18, Math.min(100, Math.round(((Math.min(activePhaseIndex, phaseSteps.length - 1) + 1) / phaseSteps.length) * 100)))}%`;
+  const activePhaseDetail = {
+    metadata: '抓取封面、曲目、发行年份和来源信息。',
+    ai: '联网整理资料，用 AI 写成可读的专辑导览。',
+    writing: '同步到房间展柜，准备刷新陈列墙。'
+  }[addPhase] || '正在把这张唱片整理成房间里的完整条目。';
   const elapsedLabel = `${Math.floor(addingElapsed / 60)}:${String(addingElapsed % 60).padStart(2, '0')}`;
 
   useEffect(() => {
@@ -2045,22 +2051,51 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
         ×
       </button>
       {isAddingSelection ? (
-        <div className="global-adding-focus" style={{ '--adding-cover': cssImageUrl(selectedCandidate.cover) }}>
+        <div
+          className="global-adding-focus"
+          style={{
+            '--adding-cover': cssImageUrl(selectedCandidate.cover),
+            '--adding-progress': addingProgress,
+            '--adding-a': selectedCandidate.palette?.[0] || 'var(--cover-a)',
+            '--adding-b': selectedCandidate.palette?.[1] || 'var(--cover-b)',
+            '--adding-c': selectedCandidate.palette?.[2] || 'var(--cover-c)'
+          }}
+        >
           <div className="global-adding-coverwash" aria-hidden="true" />
-          <div className="global-adding-hero">
-            <AlbumArt item={selectedCandidate} className="global-adding-art" />
-            <div>
-              <p className="eyebrow"><Sparkles size={14} /> 正在加入展柜</p>
-              <h3>{selectedCandidate.title}</h3>
-              <p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? `${selectedCandidate.tracks?.length || 0} 首曲目` : selectedCandidate.albumTitle || '单曲'}</p>
+          <div className="global-adding-stage" aria-hidden="true">
+            <div className="global-adding-orbit" />
+            <div className="global-adding-disc" />
+            <div className="global-adding-cover-frame">
+              <AlbumArt item={selectedCandidate} className="global-adding-art" />
+              <span />
             </div>
+            <div className="global-adding-scan" />
           </div>
-          <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />
-          <div className="global-adding-process" aria-live="polite">
-            <strong>{activePhaseLabel}</strong>
-            <span>已等待 {elapsedLabel} · 深度资料通常需要 1-3 分钟，请保持页面打开。</span>
+          <div className="global-adding-copy" aria-live="polite">
+            <p className="eyebrow"><Sparkles size={14} /> 正在加入展柜</p>
+            <h3>{selectedCandidate.title}</h3>
+            <p className="global-adding-meta">{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? `${selectedCandidate.tracks?.length || 0} 首曲目` : selectedCandidate.albumTitle || '单曲'}</p>
+            <div className="global-adding-process">
+              <div>
+                <strong>{activePhaseLabel}</strong>
+                <span>{activePhaseDetail}</span>
+              </div>
+              <small>已等待 {elapsedLabel} · 通常 1-3 分钟</small>
+            </div>
+            <div className="global-adding-meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={parseInt(addingProgress, 10)} aria-label="添加进度">
+              <i />
+            </div>
+            <div className="global-adding-phases">
+              {phaseSteps.map(([key, label], index) => (
+                <span key={key} className={index <= activePhaseIndex ? 'active' : ''}>
+                  <b>{String(index + 1).padStart(2, '0')}</b>
+                  {label}
+                </span>
+              ))}
+            </div>
+            <p className="global-adding-note">正在生成更完整的背景、标签和导览。候选列表已暂时收起，避免添加时误点。</p>
+            {addError && <p className="status-line error-line">{addError}</p>}
           </div>
-          {addError && <p className="status-line error-line">{addError}</p>}
         </div>
       ) : (
         <>

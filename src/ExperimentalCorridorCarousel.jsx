@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Disc3, Pause, Play, X } from 'lucide-react';
 
 const fallbackInstallations = [
@@ -125,23 +126,88 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const galleryItems = useMemo(() => normalizeGalleryItems(items), [items]);
   const initialIndex = Math.max(0, galleryItems.findIndex((item) => item.id === activeItem?.id));
   const [activeIndex, setActiveIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
+  const [backdropIndex, setBackdropIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
+  const [previousBackdropIndex, setPreviousBackdropIndex] = useState(initialIndex >= 0 ? initialIndex : 0);
   const [isDragging, setIsDragging] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [autoSpeed, setAutoSpeed] = useState(0.8);
   const stageRef = useRef(null);
   const trackRef = useRef(null);
   const dragRef = useRef({ active: false, startX: 0, startRotation: 0, targetIndex: -1, raf: 0, suppressClick: false });
+  const openTimerRef = useRef(0);
+  const backdropIndexRef = useRef(initialIndex >= 0 ? initialIndex : 0);
+  const bodyOverflowRef = useRef('');
   const wheelRef = useRef({ total: 0, lastAt: 0, lastStepAt: 0 });
   const stepLockRef = useRef(0);
   const count = galleryItems.length || 1;
   const step = 360 / count;
   const active = galleryItems[clampIndex(activeIndex, count)] || galleryItems[0];
+  const backdropItem = galleryItems[clampIndex(backdropIndex, count)] || active;
+  const previousBackdropItem = galleryItems[clampIndex(previousBackdropIndex, count)] || backdropItem;
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const reducedMotion = reduceMotion || prefersReducedMotion;
 
   useEffect(() => {
-    if (open) setActiveIndex(initialIndex >= 0 ? initialIndex : 0);
+    if (!open) return;
+    const next = initialIndex >= 0 ? initialIndex : 0;
+    setActiveIndex(next);
+    setBackdropIndex(next);
+    setPreviousBackdropIndex(next);
+    backdropIndexRef.current = next;
   }, [open, initialIndex]);
+
+  useEffect(() => {
+    backdropIndexRef.current = backdropIndex;
+  }, [backdropIndex]);
+
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined;
+    bodyOverflowRef.current = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('corridor-modal-open');
+    return () => {
+      document.body.style.overflow = bodyOverflowRef.current;
+      document.body.classList.remove('corridor-modal-open');
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const nextSlot = clampIndex(activeIndex, count);
+    if (reducedMotion) {
+      setPreviousBackdropIndex(nextSlot);
+      setBackdropIndex(nextSlot);
+      return undefined;
+    }
+    if (isDragging) return undefined;
+
+    const track = trackRef.current;
+    let settled = false;
+    const applyBackdrop = () => {
+      if (settled) return;
+      settled = true;
+      if (nextSlot !== clampIndex(backdropIndexRef.current, count)) {
+        setPreviousBackdropIndex(backdropIndexRef.current);
+        setBackdropIndex(nextSlot);
+      }
+    };
+    const onTransitionEnd = (event) => {
+      if (event.propertyName === 'transform') applyBackdrop();
+    };
+
+    track?.addEventListener('transitionend', onTransitionEnd);
+    const timer = window.setTimeout(applyBackdrop, 860);
+    return () => {
+      settled = true;
+      window.clearTimeout(timer);
+      track?.removeEventListener('transitionend', onTransitionEnd);
+    };
+  }, [activeIndex, count, isDragging, open, reducedMotion]);
+
+  useEffect(() => () => {
+    window.clearTimeout(openTimerRef.current);
+    window.cancelAnimationFrame(dragRef.current.raf);
+  }, []);
 
   useEffect(() => {
     if (!open || reducedMotion) setIsAutoPlaying(false);
@@ -187,10 +253,28 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     setActiveIndex((value) => value + delta);
   };
 
-  const openActiveDetail = () => {
-    if (!active?.id || active.id.startsWith('corridor-fallback-')) return;
+  const openItemFromCorridor = (item) => {
+    if (!item?.id || item.id.startsWith('corridor-fallback-')) return;
+    window.clearTimeout(openTimerRef.current);
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = bodyOverflowRef.current;
+      document.body.classList.remove('corridor-modal-open');
+    }
     onClose();
-    openItemDetail?.(active.id);
+    openItemDetail?.(item.id);
+  };
+
+  const openActiveDetail = () => {
+    openItemFromCorridor(active);
+  };
+
+  const scheduleOpenItemFromCorridor = (item) => {
+    if (!item?.id || item.id.startsWith('corridor-fallback-')) return;
+    window.clearTimeout(openTimerRef.current);
+    openTimerRef.current = window.setTimeout(() => {
+      dragRef.current.suppressClick = false;
+      openItemFromCorridor(item);
+    }, 90);
   };
 
   const setIndexFromRotation = (rotation) => {
@@ -234,7 +318,17 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     const targetIndex = dragRef.current.targetIndex;
     dragRef.current.active = false;
     setIsDragging(false);
-    if (Math.abs(delta) < 6 && targetIndex >= 0) return;
+    if (Math.abs(delta) < 6 && targetIndex >= 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      dragRef.current.suppressClick = true;
+      if (targetIndex === activeSlot) {
+        scheduleOpenItemFromCorridor(galleryItems[clampIndex(targetIndex, count)]);
+      } else {
+        setActiveIndex((value) => nearestVirtualIndex(targetIndex, value, count));
+      }
+      return;
+    }
     setIndexFromRotation(dragRef.current.startRotation + delta * 0.16);
   };
 
@@ -272,25 +366,41 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
 
   const activeSlot = clampIndex(activeIndex, count);
 
-  return (
+  const overlay = (
     <div
       className="corridor-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="隐藏封面长廊"
       style={{
-        '--corridor-a': colorAt(active, 0, '#7ed7c9'),
-        '--corridor-b': colorAt(active, 1, '#ff7da8'),
-        '--corridor-c': colorAt(active, 2, '#f3d74c'),
-        '--corridor-cover-image': cssImageUrl(active.cover),
+        '--corridor-a': colorAt(backdropItem, 0, '#7ed7c9'),
+        '--corridor-b': colorAt(backdropItem, 1, '#ff7da8'),
+        '--corridor-c': colorAt(backdropItem, 2, '#f3d74c'),
+        '--corridor-cover-image': cssImageUrl(backdropItem.cover),
         '--corridor-count': count,
         '--corridor-step': `${step}deg`
       }}
       onWheel={handleWheel}
     >
       <div className="corridor-glow" aria-hidden="true" />
-      <div className="corridor-cover-wash" aria-hidden="true" />
-      <header className="corridor-header">
+      <div
+        className="corridor-cover-wash is-previous"
+        aria-hidden="true"
+        style={{
+          '--wash-a': colorAt(previousBackdropItem, 0, '#7ed7c9'),
+          '--wash-cover-image': cssImageUrl(previousBackdropItem.cover)
+        }}
+      />
+      <div
+        key={`${backdropItem.id || 'backdrop'}-${backdropIndex}`}
+        className="corridor-cover-wash is-current"
+        aria-hidden="true"
+        style={{
+          '--wash-a': colorAt(backdropItem, 0, '#7ed7c9'),
+          '--wash-cover-image': cssImageUrl(backdropItem.cover)
+        }}
+      />
+      <header className="corridor-header" onPointerDown={(event) => event.stopPropagation()}>
         <div>
           <span>Hidden Installation</span>
           <h2>{roomName || 'Album Circle'} 封面长廊</h2>
@@ -337,7 +447,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
                   '--panel-c': colorAt(item, 2, '#f3d74c'),
                   '--active-lift': isActive ? '115px' : '0px',
                   '--active-scale': isActive ? 1.13 : 1,
-                  '--side-blur': distance === 0 ? '0px' : distance === 1 ? '1.4px' : '3px',
                   '--side-opacity': distance === 0 ? 1 : distance === 1 ? 0.58 : 0.34
                 }}
                 aria-label={`${item.artist} 的 ${item.title}`}
@@ -367,7 +476,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         </div>
       </section>
 
-      <aside className="corridor-info" aria-live="polite">
+      <aside className="corridor-info" aria-live="polite" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
         <div className="corridor-index">
           <span>{String(activeSlot + 1).padStart(2, '0')}</span>
           <small>/ {String(count).padStart(2, '0')}</small>
@@ -437,4 +546,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
       </aside>
     </div>
   );
+
+  return createPortal(overlay, document.body);
 }

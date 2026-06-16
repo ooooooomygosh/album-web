@@ -1145,12 +1145,6 @@ body > .global-search-popover {
   grid-template-rows: minmax(0, 1fr) !important;
 }
 
-.global-search-popover.is-adding .generation-loader,
-.global-adding-focus .generation-loader {
-  max-height: none !important;
-  overflow: visible !important;
-}
-
 .global-search-popover .popover-close,
 body > .global-search-popover .popover-close {
   z-index: 5 !important;
@@ -1299,29 +1293,6 @@ body > .global-search-popover .popover-close {
   font-size: clamp(1rem, 1.3vw, 1.22rem);
 }
 
-.global-adding-focus .generation-loader {
-  grid-column: 1 / -1;
-  min-height: clamp(220px, 28vh, 310px);
-  grid-template-columns: minmax(190px, 0.42fr) minmax(0, 1fr);
-  gap: clamp(16px, 2vw, 28px);
-  padding: clamp(18px, 2.4vw, 30px);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 22% 4%, color-mix(in srgb, var(--loader-c), transparent 62%), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.045)),
-    rgba(5, 6, 8, 0.78) !important;
-}
-
-.global-adding-focus .loader-stage {
-  min-height: 210px;
-}
-
-.global-adding-focus .loader-copy,
-.global-adding-focus .loader-meter,
-.global-adding-focus .loader-phases {
-  grid-column: 2;
-}
-
 .global-adding-process {
   grid-column: 1 / -1;
   display: grid;
@@ -1372,16 +1343,6 @@ body > .global-search-popover .popover-close {
 
   .global-adding-hero h3 {
     font-size: clamp(1.8rem, 10vw, 3.1rem);
-  }
-
-  .global-adding-focus .generation-loader {
-    grid-template-columns: 1fr;
-  }
-
-  .global-adding-focus .loader-copy,
-  .global-adding-focus .loader-meter,
-  .global-adding-focus .loader-phases {
-    grid-column: 1;
   }
 
   .global-adding-process {
@@ -1831,12 +1792,6 @@ body > .global-search-popover .popover-close {
   grid-template-rows: minmax(0, 1fr) !important;
 }
 
-.global-search-popover.is-adding .generation-loader,
-.global-adding-focus .generation-loader {
-  max-height: none !important;
-  overflow: visible !important;
-}
-
 .global-search-popover .popover-close,
 body > .global-search-popover .popover-close {
   z-index: 5 !important;
@@ -1853,4 +1808,566 @@ body > .global-search-popover .popover-close {
   .global-search-popover.is-adding {
     min-height: min(78dvh, 680px) !important;
   }
+}
+
+/* Final add-progress stage: one visual system, no duplicated loader. */
+.global-search-popover.is-adding {
+  width: min(1040px, calc(100vw - 48px)) !important;
+  min-height: auto !important;
+  max-height: min(700px, calc(100dvh - 128px)) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border-radius: 32px !important;
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--cover-a), transparent 58%), transparent 32%),
+    radial-gradient(circle at 86% 12%, color-mix(in srgb, var(--cover-c), transparent 70%), transparent 36%),
+    linear-gradient(180deg, rgba(23, 26, 31, 0.99), rgba(5, 6, 8, 0.998)) !important;
+}
+
+.global-search-popover.is-adding .popover-close {
+  top: 18px !important;
+  right: 18px !important;
+  color: rgba(248, 251, 255, 0.86) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.055)),
+    rgba(7, 8, 10, 0.58) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(18px) saturate(1.16);
+  -webkit-backdrop-filter: blur(18px) saturate(1.16);
+}
+
+.global-search-popover.is-adding .popover-close:hover,
+.global-search-popover.is-adding .popover-close:focus-visible {
+  color: #fff !important;
+  border-color: color-mix(in srgb, var(--adding-c), white 10%) !important;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--adding-a), transparent 80%),
+    0 14px 34px rgba(0, 0, 0, 0.34) !important;
+}
+
+.global-adding-focus {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(300px, 0.92fr) minmax(0, 1.08fr) !important;
+  grid-template-rows: auto !important;
+  grid-auto-rows: auto !important;
+  align-items: center !important;
+  gap: clamp(24px, 4vw, 54px) !important;
+  min-height: min(640px, calc(100dvh - 128px)) !important;
+  max-height: min(700px, calc(100dvh - 128px)) !important;
+  min-width: 0;
+  padding: clamp(28px, 4.4vw, 54px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border-radius: inherit !important;
+  isolation: isolate;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--adding-c), transparent 38%) rgba(255, 255, 255, 0.08);
+}
+
+.global-adding-focus::-webkit-scrollbar {
+  width: 8px;
+}
+
+.global-adding-focus::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+.global-adding-focus::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--adding-c), white 8%), color-mix(in srgb, var(--adding-a), white 6%));
+}
+
+.global-adding-coverwash {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -2 !important;
+  background:
+    radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--adding-c), transparent 54%), transparent 28%),
+    radial-gradient(circle at 76% 16%, color-mix(in srgb, var(--adding-a), transparent 64%), transparent 34%),
+    linear-gradient(90deg, rgba(5, 6, 8, 0.36), rgba(5, 6, 8, 0.86)),
+    var(--adding-cover) !important;
+  background-position: center;
+  background-size: cover;
+  filter: blur(38px) saturate(1.26) brightness(0.76);
+  opacity: 0.9;
+  transform: scale(1.18);
+}
+
+.global-adding-focus::before {
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  content: "";
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.17), transparent 36%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.08), transparent 42%);
+  pointer-events: none;
+}
+
+.global-adding-focus::after {
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  content: "";
+  border-radius: inherit;
+  background:
+    conic-gradient(from 120deg at 50% 50%,
+      color-mix(in srgb, var(--adding-a), transparent 18%),
+      color-mix(in srgb, var(--adding-b), transparent 16%),
+      color-mix(in srgb, var(--adding-c), transparent 18%),
+      color-mix(in srgb, var(--adding-a), transparent 18%));
+  opacity: 0.26;
+  filter: blur(22px);
+  animation: global-adding-edge-breathe 5.8s cubic-bezier(.37, 0, .24, 1) infinite;
+  pointer-events: none;
+}
+
+.global-adding-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 390px);
+  aspect-ratio: 1;
+  justify-self: center;
+  perspective: 1100px;
+  transform-style: preserve-3d;
+}
+
+.global-adding-orbit {
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 0deg,
+      transparent 0 10%,
+      color-mix(in srgb, var(--adding-c), transparent 20%) 17%,
+      transparent 24% 48%,
+      color-mix(in srgb, var(--adding-a), transparent 22%) 56%,
+      transparent 65% 100%);
+  mask: radial-gradient(circle, transparent 58%, #000 59% 63%, transparent 64%);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 59% 63%, transparent 64%);
+  filter: blur(0.2px) drop-shadow(0 0 28px color-mix(in srgb, var(--adding-c), transparent 50%));
+  animation: global-adding-orbit-spin 7.5s linear infinite;
+}
+
+.global-adding-disc {
+  position: absolute;
+  width: 66%;
+  aspect-ratio: 1;
+  right: 2%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--adding-b), white 18%) 0 8%, rgba(8, 9, 12, 0.92) 9% 15%, transparent 16%),
+    repeating-radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16) 0 1px, rgba(255, 255, 255, 0.035) 2px 4px, transparent 5px 9px),
+    radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.24), transparent 18%),
+    linear-gradient(135deg, rgba(18, 20, 26, 0.98), rgba(2, 3, 5, 0.96));
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.52),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 0 48px rgba(255, 255, 255, 0.06);
+  transform: translateX(18%) rotateX(9deg) rotateY(-22deg);
+  animation: global-adding-disc-spin 5.8s linear infinite;
+}
+
+.global-adding-cover-frame {
+  position: relative;
+  width: 74%;
+  aspect-ratio: 1;
+  border-radius: 30px;
+  transform: translateX(-9%) rotateX(8deg) rotateY(14deg);
+  animation: global-adding-cover-stage 3.4s cubic-bezier(.18, .86, .2, 1) infinite alternate;
+}
+
+.global-adding-cover-frame::before {
+  position: absolute;
+  inset: -15%;
+  z-index: -1;
+  content: "";
+  border-radius: 36px;
+  background:
+    radial-gradient(circle at 26% 18%, color-mix(in srgb, var(--adding-c), transparent 28%), transparent 42%),
+    var(--adding-cover);
+  background-size: cover;
+  filter: blur(24px) saturate(1.22);
+  opacity: 0.64;
+  transform: translate3d(0, 12px, -60px) scale(1.05);
+}
+
+.global-adding-cover-frame::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  border-radius: inherit;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.28), transparent 26% 68%, rgba(255, 255, 255, 0.14)),
+    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.28));
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.global-adding-cover-frame > span {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 30px 90px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.global-adding-art {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+.global-adding-scan {
+  position: absolute;
+  inset: 13% 10%;
+  border-radius: 36px;
+  overflow: hidden;
+  transform: translateZ(70px);
+  pointer-events: none;
+}
+
+.global-adding-scan::before,
+.global-adding-scan::after {
+  position: absolute;
+  inset: -42% -30%;
+  content: "";
+  background:
+    linear-gradient(104deg, transparent 22%, rgba(255, 255, 255, 0.12) 42%, rgba(255, 255, 255, 0.23) 48%, rgba(255, 255, 255, 0.06) 54%, transparent 72%);
+  mix-blend-mode: screen;
+  opacity: 0.62;
+  transform: translateX(-78%) rotate(10deg);
+  animation: global-adding-scan-pass 3.1s cubic-bezier(.5, 0, .2, 1) infinite;
+}
+
+.global-adding-scan::after {
+  animation-delay: 1.55s;
+  opacity: 0.26;
+}
+
+.global-adding-copy {
+  display: grid;
+  align-content: center;
+  width: 100%;
+  min-width: 0;
+  gap: clamp(14px, 2vw, 20px);
+  padding: clamp(6px, 1vw, 12px) 0;
+}
+
+.global-adding-copy .eyebrow {
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  color: color-mix(in srgb, var(--adding-c), white 20%);
+}
+
+.global-adding-copy h3 {
+  max-width: 10.8ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(2.5rem, 5.2vw, 5.9rem);
+  line-height: 0.93;
+  text-wrap: balance;
+}
+
+.global-adding-meta {
+  margin: -4px 0 0;
+  max-width: 58ch;
+  color: rgba(248, 251, 255, 0.72);
+  font-size: clamp(1rem, 1.35vw, 1.2rem);
+}
+
+.global-adding-process {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 16px !important;
+  align-items: end !important;
+  width: 100%;
+  margin-top: 4px;
+  padding: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--adding-c), transparent 76%), transparent 42%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.115), rgba(255, 255, 255, 0.035)),
+    rgba(7, 8, 11, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13);
+  backdrop-filter: blur(18px) saturate(1.14);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+}
+
+.global-adding-process div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.global-adding-process strong {
+  color: #f8fbff !important;
+  font-size: 1.02rem;
+}
+
+.global-adding-process span,
+.global-adding-process small {
+  color: rgba(248, 251, 255, 0.66);
+  line-height: 1.55;
+}
+
+.global-adding-process small {
+  justify-self: end;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.global-adding-meter {
+  position: relative;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.global-adding-meter i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--adding-progress);
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--adding-a), white 10%),
+      color-mix(in srgb, var(--adding-c), white 16%),
+      color-mix(in srgb, var(--adding-b), white 12%));
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--adding-c), transparent 40%),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  transition: width 520ms cubic-bezier(.16, 1, .22, 1);
+}
+
+.global-adding-meter i::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(100deg, transparent 0 28%, rgba(255, 255, 255, 0.52) 44%, transparent 60% 100%);
+  animation: global-adding-meter-sheen 1.8s cubic-bezier(.42, 0, .2, 1) infinite;
+}
+
+.global-adding-phases {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.global-adding-phases span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 15px;
+  color: rgba(248, 251, 255, 0.56);
+  background: rgba(255, 255, 255, 0.052);
+}
+
+.global-adding-phases span.active {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--adding-c), transparent 48%);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--adding-c), transparent 58%), transparent 48%),
+    rgba(255, 255, 255, 0.105);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 28px color-mix(in srgb, var(--adding-a), transparent 84%);
+}
+
+.global-adding-phases b {
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--adding-c), white 20%);
+}
+
+.global-adding-note {
+  margin: 0;
+  max-width: 62ch;
+  color: rgba(248, 251, 255, 0.56);
+  line-height: 1.62;
+}
+
+.global-adding-copy .error-line {
+  margin: 0 !important;
+}
+
+@keyframes global-adding-edge-breathe {
+  0%, 100% {
+    opacity: 0.16;
+    transform: scale(0.985);
+  }
+  50% {
+    opacity: 0.34;
+    transform: scale(1.015);
+  }
+}
+
+@keyframes global-adding-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes global-adding-disc-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes global-adding-cover-stage {
+  from {
+    transform: translateX(-9%) rotateX(8deg) rotateY(14deg) translateY(0) scale(1);
+  }
+  to {
+    transform: translateX(-9%) rotateX(10deg) rotateY(9deg) translateY(-10px) scale(1.025);
+  }
+}
+
+@keyframes global-adding-scan-pass {
+  0% {
+    transform: translateX(-72%) rotate(10deg);
+    opacity: 0;
+  }
+  18%, 64% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(72%) rotate(10deg);
+    opacity: 0;
+  }
+}
+
+@keyframes global-adding-meter-sheen {
+  from {
+    transform: translateX(-88%);
+  }
+  to {
+    transform: translateX(88%);
+  }
+}
+
+@media (max-width: 760px) {
+  .global-search-popover.is-adding {
+    inset: auto max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+    width: auto !important;
+    max-height: min(86dvh, 720px) !important;
+    border-radius: 28px !important;
+  }
+
+  .global-adding-focus {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+    gap: 12px !important;
+    min-height: 0 !important;
+    max-height: min(86dvh, 720px) !important;
+    padding: 18px !important;
+  }
+
+  .global-adding-stage {
+    width: min(58vw, 212px);
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  .global-adding-copy {
+    gap: 9px;
+    padding-top: 0;
+  }
+
+  .global-adding-copy h3 {
+    max-width: 100%;
+    font-size: clamp(2rem, 11vw, 3.3rem);
+  }
+
+  .global-adding-process {
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+    padding: 12px 14px !important;
+  }
+
+  .global-adding-process small {
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .global-adding-phases {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .global-adding-phases span {
+    min-height: 34px;
+  }
+
+  .global-adding-note {
+    font-size: 0.92rem;
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .global-adding-stage {
+    width: min(54vw, 198px);
+  }
+
+  .global-adding-copy h3 {
+    font-size: clamp(1.82rem, 10vw, 2.8rem);
+  }
+
+  .global-adding-phases span {
+    min-height: 32px;
+  }
+}
+
+@media (min-width: 761px) {
+  .global-adding-copy {
+    max-width: calc(100% - 58px);
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-adding-focus::after,
+  .global-adding-orbit,
+  .global-adding-disc,
+  .global-adding-cover-frame,
+  .global-adding-scan::before,
+  .global-adding-scan::after,
+  .global-adding-meter i::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.reduce-motion .global-adding-focus::after,
+.reduce-motion .global-adding-orbit,
+.reduce-motion .global-adding-disc,
+.reduce-motion .global-adding-cover-frame,
+.reduce-motion .global-adding-scan::before,
+.reduce-motion .global-adding-scan::after,
+.reduce-motion .global-adding-meter i::after {
+  animation: none !important;
+  transition: none !important;
 }
