@@ -380,17 +380,37 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         </div>
         <div className="corridor-action-stack">
           <div className="corridor-controls">
-            <button type="button" onClick={() => shiftActiveIndex(-1)} aria-label="上一张封面">
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                shiftActiveIndex(-1);
+              }}
+              aria-label="上一张封面"
+            >
               <ChevronLeft size={19} aria-hidden="true" />
             </button>
-            <button type="button" onClick={() => shiftActiveIndex(1)} aria-label="下一张封面">
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                shiftActiveIndex(1);
+              }}
+              aria-label="下一张封面"
+            >
               <ChevronRight size={19} aria-hidden="true" />
             </button>
           </div>
           <div className="corridor-autoplay">
             <button
               type="button"
-              onClick={() => setIsAutoPlaying((value) => !value)}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                setIsAutoPlaying((value) => !value);
+              }}
               disabled={reducedMotion}
               aria-pressed={isAutoPlaying}
             >
@@ -405,6 +425,8 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
                 max="1.8"
                 step="0.1"
                 value={autoSpeed}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
                 onChange={(event) => setAutoSpeed(Number(event.target.value))}
                 aria-label="自动旋转速度"
                 disabled={reducedMotion}
