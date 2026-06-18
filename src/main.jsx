@@ -932,8 +932,8 @@ function RoomGate({ session, room, setRoom }) {
           </div>
           <div className="room-gate-title">
             <p className="eyebrow"><Library size={15} /> room lobby</p>
-            <h1>先进入房间，再开始添加音乐。</h1>
-            <p>房间会保存成员、评论、评分和展柜设置。公开房间可直接加入，私密房间使用邀请 ID。</p>
+            <h1>进入你的听歌房间。</h1>
+            <p>从已加入的房间继续听，或用邀请码进入新的展柜。评论、评分和成员设置都会留在对应房间里。</p>
           </div>
           <div className="room-gate-notes" aria-label="房间功能摘要">
             <span><Users size={15} />成员同步</span>
@@ -942,8 +942,8 @@ function RoomGate({ session, room, setRoom }) {
           </div>
         </aside>
 
-        <div className="room-gate-actions">
-          <article className="glass-panel room-card room-card-primary room-card-rooms">
+        <div className="glass-panel room-gate-actions room-gate-console">
+          <article className="room-card room-card-primary room-card-rooms">
             <div>
               <p className="eyebrow"><DoorOpen size={15} /> your rooms</p>
               <h2>已加入的房间</h2>
@@ -970,7 +970,7 @@ function RoomGate({ session, room, setRoom }) {
             )}
           </article>
 
-          <article className="glass-panel room-card room-card-invite">
+          <article className="room-card room-card-invite">
             <div>
               <p className="eyebrow"><Share2 size={15} /> invite</p>
               <h2>加入新的房间</h2>
@@ -995,7 +995,7 @@ function RoomGate({ session, room, setRoom }) {
             )}
           </article>
 
-          <article className="glass-panel room-card room-card-create">
+          <article className="room-card room-card-create">
             <div>
               <p className="eyebrow"><Plus size={15} /> create room</p>
               <h2>创建新的听歌房间</h2>
@@ -1009,7 +1009,7 @@ function RoomGate({ session, room, setRoom }) {
           </article>
 
           {status && (
-            <article className="glass-panel room-card room-card-list">
+            <article className="room-card room-card-list">
               <p className="status-line">{status}</p>
             </article>
           )}
