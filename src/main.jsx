@@ -878,14 +878,36 @@ function RoomGate({ session, room, setRoom }) {
     }
   };
 
-  const joinRoom = async (id = joinId) => {
+  const enterRoom = async (id) => {
     if (!id) return;
+    setStatus('正在打开房间');
+    try {
+      const data = await api(`/api/rooms?roomId=${encodeURIComponent(id)}`, { session });
+      setRoom(data.room);
+      window.history.replaceState(null, '', `?room=${encodeURIComponent(data.room.id)}`);
+    } catch (error) {
+      setStatus(error.message);
+    }
+  };
+
+  const joinRoom = async (id = joinId) => {
+    const raw = String(id || '').trim();
+    let parsed = raw;
+    if (raw.includes('room=')) {
+      try {
+        parsed = new URL(raw, window.location.origin).searchParams.get('room') || raw;
+      } catch {
+        parsed = raw.replace(/^.*room=/, '').split('&')[0];
+      }
+    }
+    parsed = String(parsed || '').trim();
+    if (!parsed) return;
     setStatus('正在加入房间');
     try {
       const data = await api('/api/rooms', {
         session,
         method: 'POST',
-        body: JSON.stringify({ action: 'join', roomId: id, password: joinPassword })
+        body: JSON.stringify({ action: 'join', roomId: parsed, password: joinPassword })
       });
       setRoom(data.room);
       window.history.replaceState(null, '', `?room=${encodeURIComponent(data.room.id)}`);
@@ -897,47 +919,101 @@ function RoomGate({ session, room, setRoom }) {
   if (!session?.token || room) return null;
 
   return (
-    <main className="app auth-screen">
+    <main className="app auth-screen room-gate-screen">
       <div className="aurora" aria-hidden="true" />
-      <section className="room-shell">
-        <article className="glass-panel room-card">
-          <p className="eyebrow"><Plus size={15} /> create room</p>
-          <h2>创建一个新的听歌房间</h2>
-          <label>
-            房间名称
-            <input value={name} onChange={(event) => setName(event.target.value)} />
-          </label>
-          <button className="full-action" type="button" onClick={createRoom}><DoorOpen size={16} />创建房间</button>
-        </article>
-        <article className="glass-panel room-card">
-          <p className="eyebrow"><Share2 size={15} /> join room</p>
-          <h2>加入已有房间</h2>
-          <label>
-            房间 ID
-            <input value={joinId} onChange={(event) => setJoinId(event.target.value)} placeholder="邀请链接里的 room" />
-          </label>
-          <label>
-            房间密码
-            <input type="password" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="公开房间可留空，密码房间必填" />
-          </label>
-          <button className="full-action" type="button" onClick={() => joinRoom()}><Users size={16} />加入房间</button>
-          {rooms.length > 0 && (
-            <div className="known-rooms">
-              {rooms.map((knownRoom) => (
-                <button key={knownRoom.id} type="button" onClick={() => joinRoom(knownRoom.id)}>{knownRoom.name}</button>
-              ))}
+      <section className="room-shell room-gate-shell">
+        <aside className="room-gate-copy">
+          <div className="room-gate-identity">
+            <div className="brand-mark"><Disc3 size={22} /></div>
+            <div>
+              <strong>{session.user.name || 'Album Circle'}</strong>
+              <span>选择一个房间继续听</span>
             </div>
-          )}
-          {discoverRooms.length > 0 && (
-            <div className="known-rooms discover-rooms">
-              <strong>公开房间</strong>
-              {discoverRooms.map((knownRoom) => (
-                <button key={knownRoom.id} type="button" onClick={() => { setJoinId(knownRoom.id); joinRoom(knownRoom.id); }}>{knownRoom.name}<small>{knownRoom.itemCount} 条目 · {knownRoom.joinMode === 'password' ? '需要密码' : '可加入'}</small></button>
-              ))}
+          </div>
+          <div className="room-gate-title">
+            <p className="eyebrow"><Library size={15} /> room lobby</p>
+            <h1>先进入房间，再开始添加音乐。</h1>
+            <p>房间会保存成员、评论、评分和展柜设置。公开房间可直接加入，私密房间使用邀请 ID。</p>
+          </div>
+          <div className="room-gate-notes" aria-label="房间功能摘要">
+            <span><Users size={15} />成员同步</span>
+            <span><MessageCircle size={15} />评论留存</span>
+            <span><Star size={15} />独立评分</span>
+          </div>
+        </aside>
+
+        <div className="room-gate-actions">
+          <article className="glass-panel room-card room-card-primary room-card-rooms">
+            <div>
+              <p className="eyebrow"><DoorOpen size={15} /> your rooms</p>
+              <h2>已加入的房间</h2>
+              <p>选择一个房间继续浏览展柜、评论和评分。</p>
             </div>
+            {rooms.length > 0 ? (
+              <div className="joined-room-list">
+                {rooms.map((knownRoom) => (
+                  <button key={knownRoom.id} type="button" onClick={() => enterRoom(knownRoom.id)}>
+                    <span>
+                      <strong>{knownRoom.name}</strong>
+                      <small>{knownRoom.itemCount || 0} 条目 · {knownRoom.commentCount || 0} 评论</small>
+                    </span>
+                    <ChevronRight size={17} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="room-empty-state">
+                <Disc3 size={30} />
+                <strong>还没有加入任何房间</strong>
+                <span>用右侧邀请码加入一个房间，或先创建自己的听歌房间。</span>
+              </div>
+            )}
+          </article>
+
+          <article className="glass-panel room-card room-card-invite">
+            <div>
+              <p className="eyebrow"><Share2 size={15} /> invite</p>
+              <h2>加入新的房间</h2>
+              <p>粘贴邀请链接或 room ID；如果房间设置了密码，在下面填写。</p>
+            </div>
+            <label>
+              邀请码或房间 ID
+              <input value={joinId} onChange={(event) => setJoinId(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') joinRoom(); }} placeholder="邀请链接里的 room" />
+            </label>
+            <label>
+              房间密码
+              <input type="password" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') joinRoom(); }} placeholder="公开房间可留空" />
+            </label>
+            <button className="full-action" type="button" onClick={() => joinRoom()}><Users size={16} />加入房间</button>
+            {discoverRooms.length > 0 && (
+              <div className="known-rooms discover-rooms">
+                <strong>公开房间</strong>
+                {discoverRooms.map((knownRoom) => (
+                  <button key={knownRoom.id} type="button" onClick={() => { setJoinId(knownRoom.id); joinRoom(knownRoom.id); }}>{knownRoom.name}<small>{knownRoom.itemCount} 条目 · {knownRoom.joinMode === 'password' ? '需要密码' : '可加入'}</small></button>
+                ))}
+              </div>
+            )}
+          </article>
+
+          <article className="glass-panel room-card room-card-create">
+            <div>
+              <p className="eyebrow"><Plus size={15} /> create room</p>
+              <h2>创建新的听歌房间</h2>
+              <p>适合给一轮主题、朋友聚会或长期歌单开一个展柜。</p>
+            </div>
+            <label>
+              房间名称
+              <input value={name} onChange={(event) => setName(event.target.value)} />
+            </label>
+            <button className="full-action" type="button" onClick={createRoom}><DoorOpen size={16} />创建房间</button>
+          </article>
+
+          {status && (
+            <article className="glass-panel room-card room-card-list">
+              <p className="status-line">{status}</p>
+            </article>
           )}
-        </article>
-        {status && <p className="status-line">{status}</p>}
+        </div>
       </section>
     </main>
   );
@@ -1126,19 +1202,6 @@ function App() {
   useEffect(() => {
     if (session?.user) setProfileDraft(profileToDraft(session.user));
   }, [session?.user?.id]);
-
-  useEffect(() => {
-    if (!session?.token || room) return;
-    const urlRoom = new URLSearchParams(window.location.search).get('room');
-    if (!urlRoom) return;
-    api('/api/rooms', {
-      session,
-      method: 'POST',
-      body: JSON.stringify({ action: 'join', roomId: urlRoom })
-    })
-      .then((data) => setRoom(data.room))
-      .catch(() => null);
-  }, [room, session]);
 
   const loadRoomData = async (targetRoom = room, options = {}) => {
     if (!session?.token || !targetRoom?.id) return;
