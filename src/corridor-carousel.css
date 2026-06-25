@@ -1031,3 +1031,182 @@ body.corridor-modal-open .global-search-popover {
   animation: none !important;
   transition: none !important;
 }
+
+/* Motion polish: keep the corridor cinematic without fighting the app rhythm. */
+:root {
+  --corridor-motion-standard: cubic-bezier(0.2, 0, 0, 1);
+  --corridor-motion-enter: cubic-bezier(0.16, 1, 0.22, 1);
+}
+
+.corridor-secret-trigger,
+.brand-vinyl-mark,
+.corridor-cover-backdrop,
+.corridor-cover-wash,
+.corridor-close,
+.corridor-controls button,
+.corridor-autoplay button,
+.corridor-info {
+  transition-timing-function: var(--corridor-motion-standard) !important;
+}
+
+.corridor-overlay {
+  animation: corridor-enter-polished 360ms var(--corridor-motion-enter) both !important;
+}
+
+.corridor-cover-backdrop {
+  transform: scale(1.01);
+  transition-duration: 260ms, 420ms, 180ms !important;
+}
+
+.corridor-overlay.is-moving .corridor-cover-backdrop {
+  opacity: 0.28;
+  transform: scale(1.015);
+}
+
+.corridor-cover-wash {
+  filter: blur(28px) saturate(1.12);
+  transform: scale(1.045);
+  transition-duration: 420ms, 360ms !important;
+}
+
+.corridor-cover-wash.is-previous {
+  animation: corridor-wash-fade-out-polished 420ms var(--corridor-motion-standard) both !important;
+}
+
+.corridor-cover-wash.is-current {
+  opacity: 0.42;
+  animation: corridor-wash-fade-polished 420ms var(--corridor-motion-standard) both !important;
+}
+
+.corridor-glow:after {
+  opacity: 0.14;
+  filter: blur(18px);
+  animation: corridor-halo 18s linear infinite;
+}
+
+.corridor-track {
+  transition: transform 460ms var(--corridor-motion-enter) !important;
+}
+
+.corridor-card {
+  transition:
+    opacity 200ms var(--corridor-motion-standard),
+    filter 200ms var(--corridor-motion-standard),
+    border-color 200ms var(--corridor-motion-standard),
+    box-shadow 220ms var(--corridor-motion-standard),
+    transform 460ms var(--corridor-motion-enter) !important;
+}
+
+.corridor-card:hover,
+.corridor-card.is-active,
+.corridor-overlay.is-moving .corridor-card.is-active {
+  --active-lift: 84px;
+  --active-scale: 1.07;
+}
+
+.corridor-card.is-active {
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.36),
+    0 30px 78px rgba(0, 0, 0, 0.56),
+    0 0 46px color-mix(in srgb, var(--panel-a), transparent 68%) !important;
+}
+
+.corridor-card.is-neighbor {
+  opacity: 0.58;
+  filter: saturate(0.84);
+}
+
+.corridor-card.is-distant {
+  opacity: 0.34;
+  filter: saturate(0.7);
+}
+
+.corridor-overlay.is-moving .corridor-card {
+  transition-duration: 140ms, 140ms, 140ms, 140ms, 460ms !important;
+}
+
+.brand.corridor-secret-trigger:hover .brand-mark,
+.corridor-secret-trigger:not(.brand):hover {
+  transform: translateY(-1px) scale(1.018);
+}
+
+.brand.corridor-secret-trigger:hover .brand-vinyl-mark {
+  transform: rotate(10deg);
+}
+
+.corridor-close:hover,
+.corridor-controls button:hover,
+.corridor-autoplay button:hover {
+  transform: translateY(-1px);
+}
+
+.corridor-close:active,
+.corridor-controls button:active,
+.corridor-autoplay button:active,
+.corridor-secret-trigger:not(.brand):active,
+.brand.corridor-secret-trigger:active .brand-mark {
+  transform: translateY(1px) scale(0.96);
+}
+
+@keyframes corridor-enter-polished {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes corridor-wash-fade-polished {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.42;
+  }
+}
+
+@keyframes corridor-wash-fade-out-polished {
+  from {
+    opacity: 0.42;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .corridor-overlay,
+  .corridor-cover-wash,
+  .corridor-cover-backdrop,
+  .corridor-glow:after,
+  .corridor-track,
+  .corridor-card,
+  .corridor-info,
+  .corridor-secret-trigger,
+  .brand-vinyl-mark,
+  .corridor-close,
+  .corridor-controls button,
+  .corridor-autoplay button {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.reduce-motion .corridor-overlay,
+.reduce-motion .corridor-cover-wash,
+.reduce-motion .corridor-cover-backdrop,
+.reduce-motion .corridor-glow:after,
+.reduce-motion .corridor-track,
+.reduce-motion .corridor-card,
+.reduce-motion .corridor-info,
+.reduce-motion .corridor-secret-trigger,
+.reduce-motion .brand-vinyl-mark,
+.reduce-motion .corridor-close,
+.reduce-motion .corridor-controls button,
+.reduce-motion .corridor-autoplay button {
+  animation: none !important;
+  transition: none !important;
+}

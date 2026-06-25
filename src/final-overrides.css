@@ -2431,3 +2431,1437 @@ body > .global-search-popover .popover-close {
   animation: none !important;
   transition: none !important;
 }
+
+/* Interface harmony pass: login, room gate, and shared in-app surfaces. */
+:root {
+  --ease-polished: cubic-bezier(.2, 0, 0, 1);
+  --app-ink: #f7fbff;
+  --app-muted: rgba(247, 251, 255, 0.68);
+  --app-soft: rgba(247, 251, 255, 0.48);
+  --surface-ring: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --surface-ring-strong: 0 0 0 1px rgba(255, 255, 255, 0.16);
+  --surface-depth:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 24px 72px rgba(0, 0, 0, 0.32);
+  --surface-depth-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 30px 86px rgba(0, 0, 0, 0.4);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  font-family: "Avenir Next", "SF Pro Display", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+.cabinet-head h1,
+.cabinet-head h2,
+.room-gate-title h1,
+.auth-shell h1 {
+  text-wrap: balance;
+}
+
+p,
+li,
+small,
+.status-line,
+.room-card p,
+.source-card p,
+.ai-card p {
+  text-wrap: pretty;
+}
+
+.agent-step span,
+.source-card strong,
+.member-profile-stats strong,
+.room-stats strong,
+.cabinet-summary-chip,
+.status-line,
+.global-adding-phases b {
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+a,
+summary,
+.full-action,
+.primary-action,
+.secondary-action,
+.mode-tabs button,
+.auth-tabs button,
+.type-toggle button,
+.joined-room-list button,
+.known-rooms button,
+.room-list button,
+.global-search-types button,
+.cabinet-settings-trigger,
+.cabinet-actions .secondary-chip {
+  transition-property: transform, scale, opacity, filter, color, background-color, border-color, box-shadow;
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-polished);
+}
+
+button:not(:disabled):active,
+.full-action:not(:disabled):active,
+.primary-action:not(:disabled):active,
+.secondary-action:not(:disabled):active,
+.cabinet-settings-trigger:not(:disabled):active,
+.cabinet-actions .secondary-chip:not(:disabled):active {
+  scale: 0.96;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 0 !important;
+  box-shadow:
+    0 0 0 3px rgba(247, 251, 255, 0.16),
+    0 0 0 6px color-mix(in srgb, var(--cover-a), transparent 76%) !important;
+}
+
+.album-art img,
+.user-avatar-img,
+.feature-art img,
+.member-profile-avatar img,
+.profile-portrait img {
+  outline: 1px solid rgba(255, 255, 255, 0.1);
+  outline-offset: -1px;
+}
+
+input,
+textarea,
+select,
+.room-card input,
+.cabinet-settings-grid select,
+.cabinet-settings-grid input,
+.cabinet-copy-editor input,
+.cabinet-copy-editor textarea,
+.showroom-comments textarea,
+.review-composer textarea,
+.admin-card textarea,
+.profile-card textarea,
+.global-search-field {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.024)),
+    rgba(5, 7, 9, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 12px 34px rgba(0, 0, 0, 0.16) !important;
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: 200ms;
+  transition-timing-function: var(--ease-polished);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.room-card input:focus,
+.global-search-field:focus-within {
+  border-color: color-mix(in srgb, var(--cover-c), transparent 34%) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.035)),
+    rgba(5, 7, 9, 0.84) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 4px color-mix(in srgb, var(--cover-a), transparent 82%),
+    0 18px 48px rgba(0, 0, 0, 0.24) !important;
+}
+
+.full-action,
+.primary-action,
+.detail-actions button,
+.showroom-comments button,
+.review-composer button,
+.ai-card button,
+.control-block button,
+.profile-hero-card > button,
+.profile-card > button,
+.persona-card button,
+.room-manager button,
+.room-list button.active {
+  min-height: 44px;
+  border: 0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    0 14px 36px color-mix(in srgb, var(--cover-a), transparent 78%) !important;
+}
+
+.secondary-action,
+.room-card-create .full-action,
+.resolver-actions button,
+.known-rooms button,
+.cabinet-actions .secondary-chip,
+.global-search-types,
+.auth-tabs,
+.type-toggle {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    0 10px 30px rgba(0, 0, 0, 0.14) !important;
+}
+
+.glass-panel,
+.panel-content,
+.ai-card,
+.source-card,
+.tracklist-panel,
+.showroom-comments,
+.room-manager article,
+.room-settings-card,
+.profile-hero-card,
+.profile-card,
+.persona-report,
+.member-modal,
+.confirm-dialog,
+.global-search-popover,
+.cabinet-settings-panel {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: var(--surface-ring), var(--surface-depth) !important;
+}
+
+.source-card,
+.ai-card,
+.room-manager article,
+.room-settings-card,
+.profile-card,
+.tracklist-panel,
+.showroom-comments {
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in srgb, var(--cover-c), transparent 88%), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.026)),
+    rgba(7, 9, 12, 0.62) !important;
+}
+
+.auth-screen {
+  min-height: 100dvh !important;
+  padding: clamp(18px, 4vw, 56px) !important;
+}
+
+.auth-screen::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(ellipse at 26% 12%, color-mix(in srgb, var(--cover-a), transparent 58%), transparent 38%),
+    radial-gradient(ellipse at 82% 78%, color-mix(in srgb, var(--cover-b), transparent 68%), transparent 36%),
+    linear-gradient(140deg, #111417 0%, #171412 48%, #0a1113 100%);
+  background-size:
+    54px 54px,
+    54px 54px,
+    auto,
+    auto,
+    auto;
+  opacity: 0.92;
+}
+
+.auth-shell {
+  position: relative;
+  width: min(660px, 100%) !important;
+  display: grid !important;
+  grid-template-areas:
+    "copy tabs"
+    "email brand"
+    "password brand"
+    "action action"
+    "status status" !important;
+  grid-template-columns: minmax(0, 1.32fr) minmax(220px, 0.78fr) !important;
+  align-items: end;
+  column-gap: clamp(18px, 3vw, 34px) !important;
+  gap: 18px !important;
+  padding: clamp(24px, 4vw, 40px) !important;
+  overflow: hidden;
+  border-radius: 34px !important;
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--cover-c), transparent 72%), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.045)),
+    rgba(8, 10, 12, 0.7) !important;
+}
+
+.auth-shell::before {
+  position: absolute;
+  top: -58px;
+  right: -48px;
+  width: clamp(180px, 34vw, 260px);
+  aspect-ratio: 1;
+  content: "";
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--cover-c), white 12%) 0 7%, transparent 8% 14%, rgba(255, 255, 255, 0.2) 15% 16%, transparent 17%),
+    repeating-radial-gradient(circle, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 9px),
+    conic-gradient(from 160deg, rgba(255, 255, 255, 0.08), color-mix(in srgb, var(--cover-a), #07090b 46%), #07090b, color-mix(in srgb, var(--cover-b), #07090b 38%), rgba(255, 255, 255, 0.08));
+  opacity: 0.54;
+  pointer-events: none;
+}
+
+.auth-brand,
+.room-gate-identity {
+  min-height: 52px;
+}
+
+.auth-brand {
+  grid-area: brand !important;
+  align-self: end;
+}
+
+.auth-shell > div:not(.auth-brand):not(.auth-tabs):not(.avatar-picker) {
+  grid-area: copy !important;
+}
+
+.auth-shell h1 {
+  max-width: 12.5ch !important;
+  margin-bottom: 12px !important;
+  font-size: clamp(2.8rem, 4.9vw, 4.55rem) !important;
+  line-height: 0.98 !important;
+  letter-spacing: 0 !important;
+}
+
+.auth-shell p:not(.eyebrow):not(.status-line) {
+  max-width: 42ch;
+  color: var(--app-muted) !important;
+  line-height: 1.72;
+}
+
+.auth-tabs,
+.type-toggle {
+  grid-area: tabs !important;
+  align-self: start;
+  justify-self: stretch;
+  width: fit-content;
+  min-height: 48px;
+  padding: 5px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.024)),
+    rgba(4, 6, 8, 0.58) !important;
+}
+
+.auth-tabs button,
+.type-toggle button {
+  flex: 1 1 0;
+  min-width: 82px;
+  min-height: 38px !important;
+  border-radius: 13px !important;
+}
+
+.auth-tabs button.active,
+.type-toggle button.active,
+.mode-tabs button.active,
+.global-search-types button.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 12px 30px color-mix(in srgb, var(--cover-a), transparent 78%) !important;
+}
+
+.auth-shell label,
+.room-card label,
+.profile-card label,
+.room-settings-card label,
+.cabinet-settings-panel label {
+  color: rgba(247, 251, 255, 0.72) !important;
+  font-weight: 700;
+}
+
+.auth-shell label:nth-of-type(1) {
+  grid-area: email !important;
+}
+
+.auth-shell label:nth-of-type(2) {
+  grid-area: password !important;
+}
+
+.auth-shell .avatar-picker {
+  grid-area: avatars !important;
+}
+
+.auth-shell .full-action {
+  grid-area: action !important;
+}
+
+.auth-shell .status-line {
+  grid-area: status !important;
+}
+
+.auth-shell:has(.avatar-picker) {
+  width: min(720px, 100%) !important;
+  grid-template-areas:
+    "copy tabs"
+    "name brand"
+    "email password"
+    "avatars action"
+    "status status" !important;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.82fr) !important;
+}
+
+.auth-shell:has(.avatar-picker) label:nth-of-type(1) {
+  grid-area: name !important;
+}
+
+.auth-shell:has(.avatar-picker) label:nth-of-type(2) {
+  grid-area: email !important;
+}
+
+.auth-shell:has(.avatar-picker) label:nth-of-type(3) {
+  grid-area: password !important;
+}
+
+.avatar-picker {
+  gap: 8px !important;
+}
+
+.avatar-picker button {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 15px !important;
+  border: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.034)),
+    rgba(7, 9, 12, 0.58) !important;
+  box-shadow: var(--surface-ring) !important;
+}
+
+.avatar-picker button.active {
+  color: #101315 !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--cover-c), white 12%), color-mix(in srgb, var(--cover-a), white 20%)) !important;
+}
+
+.room-gate-shell {
+  width: min(1240px, 100%) !important;
+  grid-template-columns: minmax(270px, 0.52fr) minmax(620px, 1fr) !important;
+  gap: clamp(30px, 5vw, 82px) !important;
+}
+
+.room-gate-title h1 {
+  max-width: 9.2ch !important;
+  font-size: clamp(3rem, 4.8vw, 5.35rem) !important;
+  line-height: 0.96 !important;
+  letter-spacing: 0 !important;
+}
+
+.room-gate-title > p:not(.eyebrow) {
+  color: rgba(247, 251, 255, 0.74) !important;
+}
+
+.room-gate-notes span {
+  min-height: 40px !important;
+  border: 0 !important;
+  border-radius: 15px !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.024)),
+    rgba(8, 10, 12, 0.5) !important;
+  box-shadow: var(--surface-ring) !important;
+}
+
+.room-gate-console {
+  padding: clamp(16px, 2vw, 24px) !important;
+  border-radius: 34px !important;
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--cover-c), transparent 78%), transparent 36%),
+    radial-gradient(circle at 82% 100%, color-mix(in srgb, var(--cover-a), transparent 84%), transparent 40%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.042)),
+    rgba(7, 9, 12, 0.58) !important;
+}
+
+.room-card-primary,
+.room-card-invite,
+.room-card-create {
+  border: 0 !important;
+  border-radius: 22px !important;
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.03)),
+    rgba(5, 7, 9, 0.46) !important;
+  box-shadow: var(--surface-ring), inset 0 1px 0 rgba(255, 255, 255, 0.09) !important;
+}
+
+.room-card-primary {
+  padding: clamp(18px, 2vw, 26px) !important;
+}
+
+.room-card-invite,
+.room-card-create {
+  padding: 20px !important;
+}
+
+.room-card:hover,
+.joined-room-list button:hover,
+.known-rooms button:hover,
+.source-card:hover,
+.ai-card:hover {
+  box-shadow: var(--surface-ring-strong), var(--surface-depth-hover) !important;
+}
+
+.joined-room-list button,
+.known-rooms button,
+.room-list button,
+.showroom-track,
+.member-added-list button,
+.global-search-popover .global-candidate {
+  border: 0 !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.088), rgba(255, 255, 255, 0.028)),
+    rgba(7, 9, 12, 0.58) !important;
+  box-shadow: var(--surface-ring) !important;
+}
+
+.joined-room-list button:hover,
+.joined-room-list button:focus-visible,
+.known-rooms button:hover,
+.known-rooms button:focus-visible,
+.room-list button:hover,
+.member-added-list button:hover {
+  transform: translateY(-2px);
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in srgb, var(--cover-a), transparent 72%), transparent 42%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.042)),
+    rgba(9, 12, 15, 0.74) !important;
+}
+
+.room-empty-state {
+  border: 0 !important;
+  border-radius: 20px !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018)),
+    rgba(4, 6, 8, 0.38) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09) !important;
+}
+
+.topbar {
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--cover-c), transparent 82%), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.042)),
+    rgba(7, 9, 12, 0.7) !important;
+}
+
+.brand.corridor-secret-trigger {
+  min-height: 52px;
+  border: 0;
+  color: var(--app-ink);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mode-tabs {
+  border: 0 !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.024)),
+    rgba(4, 6, 8, 0.58) !important;
+  box-shadow: var(--surface-ring) !important;
+}
+
+.mode-tabs button {
+  min-width: 74px;
+  color: rgba(247, 251, 255, 0.68) !important;
+}
+
+.mode-tabs button:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.075) !important;
+}
+
+.mode-tabs button.active {
+  color: #101315 !important;
+}
+
+.member-stack button,
+.member-stack .mini-avatar,
+.member-stack .user-avatar-img,
+.member-count {
+  border-radius: 14px !important;
+}
+
+.member-stack button {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.13),
+    0 12px 26px rgba(0, 0, 0, 0.26) !important;
+}
+
+.panel-content {
+  border-radius: 28px !important;
+}
+
+.source-card,
+.ai-card,
+.tracklist-panel,
+.showroom-comments,
+.room-manager article,
+.room-settings-card,
+.profile-card {
+  border-radius: 22px !important;
+}
+
+.eyebrow {
+  color: color-mix(in srgb, var(--cover-c), white 18%) !important;
+  font-weight: 850 !important;
+}
+
+@media (max-width: 980px) {
+  .room-gate-shell {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+
+  .room-gate-copy {
+    align-content: end;
+  }
+
+  .room-gate-title h1 {
+    max-width: 11ch !important;
+  }
+
+  .room-gate-console {
+    border-radius: 30px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .auth-screen {
+    padding: 14px !important;
+  }
+
+  .auth-shell {
+    grid-template-areas:
+      "copy"
+      "tabs"
+      "brand"
+      "email"
+      "password"
+      "action"
+      "status" !important;
+    grid-template-columns: 1fr !important;
+    align-items: stretch !important;
+    border-radius: 28px !important;
+  }
+
+  .auth-shell:has(.avatar-picker) {
+    grid-template-areas:
+      "copy"
+      "tabs"
+      "brand"
+      "name"
+      "email"
+      "password"
+      "avatars"
+      "action"
+      "status" !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-shell::before {
+    top: -74px;
+    right: -72px;
+    opacity: 0.36;
+  }
+
+  .auth-shell h1 {
+    max-width: 10.5ch !important;
+    font-size: clamp(2.65rem, 13vw, 4rem) !important;
+    line-height: 0.96 !important;
+  }
+
+  .auth-tabs {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .auth-tabs button {
+    flex: 1 1 0;
+  }
+
+  .auth-brand {
+    min-width: 0;
+  }
+
+  .auth-brand .brand-copy,
+  .auth-brand > div:not(.brand-mark) {
+    min-width: 0;
+  }
+
+  .auth-brand span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .auth-shell .full-action {
+    min-height: 56px;
+  }
+
+  .room-gate-screen {
+    padding: 14px !important;
+  }
+
+  .room-gate-actions {
+    grid-template-areas:
+      "rooms"
+      "invite"
+      "create"
+      "list" !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .joined-room-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  .room-card-primary {
+    min-height: 0 !important;
+  }
+
+  .room-gate-title h1 {
+    font-size: clamp(2.55rem, 13vw, 4.2rem) !important;
+  }
+
+  .mode-tabs button {
+    min-width: 0;
+  }
+}
+
+/* Motion audit pass: calmer entrances, interruptible feedback, quieter loops. */
+:root {
+  --motion-standard: cubic-bezier(.2, 0, 0, 1);
+  --motion-enter: cubic-bezier(.16, 1, .22, 1);
+  --motion-exit: cubic-bezier(.4, 0, 1, 1);
+  --motion-fast: 150ms;
+  --motion-med: 260ms;
+  --motion-slow: 420ms;
+}
+
+.auth-brand,
+.auth-shell > div:not(.auth-brand):not(.auth-tabs),
+.auth-tabs,
+.auth-shell label,
+.avatar-picker,
+.auth-shell .full-action,
+.room-gate-identity,
+.room-gate-title,
+.room-gate-notes,
+.room-gate-console,
+.topbar,
+.panel-content {
+  animation: polished-rise var(--motion-slow) var(--motion-enter) both;
+}
+
+.auth-shell > div:not(.auth-brand):not(.auth-tabs) {
+  animation-delay: 55ms;
+}
+
+.auth-tabs,
+.room-gate-title {
+  animation-delay: 90ms;
+}
+
+.auth-shell label,
+.room-gate-notes {
+  animation-delay: 130ms;
+}
+
+.avatar-picker,
+.auth-shell .full-action,
+.room-gate-console {
+  animation-delay: 170ms;
+}
+
+.global-search-popover,
+.cabinet-settings-panel,
+.confirm-dialog {
+  animation: polished-popover-in 260ms var(--motion-enter) both !important;
+}
+
+.member-modal,
+.global-search-popover.is-adding {
+  animation: polished-sheet-in 320ms var(--motion-enter) both !important;
+}
+
+.cabinet-page,
+.exclusive-detail {
+  animation: polished-page-in 360ms var(--motion-enter) both !important;
+}
+
+.detail-entry-animation {
+  animation: detail-record-open-polished 820ms var(--motion-enter) both !important;
+}
+
+.cabinet-tile {
+  animation: cabinet-tile-rise-polished 520ms var(--motion-enter) both !important;
+}
+
+.showcase-card {
+  animation: card-rise-polished 360ms var(--motion-enter) both !important;
+}
+
+.cabinet-card-face {
+  transition-property: transform, box-shadow, border-color, filter !important;
+  transition-duration: 560ms, 240ms, 200ms, 200ms !important;
+  transition-timing-function: var(--motion-standard) !important;
+}
+
+.cabinet-tile,
+.showcase-card,
+.global-search-popover .global-candidate,
+.showroom-track,
+.member-added-list button,
+.joined-room-list button,
+.known-rooms button,
+.room-list button,
+.source-card,
+.ai-card {
+  transition-property: transform, scale, opacity, background-color, border-color, box-shadow, filter !important;
+  transition-duration: 200ms !important;
+  transition-timing-function: var(--motion-standard) !important;
+}
+
+.cabinet-tile:hover,
+.cabinet-tile:focus-visible {
+  transform: translateY(-4px) rotateX(1deg) scale(1.01) !important;
+}
+
+.showcase-card:hover,
+.showcase-card.active {
+  transform: translateY(-4px) rotate(var(--tilt)) scale(1.008) !important;
+}
+
+.global-search-popover .global-candidate:hover,
+.global-search-popover .global-candidate:focus-visible,
+.global-search-popover .global-candidate.selected,
+.showroom-track:hover,
+.showroom-track:focus-visible {
+  transform: translateY(-1px) !important;
+}
+
+.hero-copy {
+  animation: polished-rise 520ms var(--motion-enter) both !important;
+}
+
+.hero-wall-stage,
+.hero-stage {
+  animation: hero-stage-polished 620ms var(--motion-enter) both !important;
+}
+
+.hero-orbit-stats span,
+.record-orbit span {
+  animation: orbit-chip-polished 440ms var(--motion-enter) both !important;
+}
+
+.aurora {
+  animation-duration: 24s !important;
+  animation-timing-function: ease-in-out !important;
+  opacity: 0.62 !important;
+}
+
+.vinyl-disc {
+  animation-duration: 52s !important;
+}
+
+.ring-one {
+  animation-duration: 42s !important;
+}
+
+.ring-two {
+  animation-duration: 58s !important;
+}
+
+.persona-loading:before,
+.persona-zodiac,
+.persona-orbit {
+  animation-duration: 24s !important;
+}
+
+.persona-table-glow,
+.persona-core {
+  animation-duration: 6.8s !important;
+}
+
+.rainbow-status-frame:before {
+  animation-duration: 4.8s !important;
+}
+
+.generation-backdrop,
+.global-adding-focus::after {
+  animation-duration: 12s !important;
+}
+
+.global-adding-edge {
+  animation-duration: 8s !important;
+}
+
+.global-adding-orbit,
+.global-adding-disc {
+  animation-duration: 12s !important;
+}
+
+.global-adding-cover-frame {
+  animation-duration: 4.6s !important;
+}
+
+.global-adding-scan::before,
+.global-adding-scan::after {
+  animation-duration: 4.2s !important;
+}
+
+.global-adding-meter i::after,
+.candidate-skeleton-grid span::before,
+.skeleton-line::before {
+  animation-duration: 2.4s !important;
+}
+
+.rich-progress i,
+.generation-meter i {
+  transition-property: width !important;
+  transition-duration: 420ms !important;
+  transition-timing-function: var(--motion-enter) !important;
+}
+
+@keyframes polished-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes polished-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes polished-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes polished-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-stage-polished {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.982);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-tile-rise-polished {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.965);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes card-rise-polished {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes orbit-chip-polished {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes detail-record-open-polished {
+  0% {
+    opacity: 0;
+    transform: translate(48px, -4px) rotate(-18deg) scale(0.82);
+    filter: blur(5px);
+  }
+  58% {
+    opacity: 0.86;
+    transform: translate(6px, -1px) rotate(2deg) scale(1.01);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0.74;
+    transform: translate(0, 0) rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes command-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes command-sheet-in-v3 {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes command-sheet-in-v3-final {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes global-search-panel-in-final {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-settings-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-settings-in-final {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes confirm-dialog-in-final {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes command-sheet-in-mobile-v3 {
+  from {
+    opacity: 0;
+    transform: translate(-50%) translateY(16px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes command-sheet-in-mobile-v3-final {
+  from {
+    opacity: 0;
+    transform: translate(-50%) translateY(16px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes global-search-sheet-in-final {
+  from {
+    opacity: 0;
+    transform: translate(-50%) translateY(16px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-settings-sheet-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%) translateY(16px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-settings-sheet-in-final {
+  from {
+    opacity: 0;
+    transform: translate(-50%) translateY(16px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-page-opacity-final {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes detail-page-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes detail-page-arrive-clear-final {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes poster-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes cabinet-tile-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.982);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes detail-record-open {
+  0% {
+    opacity: 0;
+    transform: translate(48px, -4px) rotate(-18deg) scale(0.82);
+    filter: blur(5px);
+  }
+  58% {
+    opacity: 0.86;
+    transform: translate(6px, -1px) rotate(2deg) scale(1.01);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0.74;
+    transform: translate(0, 0) rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes detail-record-open-clear-final {
+  0% {
+    opacity: 0;
+    transform: translate(48px, -4px) rotate(-18deg) scale(0.82);
+    filter: blur(5px);
+  }
+  58% {
+    opacity: 0.86;
+    transform: translate(6px, -1px) rotate(2deg) scale(1.01);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 0.74;
+    transform: translate(0, 0) rotate(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes loader-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: saturate(0.98);
+  }
+  50% {
+    transform: scale(1.018);
+    filter: saturate(1.08);
+  }
+}
+
+@keyframes generation-backdrop-drift {
+  from {
+    transform: scale(1.06) translate3d(-0.6%, -0.4%, 0);
+  }
+  to {
+    transform: scale(1.08) translate3d(0.6%, 0.4%, 0);
+  }
+}
+
+@keyframes global-adding-cover-stage {
+  from {
+    transform: translateX(-9%) rotateX(6deg) rotateY(10deg) translateY(0) scale(1);
+  }
+  to {
+    transform: translateX(-9%) rotateX(7deg) rotateY(8deg) translateY(-6px) scale(1.012);
+  }
+}
+
+@keyframes global-adding-edge-breathe {
+  0%, 100% {
+    opacity: 0.14;
+    transform: scale(0.992);
+  }
+  50% {
+    opacity: 0.24;
+    transform: scale(1.006);
+  }
+}
+
+@media (max-width: 760px) {
+  .global-search-popover,
+  .cabinet-settings-panel {
+    animation-name: polished-mobile-sheet-in !important;
+  }
+
+  @keyframes polished-mobile-sheet-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%) translateY(14px) scale(0.985);
+      filter: blur(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%) translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .detail-entry-animation,
+  .aurora,
+  .field-ring,
+  .vinyl-disc,
+  .hero-orbit-stats,
+  .record-orbit,
+  .global-adding-orbit,
+  .global-adding-disc,
+  .global-adding-scan,
+  .persona-orbit,
+  .persona-zodiac,
+  .rainbow-status-frame {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 1ms !important;
+}
+
+.reduce-motion .detail-entry-animation,
+.reduce-motion .aurora,
+.reduce-motion .field-ring,
+.reduce-motion .vinyl-disc,
+.reduce-motion .hero-orbit-stats,
+.reduce-motion .record-orbit,
+.reduce-motion .global-adding-orbit,
+.reduce-motion .global-adding-disc,
+.reduce-motion .global-adding-scan,
+.reduce-motion .persona-orbit,
+.reduce-motion .persona-zodiac,
+.reduce-motion .rainbow-status-frame {
+  animation: none !important;
+  transition: none !important;
+}
