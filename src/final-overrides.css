@@ -3865,3 +3865,125 @@ select:focus-visible,
   animation: none !important;
   transition: none !important;
 }
+
+/* Targeted fixes after production visual review. */
+.cabinet-page .cabinet-head {
+  align-items: start !important;
+}
+
+.cabinet-page .cabinet-title-row {
+  display: block !important;
+}
+
+.cabinet-page .cabinet-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding-top: clamp(38px, 5vw, 78px) !important;
+}
+
+.cabinet-page .cabinet-actions .cabinet-settings {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+
+.cabinet-page .cabinet-settings-trigger,
+.cabinet-page .cabinet-summary-chip,
+.cabinet-page .cabinet-actions .secondary-chip {
+  box-sizing: border-box;
+  min-height: 54px !important;
+  height: 54px !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
+.cabinet-page .cabinet-settings-trigger {
+  padding: 0 22px !important;
+}
+
+.global-search-popover .popover-close,
+body > .global-search-popover .popover-close {
+  z-index: 20 !important;
+  display: grid !important;
+  place-items: center;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.global-popover-head {
+  align-items: start !important;
+  gap: 18px !important;
+}
+
+.global-search-popover .link-inline {
+  gap: 10px !important;
+  min-width: 0;
+  padding-right: 0 !important;
+}
+
+.global-search-popover .link-inline label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  color: rgba(248, 251, 255, 0.72);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.global-search-popover .link-inline input {
+  min-height: 54px !important;
+  padding: 0 18px 0 20px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 18px !important;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--cover-a), transparent 76%), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.028)),
+    rgba(8, 11, 14, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    0 10px 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+.global-search-popover .link-inline input::placeholder {
+  color: rgba(248, 251, 255, 0.5);
+}
+
+.global-search-popover .link-inline input:focus-visible {
+  border-color: color-mix(in srgb, var(--cover-c), transparent 34%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 0 4px color-mix(in srgb, var(--cover-a), transparent 82%),
+    0 18px 42px rgba(0, 0, 0, 0.28) !important;
+}
+
+.global-search-popover .global-confirm-empty {
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .cabinet-page .cabinet-actions {
+    justify-content: flex-start !important;
+    padding-top: 0 !important;
+  }
+
+  .cabinet-page .cabinet-settings-trigger,
+  .cabinet-page .cabinet-summary-chip,
+  .cabinet-page .cabinet-actions .secondary-chip {
+    min-height: 46px !important;
+    height: 46px !important;
+  }
+
+  .global-popover-head {
+    padding-right: 54px !important;
+  }
+}

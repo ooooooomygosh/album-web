@@ -1032,8 +1032,8 @@ function App() {
   const [mode, setMode] = useState('showroom');
   const [items, setItems] = useState([]);
   const [activeId, setActiveId] = useState('');
-  const [query, setQuery] = useState('李荣浩 我爱你');
-  const [artistQuery, setArtistQuery] = useState('李荣浩');
+  const [query, setQuery] = useState('');
+  const [artistQuery, setArtistQuery] = useState('');
   const [link, setLink] = useState('');
   const [searchType, setSearchType] = useState('all');
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -1576,7 +1576,7 @@ function App() {
       });
       const data = await api(`/api/search?${params.toString()}`);
       setCandidates(data.candidates || []);
-      setSelectedCandidate(data.candidates?.[0] || null);
+      setSelectedCandidate(null);
       setSearchStatus(`found-${data.candidates?.length || 0}`);
     } catch (error) {
       setSearchStatus(`error-${error.message}`);
@@ -2019,6 +2019,7 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
   const searchRef = useRef(null);
   const popoverRef = useRef(null);
   const queryInputRef = useRef(null);
+  const suppressFocusOpenRef = useRef(false);
   const phaseSteps = [
     ['metadata', '读取资料'],
     ['ai', '生成导览'],
@@ -2072,12 +2073,22 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
   }, [isAddingSelection, selectedCandidate?.id]);
 
   const closePopover = () => {
+    suppressFocusOpenRef.current = true;
     setOpen(false);
-    window.requestAnimationFrame(() => queryInputRef.current?.focus());
+    window.setTimeout(() => {
+      suppressFocusOpenRef.current = false;
+    }, 180);
   };
 
   const submit = async (event) => {
     event.preventDefault();
+    const nextQuery = localQuery.trim();
+    const nextLink = link.trim();
+    if (!nextQuery && !nextLink) {
+      setOpen(false);
+      setSelectedCandidate(null);
+      return;
+    }
     setQuery(localQuery);
     setArtistQuery('');
     setOpen(true);
@@ -2096,8 +2107,15 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
 
   const submitLink = async (event) => {
     event.preventDefault();
+    if (!link.trim()) return;
     setOpen(true);
     await runSearch({ query: '', artistQuery: '', link });
+  };
+
+  const updateSearchType = (key) => {
+    setSearchType(key);
+    setSelectedCandidate(null);
+    setOpen(true);
   };
 
   const popover = (
@@ -2225,8 +2243,14 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
           spellCheck={false}
           ref={queryInputRef}
           value={localQuery}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => setLocalQuery(event.target.value)}
+          onFocus={() => {
+            if (suppressFocusOpenRef.current) return;
+            setOpen(true);
+          }}
+          onChange={(event) => {
+            setLocalQuery(event.target.value);
+            setSelectedCandidate(null);
+          }}
           placeholder="专辑 / 艺人 / 歌曲 / 链接…"
           aria-label="快速搜索专辑或歌曲"
           aria-expanded={open}
@@ -2241,7 +2265,7 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
           ['all', '全部'],
           ['album', '专辑'],
           ['song', '单曲']
-        ].map(([key, label]) => <button key={key} type="button" aria-pressed={searchType === key} className={searchType === key ? 'active' : ''} onClick={() => { setSearchType(key); setOpen(true); }}>{label}</button>)}
+        ].map(([key, label]) => <button key={key} type="button" aria-pressed={searchType === key} className={searchType === key ? 'active' : ''} onClick={() => updateSearchType(key)}>{label}</button>)}
       </div>
       {open && createPortal(popover, document.body)}
     </form>
@@ -2265,18 +2289,18 @@ function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem,
           <p className="eyebrow"><Grid3X3 size={15} /> {room.name} / album cabinet</p>
           <div className="cabinet-title-row">
             <h1>{cabinetTitle}</h1>
-            <CabinetSettingsPopover
-              userSettings={userSettings}
-              saveUserSettings={saveUserSettings}
-              defaultTitle="专辑陈列柜"
-              defaultDescription="悬浮封面查看背面资料，点击进入专辑的黑胶开场和完整导览。"
-              mineOnly={mineOnly}
-              setMineOnly={setMineOnly}
-            />
           </div>
           <p>{cabinetDescription}</p>
         </div>
         <div className="cabinet-actions" aria-label="陈列柜摘要">
+          <CabinetSettingsPopover
+            userSettings={userSettings}
+            saveUserSettings={saveUserSettings}
+            defaultTitle="专辑陈列柜"
+            defaultDescription="悬浮封面查看背面资料，点击进入专辑的黑胶开场和完整导览。"
+            mineOnly={mineOnly}
+            setMineOnly={setMineOnly}
+          />
           <span className="cabinet-summary-chip"><Grid3X3 size={15} />{layoutLabel}</span>
           <span className="cabinet-summary-chip"><Sparkles size={15} />{hoverLabel}</span>
           {mineOnly && <span className="cabinet-summary-chip active"><UserRound size={15} />只看自己</span>}

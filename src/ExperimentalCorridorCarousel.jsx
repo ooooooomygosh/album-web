@@ -213,6 +213,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const [isDragging, setIsDragging] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [autoSpeed, setAutoSpeed] = useState(0.8);
+  const [previewSlot, setPreviewSlotState] = useState(initialIndex >= 0 ? initialIndex : 0);
   const overlayRef = useRef(null);
   const stageRef = useRef(null);
   const trackRef = useRef(null);
@@ -228,7 +229,8 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const preloadIdleRef = useRef(0);
   const imageCacheRef = useRef(new Map());
   const activeSlot = clampIndex(displayIndex, count);
-  const active = galleryItems[activeSlot] || galleryItems[0];
+  const activePreviewSlot = clampIndex(previewSlot, count);
+  const active = galleryItems[activePreviewSlot] || galleryItems[activeSlot] || galleryItems[0];
   const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const reducedMotion = reduceMotion || prefersReducedMotion;
 
@@ -263,8 +265,11 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     });
   }, [count]);
 
-  const setPreviewSlot = useCallback((slot) => {
-    setDisplayIndex((current) => (current === slot ? current : slot));
+  const setPreviewSlot = useCallback((slot, options = {}) => {
+    if (options.commit) {
+      setDisplayIndex((current) => (current === slot ? current : slot));
+      setPreviewSlotState((current) => (current === slot ? current : slot));
+    }
     updateCardEmphasis(slot);
   }, [updateCardEmphasis]);
 
@@ -314,7 +319,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const commitSettledIndex = useCallback((virtualIndex = activeIndexRef.current) => {
     window.clearTimeout(settleTimerRef.current);
     const slot = clampIndex(Math.round(virtualIndex), count);
-    setPreviewSlot(slot);
+    setPreviewSlot(slot, { commit: true });
     scrollCardIntoView(slot, true);
     normalizeTrackRotation(slot);
     setMoving(false);
@@ -346,7 +351,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     activeIndexRef.current = nextVisual;
     if (!options.immediate && !reducedMotion) setMoving(true);
     writeRotation(nextVisual, options.immediate || reducedMotion);
-    setPreviewSlot(slot);
+    setPreviewSlot(slot, { commit: options.commitPreview === true || options.immediate || reducedMotion || flatCarousel });
     if (flatCarousel || options.immediate || reducedMotion) {
       scrollCardIntoView(slot, options.immediate || reducedMotion);
       schedulePreloadAround(slot);
@@ -549,6 +554,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     activeIndexRef.current = startSlot;
     visualIndexRef.current = startSlot;
     setDisplayIndex(startSlot);
+    setPreviewSlotState(startSlot);
     const frame = window.requestAnimationFrame(() => {
       applyFastIndex(startSlot, { immediate: true, settle: false });
       preloadAround(startSlot);
