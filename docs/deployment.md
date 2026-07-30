@@ -52,9 +52,23 @@ APP_URL=https://<deployment-url> npm run review
 ## Current Production Deployment
 
 - Production URL: https://album-circle.vercel.app
-- Deployment URL: https://album-circle-fvveeb71a-homings-projects-d78a7226.vercel.app
-- Deployment ID: `dpl_F3Fo9bTwicTivSrgDBXdw7w8jetT`
+- Deployment URL: https://album-circle-o75zf6vhn-homings-projects-d78a7226.vercel.app
+- Deployment ID: `dpl_o75zf6vhn`
 - Vercel project: `homings-projects-d78a7226/album-circle`
+
+Latest polish release (commit `1b91212`):
+
+- Added `src/motion-polish.css` as a standalone aesthetic + motion layer (10 new keyframes, 19+ selectors):
+  topbar breathing frame + scanline, brand-mark halo, cabinet tile 3D lift + sheen, AI card conic border,
+  comment left accent + hover shine + stagger fade-in, rating slider glow + grab/active states,
+  modal curtain blur + spring entrance, scroll reveal via `CabinetListItem` IntersectionObserver,
+  aurora noise drift helper, action button micro-lift, member-stack pop. All wrapped in `.reduce-motion`
+  and `@media (max-width: 720px)` fallbacks.
+- `main.jsx` wraps each cabinet tile in `CabinetListItem` for staggered reveal without disturbing grid sizing.
+- Refreshed dependency baseline (vite 8, firebase 12, react 19, vercel 54) and tightened `vercel.json` SPA rewrite
+  to exclude dev-only paths.
+- Verified online: API smoke (`APP_URL=https://album-circle.vercel.app npm run api:smoke`) passes; CSS bundle
+  `/assets/index-wQbAYMec.css` is 248.50 kB (45.12 kB gzip) and contains all polish keyframes.
 
 Verified online:
 
