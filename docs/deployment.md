@@ -52,9 +52,28 @@ APP_URL=https://<deployment-url> npm run review
 ## Current Production Deployment
 
 - Production URL: https://album-circle.vercel.app
-- Deployment URL: https://album-circle-x5awdmsji-homings-projects-d78a7226.vercel.app
-- Deployment ID: `dpl_x5awdmsji`
+- Deployment URL: https://album-circle-fxomctpe1-homings-projects-d78a7226.vercel.app
+- Deployment ID: `dpl_fxomctpe1`
 - Vercel project: `homings-projects-d78a7226/album-circle`
+
+Latest frontend polish (commit `4bf079f`):
+
+- **Immersive reading — bottom cutoff fixed**: overlay now uses `100dvh` (dynamic viewport height) instead of fixed
+  `100%`; scroll container adds `env(safe-area-inset-bottom)` padding so the browser chrome / notch no longer eats the
+  last lines on mobile. IntersectionObserver reveal changed to `threshold: 0` + `rootMargin` bottom `-8%` plus a 1.4s
+  safety fallback that forces every section visible — the last paragraph can no longer stay stuck at `opacity:0`.
+  Added a top **reading-progress bar** (`--immersive-progress`) and an AI-curated attribution footer.
+- **Immersive reading — entry made obvious**: the "沉浸阅读" action is promoted from one of four equal-weight buttons to a
+  glass **primary CTA** (`.immersive-cta`, flowing sheen + arrow, `ArrowUpRight`). A floating CTA (`.art-immersive-cta`)
+  now overlays the cover art itself (revealed on hover/focus and always visible on touch) so the feature is discoverable
+  without hunting in the action row.
+- **Cover corridor — visuals & interaction**: re-enabled a restrained `corridor-cover-wash` (single `is-current` that
+  crossfades on active change, low opacity), added a floor glow + ground reflection and an **AI-curated** tagline in the
+  copy block. New "随机漫游" button (`corridor-roam`) jumps to a random item for serendipitous browsing.
+- **Verification**: Playwright measured the rebuilt immersive DOM — footer and last section fully reachable when scrolled
+  to bottom (no cutoff). All 6 new selectors ship in the bundle (`immersive-progress`, `immersive-cta`, `art-immersive-cta`,
+  `corridor-cover-wash`, `corridor-roam`, `corridor-ai-line`); online asset hashes match local
+  (`index-CiiDpV-q.css` 262.73 kB / 47.76 kB gzip, `index-CHvdihPw.js` 400.70 kB / 120.52 kB gzip).
 
 Latest frontend enhancement release (commit `9fde089`):
 
