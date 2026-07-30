@@ -52,11 +52,33 @@ APP_URL=https://<deployment-url> npm run review
 ## Current Production Deployment
 
 - Production URL: https://album-circle.vercel.app
-- Deployment URL: https://album-circle-o75zf6vhn-homings-projects-d78a7226.vercel.app
-- Deployment ID: `dpl_o75zf6vhn`
+- Deployment URL: https://album-circle-x5awdmsji-homings-projects-d78a7226.vercel.app
+- Deployment ID: `dpl_x5awdmsji`
 - Vercel project: `homings-projects-d78a7226/album-circle`
 
-Latest polish release (commit `1b91212`):
+Latest frontend enhancement release (commit `9fde089`):
+
+- **Interaction feedback**: adopted `sonner` 2.0.7 for toasts (single `<Toaster>` instance, bottom-right, dark theme);
+  `src/toast-theme.css` re-skins it to match the `.glass-panel` recipe with per-type glow and a `toast-glass-in`
+  blur/saturate entrance. Overrides use `!important` because sonner injects its base styles at runtime.
+- **Optimistic comments**: `submitComment` inserts a `pending` placeholder immediately (`.comment-pending` pulse),
+  swaps in the server record on success, and rolls back + restores the draft + fires `toast.error` on failure.
+- **Form states**: publish buttons in both the detail composer and `Review` disable while sending and show `发送中…`.
+- **Skeletons**: new `initialLoading` flag (first room load only) renders 12 `.skeleton-tile` placeholders in the cabinet grid.
+- **Accessibility**: roving tabindex keyboard navigation across the cabinet grid (Arrow/Home/End, column count derived
+  from computed `gridTemplateColumns`), `aria-valuetext` on the rating slider, `aria-live` on status lines.
+- **Filter & sort**: cabinet page gains sort (added time / rating / year / title) plus type and rated filters,
+  derived through `useMemo` and persisted to `userSettings.filters`.
+- **Immersive reading**: new `src/ImmersiveDetail.jsx` + `src/immersive-detail.css` — full-screen dialog with parallax
+  cover, IntersectionObserver section reveal, Esc-to-close, focus trap and scroll lock. Opened from a new button;
+  the existing detail layout is untouched.
+- **Style cleanup**: additive `--space-*` / `--radius-*` / `--shadow-*` tokens in `:root`; breakpoints converged
+  720→760, 520→560, 420→430; removed the duplicate `.cabinet-grid` block in `final-overrides.css`.
+- Verified online: local and production asset hashes match exactly (`index-BPt1K4PP.css` 257.69 kB / 46.98 kB gzip,
+  `index-ChIbmlCx.js` 398.54 kB / 119.88 kB gzip); all new selectors and logic identifiers grep-confirmed in the
+  shipped bundles; `APP_URL=https://album-circle.vercel.app npm run api:smoke` passes end to end.
+
+Previous polish release (commit `1b91212`):
 
 - Added `src/motion-polish.css` as a standalone aesthetic + motion layer (10 new keyframes, 19+ selectors):
   topbar breathing frame + scanline, brand-mark halo, cabinet tile 3D lift + sheen, AI card conic border,
