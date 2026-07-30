@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import {
   Album,
+  BookOpen,
   Bot,
   ChevronRight,
   CirclePlus,
@@ -27,10 +28,14 @@ import {
 } from 'lucide-react';
 import { initAnalytics } from './firebaseClient';
 import ExperimentalCorridorCarousel from './ExperimentalCorridorCarousel';
+import ImmersiveDetail from './ImmersiveDetail';
 import './styles.css';
 import './final-overrides.css';
 import './corridor-carousel.css';
 import './motion-polish.css';
+import './toast-theme.css';
+import './immersive-detail.css';
+import { Toaster, toast } from 'sonner';
 
 const avatarOptions = ['M', 'L', 'R', 'A', 'K', '🎧', '♪', '星'];
 const memberColors = ['#5cb7ff', '#ffb86b', '#8fe388', '#ff7da8', '#f3d74c'];
@@ -1057,6 +1062,7 @@ function App() {
   const [aiStatus, setAiStatus] = useState('idle');
   const [commentStatus, setCommentStatus] = useState('idle');
   const [itemStatus, setItemStatus] = useState('idle');
+  const [initialLoading, setInitialLoading] = useState(true);
   const [backgroundStatus, setBackgroundStatus] = useState('idle');
   const [addPhase, setAddPhase] = useState('idle');
   const [commentAiStatus, setCommentAiStatus] = useState('idle');
@@ -1279,7 +1285,8 @@ function App() {
   };
 
   useEffect(() => {
-    loadRoomData().catch((error) => {
+    loadRoomData().then(() => setInitialLoading(false)).catch((error) => {
+      setInitialLoading(false);
       setItemStatus(error.message);
       setCommentStatus(error.message);
     });
@@ -1652,6 +1659,21 @@ function App() {
   const submitComment = async () => {
     const text = draft.trim();
     if (!text || !activeItem || !room) return;
+    const tempId = `temp-comment-${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      text,
+      mood: '9.0',
+      albumId: activeItem.id,
+      albumTitle: activeItem.title,
+      author: session.user.name,
+      avatar: session.user.avatar,
+      pending: true,
+      createdAt: new Date().toISOString()
+    };
+    // 乐观更新：立即插入临时评论，输入框清空，等待 API 往返
+    setComments((current) => [optimistic, ...current]);
+    setDraft('');
     setCommentStatus('sending');
     try {
       const data = await api(`/api/comments?roomId=${encodeURIComponent(room.id)}`, {
@@ -1659,8 +1681,8 @@ function App() {
         method: 'POST',
         body: JSON.stringify({ text, mood: '9.0', albumId: activeItem.id, albumTitle: activeItem.title })
       });
-      setComments((current) => [data.comment, ...current]);
-      setDraft('');
+      // 成功：用真实数据替换临时评论
+      setComments((current) => current.map((entry) => (entry.id === tempId ? data.comment : entry)));
       setCommentStatus('cloud');
       setCommentAiStatus('thinking');
       api(`/api/ai/comment?roomId=${encodeURIComponent(room.id)}`, {
@@ -1676,7 +1698,11 @@ function App() {
           setCommentAiStatus(error.message || 'error');
         });
     } catch (error) {
-      setCommentStatus(error.message);
+      // 失败：移除临时评论、还原草稿、弹出错误 toast
+      setComments((current) => current.filter((entry) => entry.id !== tempId));
+      setDraft(text);
+      setCommentStatus(error.message || '发送失败');
+      toast.error('评论发送失败', { description: error.message || '网络异常，请稍后重试' });
     }
   };
 
@@ -1841,6 +1867,7 @@ function App() {
   return (
     <main className={`${reduceMotion ? 'app reduce-motion' : 'app'} ${isWorking && userSettings.appearance.rainbowStatus ? 'app-breathing' : ''}`} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': cssImageUrl(activeItem?.cover || ''), '--glass-alpha': glass / 100 }}>
       <div className="aurora" aria-hidden="true" />
+      <Toaster position="bottom-right" theme="dark" duration={4000} closeButton offset={20} gap={12} />
       {isWorking && userSettings.appearance.rainbowStatus && <div className="rainbow-status-frame" aria-hidden="true" />}
       <section className="shell">
         <a className="skip-link" href="#main-content">跳到主要内容</a>
@@ -1944,6 +1971,7 @@ function App() {
                   ratingSummary={ratingsByItem[activeItem.id]}
                   submitRating={submitRating}
                   ratingStatus={ratingStatus}
+                  loading={initialLoading}
                   userSettings={userSettings}
                 />
               ) : (
@@ -1957,6 +1985,7 @@ function App() {
                   memberProfilesById={memberProfilesById}
                   userSettings={userSettings}
                   saveUserSettings={saveUserSettings}
+                  loading={initialLoading}
                   currentUserId={session.user.id}
                   mineOnly={routeState.mineOnly || userSettings.filters.mineOnly}
                   setMineOnly={(value) => {
@@ -1968,7 +1997,7 @@ function App() {
               )
             )}
             {mode === 'add' && <AddMusic query={query} setQuery={setQuery} artistQuery={artistQuery} setArtistQuery={setArtistQuery} link={link} setLink={setLink} searchType={searchType} setSearchType={setSearchType} setSearchStatus={setSearchStatus} setCandidates={setCandidates} resolvedLink={resolvedLink} runOnlineSearch={runOnlineSearch} searchStatus={searchStatus} candidates={candidates} selectedCandidate={selectedCandidate} setSelectedCandidate={setSelectedCandidate} addSelectedToShowroom={addSelectedToShowroom} backgroundStatus={backgroundStatus} itemStatus={itemStatus} addPhase={addPhase} addError={addError} />}
-            {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={confirmDeleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} />}
+            {mode === 'review' && <Review selected={activeItem} comments={activeComments} draft={draft} setDraft={setDraft} submitComment={submitComment} commentStatus={commentStatus} commentAiStatus={commentAiStatus} session={session} deleteComment={confirmDeleteComment} memberProfilesById={memberProfilesById} openMember={setSelectedMemberId} loading={initialLoading} />}
             {mode === 'ai' && <Ai selected={activeItem} aiInsight={aiInsight} aiStatus={aiStatus} askAi={askAi} />}
             {mode === 'room' && <RoomPanel room={room} roomUrl={roomUrl} session={session} comments={comments} items={items} knownRooms={knownRooms} discoverRooms={discoverRooms} switchRoom={switchRoom} roomDraft={roomDraft} setRoomDraft={setRoomDraft} createAnotherRoom={createAnotherRoom} inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} invitePassword={invitePassword} setInvitePassword={setInvitePassword} joinAnotherRoom={joinAnotherRoom} roomStatus={roomStatus} roomSettingsDraft={roomSettingsDraft} setRoomSettingsDraft={setRoomSettingsDraft} saveRoomSettings={saveRoomSettings} userSettings={userSettings} saveUserSettings={saveUserSettings} />}
             {mode === 'profile' && <ProfilePanel session={session} profileDraft={profileDraft} setProfileDraft={setProfileDraft} saveProfile={saveProfile} uploadAvatar={uploadAvatar} profileStats={profileStats} profileStatus={profileStatus} loadProfileStats={loadProfileStats} fillProfileFromHistory={fillProfileFromHistory} personaTone={personaTone} setPersonaTone={setPersonaTone} personaHistoryMode={personaHistoryMode} setPersonaHistoryMode={setPersonaHistoryMode} personaSelectedIds={personaSelectedIds} togglePersonaItem={togglePersonaItem} generatePersona={generatePersona} personaStatus={personaStatus} personaReport={personaReport} addPublicTag={addPublicTag} personaQuestion={personaQuestion} setPersonaQuestion={setPersonaQuestion} askPersona={askPersona} personaChat={personaChat} personaChatStatus={personaChatStatus} />}
@@ -2281,11 +2310,37 @@ function GlobalMusicSearch({ searchType, setSearchType, runSearch, query, setQue
   );
 }
 
-function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem, memberProfilesById, userSettings, saveUserSettings, currentUserId, mineOnly, setMineOnly }) {
+function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem, memberProfilesById, userSettings, saveUserSettings, currentUserId, loading, mineOnly, setMineOnly }) {
   const layout = userSettings.showroom.wallLayout || '4x3';
   const hoverPreview = userSettings.showroom.hoverPreview || 'flip';
   const showCaptions = Boolean(userSettings.showroom.showCaptions);
-  const visibleItems = mineOnly ? items.filter((item) => item.addedById === currentUserId) : items;
+  const [sort, setSort] = useState(userSettings.filters?.sort || 'recent');
+  const [typeFilter, setTypeFilter] = useState(userSettings.filters?.type || 'all');
+  const [ratedFilter, setRatedFilter] = useState(userSettings.filters?.rated || 'all');
+
+  // 筛选 / 排序条件持久化到 userSettings.filters（复用已有 saveUserSettings）
+  const firstFiltersRun = useRef(true);
+  useEffect(() => {
+    if (firstFiltersRun.current) {
+      firstFiltersRun.current = false;
+      return;
+    }
+    saveUserSettings({ filters: { sort, type: typeFilter, rated: ratedFilter, mineOnly } });
+  }, [sort, typeFilter, ratedFilter, mineOnly]);
+
+  const visibleItems = useMemo(() => {
+    let list = items;
+    if (mineOnly) list = list.filter((item) => item.addedById === currentUserId);
+    if (typeFilter !== 'all') list = list.filter((item) => item.type === typeFilter);
+    if (ratedFilter === 'rated') list = list.filter((item) => (ratingsByItem[item.id]?.count || 0) > 0);
+    if (ratedFilter === 'unrated') list = list.filter((item) => !(ratingsByItem[item.id]?.count > 0));
+    const sorted = [...list];
+    if (sort === 'rating') sorted.sort((a, b) => (ratingsByItem[b.id]?.average || 0) - (ratingsByItem[a.id]?.average || 0));
+    else if (sort === 'year') sorted.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0));
+    else if (sort === 'title') sorted.sort((a, b) => String(a.title).localeCompare(String(b.title), 'zh'));
+    else sorted.sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
+    return sorted;
+  }, [items, mineOnly, typeFilter, ratedFilter, sort, ratingsByItem, currentUserId]);
   const cabinetTitle = cabinetDisplayTitle(userSettings.showroom.title, room.name);
   const cabinetDescription = (userSettings.showroom.description || '').trim() || '悬浮封面查看背面资料，点击进入专辑的黑胶开场和完整导览。';
   const layoutLabel = wallLayoutPresets[layout]?.label || wallLayoutPresets['4x3'].label;
@@ -2316,7 +2371,31 @@ function AlbumCabinetPage({ room, items, openItemDetail, setMode, ratingsByItem,
           <button type="button" className="secondary-chip" onClick={() => setMode('add')}><CirclePlus size={16} />高级添加</button>
         </div>
       </div>
-      <AlbumCabinetGrid items={visibleItems} layout={layout} hoverPreview={hoverPreview} openItemDetail={openItemDetail} ratingsByItem={ratingsByItem} memberProfilesById={memberProfilesById} coverSize={userSettings.showroom.coverSize} showCaptions={showCaptions} />
+      <div className="cabinet-filters" role="group" aria-label="筛选与排序">
+        <label>排序
+          <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="排序方式">
+            <option value="recent">添加时间</option>
+            <option value="rating">评分</option>
+            <option value="year">年份</option>
+            <option value="title">标题</option>
+          </select>
+        </label>
+        <label>类型
+          <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="筛选类型">
+            <option value="all">全部</option>
+            <option value="album">专辑</option>
+            <option value="song">单曲</option>
+          </select>
+        </label>
+        <label>评分
+          <select value={ratedFilter} onChange={(event) => setRatedFilter(event.target.value)} aria-label="筛选评分">
+            <option value="all">全部</option>
+            <option value="rated">有评分</option>
+            <option value="unrated">未评分</option>
+          </select>
+        </label>
+      </div>
+      <AlbumCabinetGrid items={visibleItems} layout={layout} hoverPreview={hoverPreview} openItemDetail={openItemDetail} ratingsByItem={ratingsByItem} memberProfilesById={memberProfilesById} coverSize={userSettings.showroom.coverSize} showCaptions={showCaptions} loading={loading} />
     </section>
   );
 }
@@ -2419,15 +2498,72 @@ function CabinetSettingsPopover({ userSettings, saveUserSettings, defaultTitle, 
   );
 }
 
-function AlbumCabinetGrid({ items, layout, hoverPreview, openItemDetail, ratingsByItem, memberProfilesById, coverSize, showCaptions }) {
+function AlbumCabinetGrid({ items, layout, hoverPreview, openItemDetail, ratingsByItem, memberProfilesById, coverSize, showCaptions, loading }) {
+  const gridRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const itemCount = items.length;
+
+  const focusTile = (index) => {
+    const node = gridRef.current?.querySelectorAll('.cabinet-tile')[index];
+    if (node) node.focus();
+  };
+
+  const onGridKeyDown = (event) => {
+    if (!itemCount) return;
+    let next = activeIndex;
+    switch (event.key) {
+      case 'ArrowRight': next = Math.min(activeIndex + 1, itemCount - 1); break;
+      case 'ArrowLeft': next = Math.max(activeIndex - 1, 0); break;
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        const computed = gridRef.current ? getComputedStyle(gridRef.current).gridTemplateColumns : '';
+        const cols = computed ? computed.split(' ').length || 1 : 1;
+        next = event.key === 'ArrowDown'
+          ? Math.min(activeIndex + cols, itemCount - 1)
+          : Math.max(activeIndex - cols, 0);
+        break;
+      }
+      case 'Home': next = 0; break;
+      case 'End': next = itemCount - 1; break;
+      default: return;
+    }
+    event.preventDefault();
+    setActiveIndex(next);
+  };
+
+  // 焦点落到任意封面时同步 roving 索引（点击 / Tab 进入）
+  const onGridFocus = (event) => {
+    const tiles = gridRef.current?.querySelectorAll('.cabinet-tile');
+    if (!tiles) return;
+    const idx = Array.prototype.indexOf.call(tiles, event.target);
+    if (idx >= 0 && idx !== activeIndex) setActiveIndex(idx);
+  };
+
+  useEffect(() => {
+    if (activeIndex > itemCount - 1) setActiveIndex(Math.max(0, itemCount - 1));
+  }, [itemCount, activeIndex]);
+
+  useEffect(() => {
+    focusTile(activeIndex);
+  }, [activeIndex]);
+
+  if (loading && !items.length) {
+    return (
+      <div className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview} ${showCaptions ? 'cabinet-show-captions' : ''}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜" aria-busy="true">
+        {Array.from({ length: 12 }).map((_, index) => (
+          <div key={index} className="skeleton-tile" aria-hidden="true" />
+        ))}
+      </div>
+    );
+  }
   if (!items.length) {
     return <div className="empty-state cabinet-empty"><Disc3 size={52} /><strong>展柜还没有封面</strong><span>用顶部搜索添加第一张专辑或单曲。</span></div>;
   }
   return (
-    <div className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview} ${showCaptions ? 'cabinet-show-captions' : ''}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜">
+    <div ref={gridRef} className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview} ${showCaptions ? 'cabinet-show-captions' : ''}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜" onKeyDown={onGridKeyDown} onFocus={onGridFocus}>
       {items.map((item, index) => (
         <CabinetListItem key={item.id} index={index}>
-          <AlbumCabinetTile item={item} index={index} openItemDetail={openItemDetail} ratingSummary={ratingsByItem[item.id]} adder={item.addedById ? memberProfilesById[item.addedById] : null} showCaption={showCaptions} />
+          <AlbumCabinetTile item={item} index={index} openItemDetail={openItemDetail} ratingSummary={ratingsByItem[item.id]} adder={item.addedById ? memberProfilesById[item.addedById] : null} showCaption={showCaptions} tileTabIndex={index === activeIndex ? 0 : -1} />
         </CabinetListItem>
       ))}
     </div>
@@ -2472,7 +2608,7 @@ function CabinetListItem({ index, children }) {
   );
 }
 
-function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder, showCaption }) {
+function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder, showCaption, tileTabIndex = 0 }) {
   const summary = item.aiProfile?.overview || item.background || item.context || '这张封面正在等待更多朋友写下记忆。';
   return (
     <>
@@ -2481,6 +2617,7 @@ function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder, s
         className="cabinet-tile"
         style={{ '--tile-index': index, '--poster-a': item.palette?.[0] || 'var(--cover-a)', '--poster-b': item.palette?.[1] || 'var(--cover-b)' }}
         onClick={() => openItemDetail(item.id)}
+        tabIndex={tileTabIndex}
         aria-label={`打开 ${item.artist || '未知艺人'} 的 ${item.title} 详情`}
       >
         <span className="cabinet-card-face cabinet-card-front"><AlbumArt item={item} /></span>
@@ -2498,6 +2635,7 @@ function AlbumCabinetTile({ item, index, openItemDetail, ratingSummary, adder, s
           type="button"
           className="cabinet-caption"
           onClick={() => openItemDetail(item.id)}
+          tabIndex={-1}
           aria-label={`打开 ${item.artist || '未知艺人'} 的 ${item.title} 详情`}
         >
           <strong>{item.title}</strong>
@@ -2724,7 +2862,7 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
   );
 }
 
-function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, openCabinet, openItemDetail, askAi, itemStatus, session, deleteItem, deleteComment, memberProfilesById, openMember, ratingSummary, submitRating, ratingStatus }) {
+function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, submitComment, commentStatus, commentAiStatus, setActiveId, setMode, openCabinet, openItemDetail, askAi, itemStatus, session, deleteItem, deleteComment, memberProfilesById, openMember, ratingSummary, submitRating, loading, ratingStatus }) {
   const selectItem = (id) => {
     setActiveId(id);
     openItemDetail(id);
@@ -2742,6 +2880,7 @@ function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, s
   const tracks = albumContextItem?.tracks?.length ? albumContextItem.tracks : activeItem ? [activeItem.title] : [];
   const activeTrackIndex = activeItem?.type === 'song' ? tracks.findIndex((track) => trackMatchesTitle(track, activeItem.title)) : -1;
   const profile = activeItem?.aiProfile || {};
+  const [immersive, setImmersive] = useState(false);
   const genreTags = profile.genre?.length ? profile.genre : activeItem?.tags || [];
   const guide = profile.listeningGuide?.length ? profile.listeningGuide : tracks.slice(0, 5).map((track, index) => `${index + 1}. ${trackTitle(track) || `Track ${index + 1}`}`);
   const prompts = profile.discussionPrompts?.length ? profile.discussionPrompts : ['你最先被哪一个段落吸引？', '这首歌适合推荐给谁？', '你会从同专辑继续听哪一首？'];
@@ -2772,6 +2911,7 @@ function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, s
             <p>{profile.overview || activeItem.background || activeItem.context}</p>
             <div className="tag-row compact-tags profile-tags">{genreTags.slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div>
             <div className="detail-actions">
+              <button type="button" onClick={() => setImmersive(true)}><BookOpen size={16} />沉浸阅读</button>
               <button type="button" onClick={askAi}><Bot size={16} />请求 AI 推荐</button>
               <button type="button" onClick={() => setMode('add')}><CirclePlus size={16} />继续添加</button>
               {canDeleteActive && <button type="button" className="danger-action" onClick={() => deleteItem(activeItem)}><Trash2 size={16} />删除条目</button>}
@@ -2872,32 +3012,72 @@ function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, s
               {prompts.slice(0, 3).map((prompt) => <button key={prompt} type="button" onClick={() => setDraft(prompt)}>{prompt}</button>)}
             </div>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`写下你推荐《${activeItem.title}》的原因`} />
-            <button type="button" onClick={submitComment}><Send size={16} />发布到展柜</button>
-            <p className="status-line">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>
+            <button type="button" onClick={submitComment} disabled={!draft.trim() || commentStatus === 'sending'}><Send size={16} /> {commentStatus === 'sending' ? '发送中…' : '发布到展柜'}</button>
+            <p className="status-line" aria-live="polite">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>
             {commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}
             {commentAiStatus && !['idle', 'thinking', 'done'].includes(commentAiStatus) && <p className="status-line error-line">{commentAiStatus}</p>}
-            <div className="showroom-comment-list">
-              {activeComments.length ? activeComments.map((comment) => {
-                const author = comment.userId ? memberProfilesById?.[comment.userId] : null;
-                return (
-                  <article key={comment.id} className="comment">
-                    <div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div>
-                    <p>{comment.text}</p>
-                    {(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}
-                  </article>
-                );
-              }) : <p className="empty-state compact-empty">还没有评论。</p>}
+            <div className="showroom-comment-list" aria-busy={loading ? 'true' : undefined}>
+              {loading && !activeComments.length ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="skeleton-comment" aria-hidden="true" />
+                ))
+              ) : activeComments.length ? (
+                activeComments.map((comment) => {
+                  const author = comment.userId ? memberProfilesById?.[comment.userId] : null;
+                  return (
+                    <article key={comment.id} className={`comment${comment.pending ? ' comment-pending' : ''}`}>
+                      <div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div>
+                      <p>{comment.text}</p>
+                      {(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}
+                    </article>
+                  );
+                })
+              ) : <p className="empty-state compact-empty">还没有评论。</p>}
             </div>
           </div>
         </div>
+      )}
+      {immersive && activeItem && (
+        <ImmersiveDetail item={activeItem} profile={profile} comments={activeComments} ratingSummary={ratingSummary} onClose={() => setImmersive(false)} />
       )}
     </div>
   );
 }
 
-function Review({ selected, comments, draft, setDraft, submitComment, commentStatus, commentAiStatus, session, deleteComment, memberProfilesById, openMember }) {
+function Review({ selected, comments, draft, setDraft, submitComment, commentStatus, commentAiStatus, session, deleteComment, memberProfilesById, openMember, loading }) {
   if (!selected) return <div className="panel-content empty-state">先在展柜中添加或选择一条音乐。</div>;
-  return <div className="panel-content"><div className="review-composer"><p className="eyebrow"><MessageCircle size={15} /> comments</p><h2>评论 {selected.title}</h2><textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="写下你推荐它的原因" /><button type="button" onClick={submitComment}><Send size={17} /> 发布评论</button><p className="status-line">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>{commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}</div><div className="comment-list">{comments.length ? comments.map((comment) => { const author = comment.userId ? memberProfilesById?.[comment.userId] : null; return <article key={comment.id} className="comment"><div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div><p>{comment.text}</p>{(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}</article>; }) : <p className="empty-state">还没有评论。</p>}</div></div>;
+  return (
+    <div className="panel-content">
+      <div className="review-composer">
+        <p className="eyebrow"><MessageCircle size={15} /> comments</p>
+        <h2>评论 {selected.title}</h2>
+        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="写下你推荐它的原因" />
+        <button type="button" onClick={submitComment} disabled={!draft.trim() || commentStatus === 'sending'}>
+          <Send size={17} /> {commentStatus === 'sending' ? '发送中…' : '发布评论'}
+        </button>
+        <p className="status-line">{commentStatus === 'cloud' ? '评论已同步。' : commentStatus}</p>
+        {commentAiStatus === 'thinking' && <div className="ai-writing"><Bot size={16} />AI 正在阅读你的评论，并准备一个可以继续聊下去的问题。</div>}
+      </div>
+      <div className="comment-list" aria-busy={loading ? 'true' : undefined}>
+        {loading && !comments.length ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="skeleton-comment" aria-hidden="true" />
+          ))
+        ) : comments.length ? (
+          comments.map((comment) => {
+            const author = comment.userId ? memberProfilesById?.[comment.userId] : null;
+            return (
+              <article key={comment.id} className={`comment${comment.pending ? ' comment-pending' : ''}`}>
+                <div><AuthorChip profile={author} fallbackName={comment.author} fallbackAvatar={comment.avatar} onOpen={openMember} /><span><Star size={14} /> {comment.mood}</span></div>
+                <p>{comment.text}</p>
+                {(comment.userId === session?.user?.id || session?.user?.role === 'admin') && !comment.isAi && <button type="button" className="inline-delete" onClick={() => deleteComment(comment)}><Trash2 size={14} />删除评论</button>}
+              </article>
+            );
+          })
+        ) : <p className="empty-state">还没有评论。</p>}
+      </div>
+    </div>
+  );
 }
 
 function RatingPanel({ ratingSummary, submitRating, ratingStatus }) {
@@ -2917,13 +3097,13 @@ function RatingPanel({ ratingSummary, submitRating, ratingStatus }) {
       </div>
       <label>
         我的评分 <b>{Number(score).toFixed(1)}</b>
-        <input type="range" min="0" max="10" step="0.5" value={score} onChange={(event) => setScore(Number(event.target.value))} />
+        <input type="range" min="0" max="10" step="0.5" value={score} onChange={(event) => setScore(Number(event.target.value))} aria-valuetext={`${Number(score).toFixed(1)} 分`} />
       </label>
       <div className="rating-buttons">
         {quickScores.map((value) => <button key={value} type="button" className={Number(score) === value ? 'active' : ''} onClick={() => setScore(value)}><Star size={13} />{value}</button>)}
         <button type="button" className="save-rating" onClick={() => submitRating(score)} disabled={ratingStatus === 'saving'}>{ratingStatus === 'saving' ? '保存中' : '保存评分'}</button>
       </div>
-      {ratingStatus && !['idle', 'cloud', 'saving'].includes(ratingStatus) && <p className="status-line error-line">{ratingStatus}</p>}
+      {ratingStatus && !['idle', 'cloud', 'saving'].includes(ratingStatus) && <p className="status-line error-line" aria-live="assertive">{ratingStatus}</p>}
     </section>
   );
 }

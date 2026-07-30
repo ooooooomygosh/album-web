@@ -602,8 +602,30 @@
   opacity: 0 !important;
 }
 
+/* ========== 13. 评论发送中（乐观更新占位） ========== */
+.comment-pending {
+  opacity: 0.62;
+  animation: polish-comment-pending 1.4s var(--polish-ease-soft) infinite;
+}
+.comment-pending::before {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cover-a), transparent 20%), transparent);
+  animation: polish-comment-pending-bar 1.4s var(--polish-ease-soft) infinite;
+}
+@keyframes polish-comment-pending {
+  0%, 100% { opacity: 0.62; }
+  50% { opacity: 0.4; }
+}
+@keyframes polish-comment-pending-bar {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+.reduce-motion .comment-pending {
+  animation: none !important;
+  opacity: 0.7;
+}
+
 /* ========== 小屏适配 ========== */
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .cabinet-tile:hover,
   .cabinet-tile:focus-visible {
     transform: none;
@@ -615,4 +637,105 @@
   .comment:hover {
     transform: none;
   }
+}
+
+/* ========== 14. 发布评论按钮禁用态（详情页 composer） ========== */
+.showroom-comments > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ========== 15. 骨架屏（首屏加载占位） ========== */
+@keyframes polish-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-tile,
+.skeleton-comment {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.04) 30%,
+      rgba(255, 255, 255, 0.14) 50%,
+      rgba(255, 255, 255, 0.04) 70%
+    );
+  background-size: 200% 100%;
+  animation: polish-shimmer 1.4s var(--polish-ease-soft) infinite;
+}
+.skeleton-tile {
+  aspect-ratio: 1 / 1;
+}
+.skeleton-comment {
+  min-height: 84px;
+  border-radius: 14px;
+}
+.reduce-motion .skeleton-tile,
+.reduce-motion .skeleton-comment {
+  animation: none !important;
+}
+
+/* ========== 16. 触控目标（桌面端最小 38px，移动端 44px） ========== */
+.secondary-chip,
+.filter-chip,
+.cabinet-summary-chip,
+.primary-action,
+.secondary-action {
+  min-height: 38px;
+}
+@media (max-width: 760px) {
+  .secondary-chip,
+  .filter-chip,
+  .cabinet-summary-chip,
+  .primary-action,
+  .secondary-action {
+    min-height: 44px;
+  }
+}
+
+/* ========== 17. 柜展筛选与排序栏 ========== */
+.cabinet-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 18px 0 4px;
+}
+.cabinet-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(248, 251, 255, 0.8);
+}
+.cabinet-filters select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 38px;
+  padding: 0 30px 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23f8fbff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E") right 10px center / 12px no-repeat,
+    linear-gradient(135deg, color-mix(in srgb, var(--cover-a), transparent 88%), transparent),
+    rgba(255, 255, 255, 0.06);
+  color: #f8fbff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 220ms var(--polish-ease-soft), box-shadow 220ms var(--polish-ease-soft);
+}
+.cabinet-filters select:hover {
+  border-color: rgba(255, 255, 255, 0.34);
+}
+.cabinet-filters select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--cover-c), white 26%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cover-c), transparent 64%);
+}
+
+/* 重排过渡（配合筛选 / 排序） */
+.cabinet-listitem {
+  transition: transform 420ms var(--polish-ease-spring), opacity 360ms var(--polish-ease-soft);
 }
