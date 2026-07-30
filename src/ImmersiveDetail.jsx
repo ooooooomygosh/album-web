@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useRef } from 'react';
+import { Sparkles, X } from 'lucide-react';
 
 /*
  * ImmersiveDetail —— 沉浸式专辑阅读视图
@@ -48,7 +48,7 @@ export default function ImmersiveDetail({ item, profile = {}, comments = [], rat
   useEffect(() => {
     const root = overlayRef.current;
     if (!root) return undefined;
-    const sections = root.querySelectorAll('.immersive-section');
+    const sections = Array.from(root.querySelectorAll('.immersive-section'));
     const reduce = document.documentElement.classList.contains('reduce-motion')
       || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduce || !('IntersectionObserver' in window)) {
@@ -62,9 +62,26 @@ export default function ImmersiveDetail({ item, profile = {}, comments = [], rat
           observer.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.15 });
+    }, { root: null, threshold: 0, rootMargin: '0px 0px -8% 0px' });
     sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
+    // 安全兜底：1.4s 后强制显示任何仍未出现的内容，杜绝阈值/视口差异导致永久不可见
+    const safety = window.setTimeout(() => {
+      sections.forEach((section) => section.classList.add('is-visible'));
+    }, 1400);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(safety);
+    };
+  }, []);
+
+  // 阅读进度：随滚动写入 --immersive-progress (0~1)
+  const handleImmersiveScroll = useCallback((event) => {
+    const el = event.currentTarget;
+    const max = el.scrollHeight - el.clientHeight;
+    const progress = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0;
+    if (overlayRef.current) {
+      overlayRef.current.style.setProperty('--immersive-progress', progress.toFixed(4));
+    }
   }, []);
 
   const score = ratingSummary?.count ? ratingSummary.average.toFixed(1) : '待评分';
@@ -80,8 +97,9 @@ export default function ImmersiveDetail({ item, profile = {}, comments = [], rat
   return (
     <div className="immersive-overlay" role="dialog" aria-modal="true" aria-label={`${item.title} 沉浸阅读`} ref={overlayRef}>
       <div className="immersive-backdrop" aria-hidden="true" />
+      <div className="immersive-progress" aria-hidden="true" />
       <button type="button" className="immersive-close" ref={closeRef} onClick={onClose} aria-label="关闭沉浸阅读"><X size={20} /></button>
-      <div className="immersive-scroll">
+      <div className="immersive-scroll" onScroll={handleImmersiveScroll}>
         <header className="immersive-hero">
           <div className="immersive-cover" style={item.cover ? { backgroundImage: `url(${item.cover})` } : undefined} aria-hidden="true" />
           <div className="immersive-hero-copy">
@@ -89,6 +107,7 @@ export default function ImmersiveDetail({ item, profile = {}, comments = [], rat
             <h1>{item.title}</h1>
             <p className="immersive-artist">{item.artist}</p>
             <p className="immersive-score">好友均分 {score}</p>
+            <span className="immersive-ai-tag"><Sparkles size={13} /> AI 生成音乐导览</span>
           </div>
         </header>
 
@@ -130,6 +149,7 @@ export default function ImmersiveDetail({ item, profile = {}, comments = [], rat
         )}
 
         <footer className="immersive-footer">
+          <p className="immersive-footer-note">导览由 DeepSeek 基于房间资料生成 · 向下滚动逐段展开</p>
           <button type="button" onClick={onClose}>返回展柜</button>
         </footer>
       </div>

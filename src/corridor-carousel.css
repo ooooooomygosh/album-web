@@ -1074,7 +1074,7 @@ body.corridor-modal-open .global-search-popover {
 }
 
 .corridor-cover-wash.is-current {
-  opacity: 0.42;
+  opacity: 0.32;
   animation: corridor-wash-fade-polished 420ms var(--corridor-motion-standard) both !important;
 }
 
@@ -1209,4 +1209,74 @@ body.corridor-modal-open .global-search-popover {
 .reduce-motion .corridor-autoplay button {
   animation: none !important;
   transition: none !important;
+}
+
+/* 地面光晕：让 3D 封面像矗立于空间，增强纵深与和谐 */
+.corridor-overlay:after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3%;
+  z-index: 0;
+  width: min(72%, 640px);
+  height: 180px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--corridor-a), transparent 64%), transparent 72%);
+  filter: blur(28px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 随机漫游 · AI 策展 */
+.corridor-roam {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--corridor-a), white 22%);
+  border-radius: 999px;
+  color: #f8fbff;
+  font-weight: 800;
+  font-size: 0.92rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+  transition:
+    transform 220ms var(--corridor-motion-standard),
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+.corridor-roam:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--corridor-a), white 42%);
+  background-color: color-mix(in srgb, var(--corridor-a), transparent 80%);
+}
+.corridor-roam:active {
+  transform: translateY(1px) scale(0.98);
+}
+.corridor-roam-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--corridor-a), white 42%);
+  background: color-mix(in srgb, var(--corridor-a), transparent 84%);
+  border: 1px solid color-mix(in srgb, var(--corridor-a), white 18%);
+}
+
+.corridor-copy .corridor-ai-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: color-mix(in srgb, var(--corridor-a), white 48%);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }

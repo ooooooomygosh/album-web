@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Disc3, Pause, Play, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Disc3, Pause, Play, Shuffle, X } from 'lucide-react';
 
 const fallbackInstallations = [
   {
@@ -417,6 +417,19 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
     openItemFromCorridor(item);
   }, [count, galleryItems, openItemFromCorridor]);
 
+  // 随机漫游：从现有 AI 资料里随性跳一张，制造「策展式」发现感
+  const randomRoam = useCallback(() => {
+    setIsAutoPlaying(false);
+    const current = clampIndex(Math.round(activeIndexRef.current), count);
+    let target = current;
+    if (count > 1) {
+      do {
+        target = Math.floor(Math.random() * count);
+      } while (target === current);
+    }
+    applyFastIndex(nearestVirtualIndex(target, activeIndexRef.current, count));
+  }, [applyFastIndex, count]);
+
   const registerCard = useCallback((index, node) => {
     if (node) {
       cardRefs.current[index] = node;
@@ -685,12 +698,10 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         }}
       />
       {/*
-        Temporarily disabled after performance/taste review:
-        - corridor-glow: rotating background halo
-        - corridor-cover-wash: heavy blurred cover crossfade
+        旋转光晕 corridor-glow 仍保持禁用（避免外发光 AI 紫，违背克制原则）。
+        此处重启用克制的模糊封面 wash：随 active 切换，仅以低透明度做背景呼吸，
+        不做整屏强交叉淡入，保证性能与可读性。
       */}
-      {/*
-      <div className="corridor-glow" aria-hidden="true" />
       <div
         className="corridor-cover-wash is-current"
         aria-hidden="true"
@@ -699,7 +710,6 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
           '--wash-cover-image': cssImageUrl(active.cover)
         }}
       />
-      */}
       <header className="corridor-header" onPointerDown={(event) => event.stopPropagation()}>
         <div>
           <span>Hidden Installation</span>
@@ -755,9 +765,23 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
           <span>{active.type === 'album' ? 'Album Corridor' : 'Single Corridor'} · {active.year}</span>
           <h3>{active.title}</h3>
           <p>{active.artist} · {active.tracks?.length || (active.type === 'song' ? 1 : 0)} 首</p>
+          <p className="corridor-ai-line">✦ AI 导览</p>
           <p>{itemSummary(active)}</p>
         </div>
         <div className="corridor-action-stack">
+          <button
+            type="button"
+            className="corridor-roam"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              randomRoam();
+            }}
+            aria-label="随机漫游"
+          >
+            <Shuffle size={15} aria-hidden="true" /> 随机漫游
+            <span className="corridor-roam-tag">AI 策展</span>
+          </button>
           <div className="corridor-controls">
             <button
               type="button"

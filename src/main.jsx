@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import {
   Album,
+  ArrowUpRight,
   BookOpen,
   Bot,
   ChevronRight,
@@ -2897,6 +2898,9 @@ function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, s
           <div className="detail-art-stack">
             <button type="button" className="detail-back" onClick={openCabinet}><Grid3X3 size={16} />返回展柜</button>
             <AlbumArt item={activeItem} className="feature-art" />
+            <button type="button" className="art-immersive-cta" onClick={() => setImmersive(true)} aria-label="进入沉浸阅读模式">
+              <BookOpen size={18} /> 沉浸阅读
+            </button>
             <div className="vinyl-shadow" aria-hidden="true" />
           </div>
           <div className="detail-story">
@@ -2911,10 +2915,14 @@ function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, s
             <p>{profile.overview || activeItem.background || activeItem.context}</p>
             <div className="tag-row compact-tags profile-tags">{genreTags.slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div>
             <div className="detail-actions">
-              <button type="button" onClick={() => setImmersive(true)}><BookOpen size={16} />沉浸阅读</button>
-              <button type="button" onClick={askAi}><Bot size={16} />请求 AI 推荐</button>
-              <button type="button" onClick={() => setMode('add')}><CirclePlus size={16} />继续添加</button>
-              {canDeleteActive && <button type="button" className="danger-action" onClick={() => deleteItem(activeItem)}><Trash2 size={16} />删除条目</button>}
+              <button type="button" className="immersive-cta" onClick={() => setImmersive(true)}>
+                <BookOpen size={18} /> <span>沉浸阅读</span> <ArrowUpRight size={15} className="immersive-cta-arrow" />
+              </button>
+              <div className="detail-actions-secondary">
+                <button type="button" onClick={askAi}><Bot size={16} />请求 AI 推荐</button>
+                <button type="button" onClick={() => setMode('add')}><CirclePlus size={16} />继续添加</button>
+                {canDeleteActive && <button type="button" className="danger-action" onClick={() => deleteItem(activeItem)}><Trash2 size={16} />删除条目</button>}
+              </div>
             </div>
             <RatingPanel ratingSummary={ratingSummary} submitRating={submitRating} ratingStatus={ratingStatus} />
             {listeningLinks.length > 0 && (
