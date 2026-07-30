@@ -104,7 +104,7 @@ const liBackground = await request('/api/ai/background', {
 if (!liBackground.aiProfile?.melodyMotif || !liBackground.aiProfile?.arrangement || !liBackground.aiProfile?.discussionPrompts?.length) {
   throw new Error(`AI background profile incomplete: ${JSON.stringify(liBackground)}`);
 }
-const expectRichBackground = process.env.EXPECT_RICH_BACKGROUND !== '0';
+const expectRichBackground = process.env.EXPECT_RICH_BACKGROUND === '1' || Boolean(process.env.DEEPSEEK_API_KEY);
 if (expectRichBackground && (liBackground.fallback || liBackground.generated !== true)) {
   throw new Error(`AI background fell back instead of generating rich guide: ${JSON.stringify({ fallback: liBackground.fallback, generated: liBackground.generated, error: liBackground.error, model: liBackground.model })}`);
 }

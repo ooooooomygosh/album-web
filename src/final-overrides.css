@@ -2687,6 +2687,8 @@ select:focus-visible,
     radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--cover-c), transparent 72%), transparent 34%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.045)),
     rgba(8, 10, 12, 0.7) !important;
+  backdrop-filter: blur(18px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.12) !important;
 }
 
 .auth-shell::before {
@@ -2722,8 +2724,8 @@ select:focus-visible,
 .auth-shell h1 {
   max-width: 12.5ch !important;
   margin-bottom: 12px !important;
-  font-size: clamp(2.8rem, 4.9vw, 4.55rem) !important;
-  line-height: 0.98 !important;
+  font-size: clamp(2.55rem, 4.4vw, 4.1rem) !important;
+  line-height: 1.02 !important;
   letter-spacing: 0 !important;
 }
 
@@ -2792,6 +2794,27 @@ select:focus-visible,
 
 .auth-shell .status-line {
   grid-area: status !important;
+  width: 100%;
+  min-height: 38px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 197, 138, 0.34);
+  border-radius: 14px;
+  color: #ffe1bd !important;
+  background: rgba(84, 38, 10, 0.34);
+}
+
+.auth-shell input {
+  color: #f8fbff !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    rgba(5, 7, 9, 0.78) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.auth-shell input::placeholder {
+  color: rgba(248, 251, 255, 0.5) !important;
 }
 
 .auth-shell:has(.avatar-picker) {
@@ -3066,9 +3089,9 @@ select:focus-visible,
   }
 
   .auth-shell h1 {
-    max-width: 10.5ch !important;
-    font-size: clamp(2.65rem, 13vw, 4rem) !important;
-    line-height: 0.96 !important;
+    max-width: 11.5ch !important;
+    font-size: clamp(2.35rem, 10.6vw, 3.35rem) !important;
+    line-height: 1.02 !important;
   }
 
   .auth-tabs {

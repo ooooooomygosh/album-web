@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "vercel-dev": "vercel dev --listen 5173",
@@ -15,17 +18,21 @@
     "persona:smoke": "node scripts/persona-identity-smoke.mjs"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^5.1.1",
+    "@vitejs/plugin-react": "^6.0.3",
     "firebase": "^12.13.0",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.1.0",
     "lucide-react": "^0.554.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "typescript": "^5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^8.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "vercel": "^54.5.0"
+    "vercel": "^54.18.5"
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "uuid": "11.1.1"
   }
 }

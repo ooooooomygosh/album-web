@@ -158,7 +158,7 @@ export default async function handler(req, res) {
     await requireUser(req);
     const item = req.body?.item || {};
     const key = process.env.DEEPSEEK_API_KEY;
-    const model = process.env.DEEPSEEK_BACKGROUND_MODEL || process.env.DEEPSEEK_PERSONA_MODEL || 'deepseek-v4-pro';
+    const model = process.env.DEEPSEEK_BACKGROUND_MODEL || 'deepseek-chat';
 
     if (!key) {
       const profile = fallbackProfile(item);
@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     ].filter(Boolean).join('\n\n');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 150000, 60000, 240000));
+    const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 65000, 30000, 120000));
     let response;
     try {
       response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -240,7 +240,7 @@ export default async function handler(req, res) {
             { role: 'user', content: finalPrompt }
           ],
           temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 12000, 6800, 16000)
+          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 6200, 3600, 9000)
         })
       });
     } finally {
@@ -281,7 +281,7 @@ export default async function handler(req, res) {
       background: profile.overview,
       aiProfile: profile,
       tags: profile.genre,
-      model: process.env.DEEPSEEK_BACKGROUND_MODEL || process.env.DEEPSEEK_PERSONA_MODEL || 'deepseek-v4-pro',
+      model: process.env.DEEPSEEK_BACKGROUND_MODEL || 'deepseek-chat',
       research: {
         enabled: false,
         sources: [],

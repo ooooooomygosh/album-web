@@ -30,6 +30,7 @@ import ExperimentalCorridorCarousel from './ExperimentalCorridorCarousel';
 import './styles.css';
 import './final-overrides.css';
 import './corridor-carousel.css';
+import './motion-polish.css';
 
 const avatarOptions = ['M', 'L', 'R', 'A', 'K', '🎧', '♪', '星'];
 const memberColors = ['#5cb7ff', '#ffb86b', '#8fe388', '#ff7da8', '#f3d74c'];
@@ -854,6 +855,7 @@ function RoomGate({ session, room, setRoom }) {
   const [rooms, setRooms] = useState([]);
   const [discoverRooms, setDiscoverRooms] = useState([]);
   const [status, setStatus] = useState('');
+  const autoOpenRef = useRef(false);
 
   useEffect(() => {
     if (!session?.token || room) return;
@@ -889,6 +891,13 @@ function RoomGate({ session, room, setRoom }) {
       setStatus(error.message);
     }
   };
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('room') || '';
+    if (!session?.token || room || autoOpenRef.current || !requested) return;
+    autoOpenRef.current = true;
+    enterRoom(requested);
+  }, [room, session?.token]);
 
   const joinRoom = async (id = joinId) => {
     const raw = String(id || '').trim();
@@ -1592,8 +1601,8 @@ function App() {
         method: 'POST',
         body: JSON.stringify({ item: candidate })
       }, 245000);
-      if (data.fallback || data.generated !== true) {
-        throw new Error(data.error || 'AI 深度导览没有完整生成，本次没有写入展柜，请重试。');
+      if (!data.background && !data.aiProfile) {
+        throw new Error(data.error || '导览没有生成可用内容，本次没有写入展柜，请重试。');
       }
       setBackgroundStatus('done');
       return {
@@ -2417,10 +2426,48 @@ function AlbumCabinetGrid({ items, layout, hoverPreview, openItemDetail, ratings
   return (
     <div className={`cabinet-grid wall-${layout} cabinet-size-${coverSize} cabinet-hover-${hoverPreview} ${showCaptions ? 'cabinet-show-captions' : ''}`} style={wallLayoutStyle(layout)} role="list" aria-label="专辑陈列柜">
       {items.map((item, index) => (
-        <div key={item.id} className="cabinet-listitem" role="listitem">
+        <CabinetListItem key={item.id} index={index}>
           <AlbumCabinetTile item={item} index={index} openItemDetail={openItemDetail} ratingSummary={ratingsByItem[item.id]} adder={item.addedById ? memberProfilesById[item.addedById] : null} showCaption={showCaptions} />
-        </div>
+        </CabinetListItem>
       ))}
+    </div>
+  );
+}
+
+function CabinetListItem({ index, children }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      node.classList.add('is-in-view');
+      return undefined;
+    }
+    const reduce = node.closest('.reduce-motion');
+    if (reduce) {
+      node.classList.add('is-in-view');
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-in-view');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const stagger = Math.min(6, (index % 6) + 1);
+  return (
+    <div className="cabinet-listitem" role="listitem">
+      <div ref={ref} className="polish-reveal" data-stagger={stagger}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -2669,7 +2716,7 @@ function AddMusic({ query, setQuery, artistQuery, setArtistQuery, link, setLink,
           ))}
         </div>
         <div className="candidate-preview">
-          {selectedCandidate ? <><AlbumArt item={selectedCandidate} className="feature-art" /><p className="eyebrow"><Album size={15} /> selected {selectedType}</p><h3>{selectedCandidate.title}</h3><p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? '专辑' : selectedCandidate.albumTitle}</p><div className="tag-row compact-tags">{(selectedCandidate.tags || []).map((tag) => <span key={tag}>{tag}</span>)}</div><button type="button" className="full-action" disabled={isAdding} onClick={addSelectedToShowroom}><CirclePlus size={16} />{isAdding ? '正在深度生成' : `加入${selectedType}`}</button>{isAdding && <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />}<p className="status-line">{isAdding ? '正在联网检索资料，并用 DeepSeek v4 Pro 生成更长、更具体的音乐导览；等待会更久，但不会用低质兜底替代。' : (statusLabels[backgroundStatus] || statusLabels[itemStatus] || '确认后会写入当前房间。')}</p>{addError && <p className="status-line error-line">{addError}</p>}</> : <div className="empty-state">搜索并选择一个候选。</div>}
+          {selectedCandidate ? <><AlbumArt item={selectedCandidate} className="feature-art" /><p className="eyebrow"><Album size={15} /> selected {selectedType}</p><h3>{selectedCandidate.title}</h3><p>{selectedCandidate.artist} · {selectedCandidate.type === 'album' ? '专辑' : selectedCandidate.albumTitle}</p><div className="tag-row compact-tags">{(selectedCandidate.tags || []).map((tag) => <span key={tag}>{tag}</span>)}</div><button type="button" className="full-action" disabled={isAdding} onClick={addSelectedToShowroom}><CirclePlus size={16} />{isAdding ? '正在生成导览' : `加入${selectedType}`}</button>{isAdding && <AddGenerationLoader item={selectedCandidate} phaseSteps={phaseSteps} activePhaseIndex={activePhaseIndex} />}<p className="status-line">{isAdding ? '正在联网检索并生成音乐导览；如果模型响应过慢，会先用已核验资料保存可用版本。' : (statusLabels[backgroundStatus] || statusLabels[itemStatus] || '确认后会写入当前房间。')}</p>{addError && <p className="status-line error-line">{addError}</p>}</> : <div className="empty-state">搜索并选择一个候选。</div>}
         </div>
       </div>
       {isAdding && selectedCandidate && <div className="generation-backdrop" style={{ '--loader-cover': cssImageUrl(selectedCandidate.cover) }} aria-hidden="true" />}
@@ -2734,8 +2781,8 @@ function AlbumDetailPage({ items, activeItem, activeComments, draft, setDraft, s
               <div className="listening-links">
                 <strong><Radio size={16} />聆听入口</strong>
                 <div>
-                  {listeningLinks.map((link) => (
-                    <a key={`${link.provider}-${link.url}`} href={link.url} target="_blank" rel="noreferrer">
+                  {listeningLinks.map((link, index) => (
+                    <a key={`${link.provider}-${link.type || index}-${link.url}-${index}`} href={link.url} target="_blank" rel="noreferrer">
                       {providerLabel(link.provider)}
                       <small>{link.confidence === 'exact' ? '精确链接' : link.source === 'user' ? '用户提供' : '搜索匹配'}</small>
                     </a>

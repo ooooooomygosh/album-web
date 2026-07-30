@@ -118,7 +118,7 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (error) => errors.push(error.message));
 await page.goto(withBypass(`${baseUrl}?room=${encodeURIComponent(room.room.id)}`), { waitUntil: 'networkidle' });
-await page.locator('.gallery-only-hero .album-wall-hero').waitFor({ timeout: 25000 });
+await page.locator('.cabinet-grid[aria-label="专辑陈列柜"]').waitFor({ timeout: 25000 });
 await page.locator('.member-stack button[title*="Profile Sync Owner"]').click();
 await page.locator('.member-modal').waitFor({ timeout: 10000 });
 await page.getByRole('dialog', { name: /Profile Sync Owner/ }).getByText('公开简介会同步到房间成员卡片。').waitFor({ timeout: 5000 });

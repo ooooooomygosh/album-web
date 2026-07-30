@@ -2,6 +2,13 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import crypto from 'node:crypto';
+import { localDb } from './_local-firestore.js';
+
+const useLocalFirestore = () =>
+  process.env.ALBUM_CIRCLE_LOCAL_FIRESTORE === '1'
+  || (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON && !process.env.FIREBASE_PROJECT_ID && process.env.NODE_ENV !== 'production');
+
+let localStore = null;
 
 function readServiceAccount() {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
@@ -24,6 +31,11 @@ function readServiceAccount() {
 }
 
 export function db() {
+  if (useLocalFirestore()) {
+    if (!localStore) localStore = localDb();
+    return localStore;
+  }
+
   if (!getApps().length) {
     const serviceAccount = readServiceAccount();
     if (!serviceAccount) {
