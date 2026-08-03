@@ -87,12 +87,6 @@ function colorAt(item, offset, fallback) {
   return item?.palette?.[offset] || fallback;
 }
 
-function cssImageUrl(value) {
-  const text = String(value || '').trim();
-  if (!text) return 'none';
-  return `url("${text.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}")`;
-}
-
 function normalizeWheelDelta(event) {
   const raw = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
   if (event.deltaMode === 1) return raw * 16;
@@ -165,10 +159,16 @@ function CorridorCover({ item, active }) {
   }
 
   return (
-    <span className="corridor-cover-fallback" role="img" aria-label={`${item.title} 封面占位`}>
-      <Disc3 size={84} aria-hidden="true" />
-      <b>{String(item.title || 'Album').split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase()}</b>
-      <small>{item.artist}</small>
+    <span
+      className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-white/70"
+      role="img"
+      aria-label={`${item.title} 封面占位`}
+    >
+      <Disc3 size={64} aria-hidden="true" className="opacity-45" />
+      <b className="text-xl font-black tracking-[0.12em]">
+        {String(item.title || 'Album').split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase()}
+      </b>
+      <small className="max-w-[85%] truncate text-[11px] text-white/55">{item.artist}</small>
     </span>
   );
 }
@@ -196,9 +196,9 @@ const CorridorCard = React.memo(function CorridorCard({ item, index, initialActi
       <span className="corridor-card-cover">
         <CorridorCover item={item} active={initialActive} />
       </span>
-      <span className="corridor-card-copy">
-        <strong>{item.title}</strong>
-        <small>{item.artist}</small>
+      <span className="flex min-w-0 flex-col gap-0.5 px-1 pb-0.5 text-left">
+        <strong className="truncate text-[15px] font-semibold leading-snug text-white">{item.title}</strong>
+        <small className="truncate text-[11px] font-medium uppercase tracking-[0.1em] text-white/55">{item.artist}</small>
       </span>
     </button>
   );
@@ -676,7 +676,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
   const overlay = (
     <div
       ref={overlayRef}
-      className="corridor-overlay"
+      className="corridor-overlay fixed inset-0 z-[130] isolate grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-ink-950 p-4 sm:p-5 max-[900px]:overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label="隐藏封面长廊"
@@ -684,40 +684,43 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         '--corridor-a': colorAt(active, 0, '#7ed7c9'),
         '--corridor-b': colorAt(active, 1, '#ff7da8'),
         '--corridor-c': colorAt(active, 2, '#f3d74c'),
-        '--corridor-cover-image': cssImageUrl(active.cover),
         '--corridor-count': count,
         '--corridor-step': `${step}deg`
       }}
     >
-      <div
-        className="corridor-cover-backdrop"
-        aria-hidden="true"
-        style={{
-          '--backdrop-a': colorAt(active, 0, '#7ed7c9'),
-          '--backdrop-cover-image': cssImageUrl(active.cover)
-        }}
-      />
-      {/*
-        旋转光晕 corridor-glow 仍保持禁用（避免外发光 AI 紫，违背克制原则）。
-        此处重启用克制的模糊封面 wash：随 active 切换，仅以低透明度做背景呼吸，
-        不做整屏强交叉淡入，保证性能与可读性。
-      */}
-      <div
-        className="corridor-cover-wash is-current"
-        aria-hidden="true"
-        style={{
-          '--wash-a': colorAt(active, 0, '#7ed7c9'),
-          '--wash-cover-image': cssImageUrl(active.cover)
-        }}
-      />
-      <header className="corridor-header" onPointerDown={(event) => event.stopPropagation()}>
-        <div>
-          <span>Hidden Installation</span>
-          <h2>{roomName || 'Album Circle'} 封面长廊</h2>
+      {/* 底层：封面模糊 wash + 品牌渐变 */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        {active.cover && (
+          <div
+            key={active.id}
+            className="absolute inset-0 scale-125 animate-fade-in bg-cover bg-center opacity-[0.22] blur-[70px] saturate-[1.4]"
+            style={{ backgroundImage: `url(${active.cover})` }}
+          />
+        )}
+        <div
+          className="absolute inset-0 opacity-[0.28] transition-[background] duration-700 ease-soft"
+          style={{
+            background:
+              'radial-gradient(70% 50% at 22% 18%, var(--corridor-a), transparent 62%), radial-gradient(60% 50% at 82% 24%, var(--corridor-b), transparent 66%), radial-gradient(80% 60% at 50% 100%, var(--corridor-c), transparent 70%)'
+          }}
+        />
+        <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_8%,rgba(6,7,10,0.28),rgba(4,5,7,0.9)_62%,rgba(3,4,6,0.98))]" />
+      </div>
+
+      {/* 头部 */}
+      <header
+        className="relative z-10 flex items-start justify-between gap-4 px-1 pb-2"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <div className="min-w-0">
+          <span className="ac-eyebrow text-white/45">Hidden Installation</span>
+          <h2 className="mt-1 truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">
+            {roomName || 'Album Circle'} 封面长廊
+          </h2>
         </div>
         <button
           type="button"
-          className="corridor-close"
+          className="ac-glass grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition hover:scale-105 hover:text-white active:scale-95"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -729,6 +732,7 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         </button>
       </header>
 
+      {/* 3D 舞台 */}
       <section
         className={`corridor-stage ${isDragging ? 'is-dragging' : ''}`}
         ref={stageRef}
@@ -756,22 +760,39 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
         </div>
       </section>
 
-      <aside className="corridor-info" aria-live="polite" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
-        <div className="corridor-index">
-          <span>{String(activeSlot + 1).padStart(2, '0')}</span>
-          <small>/ {String(count).padStart(2, '0')}</small>
+      {/* 信息面板 */}
+      <aside
+        className="ac-glass pointer-events-auto z-20 mx-auto grid w-full max-w-[1100px] gap-4 rounded-lg p-4 shadow-card max-[900px]:static max-[900px]:mt-2 min-[901px]:absolute min-[901px]:inset-x-4 min-[901px]:bottom-4 min-[901px]:w-auto min-[901px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[901px]:items-center sm:p-5"
+        aria-live="polite"
+        onPointerDown={(event) => event.stopPropagation()}
+        onWheel={(event) => event.stopPropagation()}
+      >
+        {/* 序号 */}
+        <div className="flex items-baseline gap-1 tabular-nums">
+          <span className="text-3xl font-black leading-none tracking-tight text-white sm:text-4xl">
+            {String(activeSlot + 1).padStart(2, '0')}
+          </span>
+          <small className="text-xs font-medium text-white/35">/ {String(count).padStart(2, '0')}</small>
         </div>
-        <div className="corridor-copy">
-          <span>{active.type === 'album' ? 'Album Corridor' : 'Single Corridor'} · {active.year}</span>
-          <h3>{active.title}</h3>
-          <p>{active.artist} · {active.tracks?.length || (active.type === 'song' ? 1 : 0)} 首</p>
-          <p className="corridor-ai-line">✦ AI 导览</p>
-          <p>{itemSummary(active)}</p>
+
+        {/* 文案 */}
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40">
+            {active.type === 'album' ? 'Album Corridor' : 'Single Corridor'} · {active.year}
+          </span>
+          <h3 className="truncate text-lg font-semibold leading-tight text-white sm:text-xl">{active.title}</h3>
+          <p className="truncate text-xs text-white/55">
+            {active.artist} · {active.tracks?.length || (active.type === 'song' ? 1 : 0)} 首
+          </p>
+          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-accent-purple">✦ AI 导览</p>
+          <p className="line-clamp-2 text-xs leading-relaxed text-white/50">{itemSummary(active)}</p>
         </div>
-        <div className="corridor-action-stack">
+
+        {/* 控件 */}
+        <div className="flex flex-wrap items-center gap-2 max-[900px]:col-span-full">
           <button
             type="button"
-            className="corridor-roam"
+            className="ac-pill group gap-2 border-white/15 py-2 text-xs text-white/85 hover:border-accent-purple/50 hover:text-white"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
@@ -779,12 +800,16 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
             }}
             aria-label="随机漫游"
           >
-            <Shuffle size={15} aria-hidden="true" /> 随机漫游
-            <span className="corridor-roam-tag">AI 策展</span>
+            <Shuffle size={14} aria-hidden="true" /> 随机漫游
+            <span className="rounded-full bg-accent-purple/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent-purple">
+              AI 策展
+            </span>
           </button>
-          <div className="corridor-controls">
+
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/[0.12] bg-white/[0.06] text-white/80 transition hover:bg-white/[0.14] hover:text-white active:scale-95"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -792,10 +817,11 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
               }}
               aria-label="上一张封面"
             >
-              <ChevronLeft size={19} aria-hidden="true" />
+              <ChevronLeft size={18} aria-hidden="true" />
             </button>
             <button
               type="button"
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/[0.12] bg-white/[0.06] text-white/80 transition hover:bg-white/[0.14] hover:text-white active:scale-95"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -803,12 +829,14 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
               }}
               aria-label="下一张封面"
             >
-              <ChevronRight size={19} aria-hidden="true" />
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
-          <div className="corridor-autoplay">
+
+          <div className="flex items-center gap-2.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-3 py-1.5 max-[560px]:w-full">
             <button
               type="button"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-white/80 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -817,17 +845,18 @@ export default function ExperimentalCorridorCarousel({ open, onClose, items, act
               disabled={reducedMotion}
               aria-pressed={isAutoPlaying}
             >
-              {isAutoPlaying ? <Pause size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
+              {isAutoPlaying ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
               {isAutoPlaying ? '暂停' : '自动'}
             </button>
-            <label>
-              <span>速度</span>
+            <label className="flex flex-1 items-center gap-2 text-[10px] uppercase tracking-wider text-white/40">
+              <span className="shrink-0">速度</span>
               <input
                 type="range"
                 min="0.4"
                 max="1.8"
                 step="0.1"
                 value={autoSpeed}
+                className="ac-range w-20 max-[560px]:w-full"
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
                 onChange={(event) => setAutoSpeed(Number(event.target.value))}

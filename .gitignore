@@ -15,3 +15,4 @@ tmp/
 *.pem
 *.p12
 *.key
+.workbuddy/

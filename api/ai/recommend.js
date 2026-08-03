@@ -1,6 +1,7 @@
 import { json, requireUser } from '../_firebase.js';
 import { formatResearchForPrompt, publicResearchSources, searchMusicResearch } from './_research.js';
 import { musicPersonaHandler } from '../../lib/music-persona.js';
+import { deepseekChat, resolveModel } from './_model.js';
 
 function fallbackRecommendation(album = {}, comments = []) {
   const title = String(album.title || album.albumTitle || '这条音乐').slice(0, 80);
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
     return json(res, 405, { error: 'Method not allowed' });
   }
 
-  if (['persona', 'persona-chat'].includes(String(req.query.action || req.body?.action || ''))) {
+  if (['persona', 'persona-chat', 'persona-quiz'].includes(String(req.query.action || req.body?.action || ''))) {
     return musicPersonaHandler(req, res);
   }
 
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
       .map((item) => String(item.text || '').trim().slice(0, 280))
       .filter(Boolean);
     const key = process.env.DEEPSEEK_API_KEY;
-    const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+    const model = resolveModel();
 
     if (!key) {
       return json(res, 200, {
@@ -57,22 +58,16 @@ export default async function handler(req, res) {
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 18000);
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
+    const response = await deepseekChat({
+      key,
+      model,
       signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'You are a precise music discovery assistant.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 260
-      })
+      messages: [
+        { role: 'system', content: 'You are a precise music discovery assistant.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      maxTokens: 260
     });
     clearTimeout(timeout);
 

@@ -1,5 +1,6 @@
 import { db, json, requireUser } from '../_firebase.js';
 import { publicResearchSources, searchMusicResearch } from './_research.js';
+import { clampTokens, deepseekChat, resolveModel } from './_model.js';
 
 function cleanText(value, max = 1200) {
   return String(value || '').trim().slice(0, max);
@@ -158,7 +159,7 @@ export default async function handler(req, res) {
     await requireUser(req);
     const item = req.body?.item || {};
     const key = process.env.DEEPSEEK_API_KEY;
-    const model = process.env.DEEPSEEK_BACKGROUND_MODEL || 'deepseek-chat';
+    const model = resolveModel('DEEPSEEK_BACKGROUND_MODEL');
 
     if (!key) {
       const profile = fallbackProfile(item);
@@ -225,23 +226,23 @@ export default async function handler(req, res) {
     const timeout = setTimeout(() => controller.abort(), numericConfig(process.env.BACKGROUND_DEEPSEEK_TIMEOUT_MS, 65000, 30000, 120000));
     let response;
     try {
-      response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
+      response = await deepseekChat({
+        key,
+        model,
         signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: 'You write concrete Chinese music recommendation essays grounded in metadata. Return only valid JSON object. Never invent unverified facts.' },
-            { role: 'user', content: finalPrompt }
-          ],
-          temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
-          max_tokens: numericConfig(process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens, 6200, 3600, 9000)
-        })
+        responseFormat: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: 'You write concrete Chinese music recommendation essays grounded in metadata. Return only valid JSON object. Never invent unverified facts.' },
+          { role: 'user', content: finalPrompt }
+        ],
+        temperature: Number.isFinite(aiConfig.temperature) ? aiConfig.temperature : 0.5,
+        thinking: 'high',
+        maxTokens: clampTokens(
+          process.env.BACKGROUND_DEEPSEEK_MAX_TOKENS || aiConfig.backgroundMaxTokens || aiConfig.maxTokens,
+          6200,
+          3600,
+          9000
+        )
       });
     } finally {
       clearTimeout(timeout);
@@ -281,7 +282,7 @@ export default async function handler(req, res) {
       background: profile.overview,
       aiProfile: profile,
       tags: profile.genre,
-      model: process.env.DEEPSEEK_BACKGROUND_MODEL || 'deepseek-chat',
+      model: resolveModel('DEEPSEEK_BACKGROUND_MODEL'),
       research: {
         enabled: false,
         sources: [],

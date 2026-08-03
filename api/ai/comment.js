@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { json, requireUser, roomRef } from '../_firebase.js';
+import { deepseekChat, resolveModel } from './_model.js';
 
 function fallbackReply(item, comment) {
   const title = item?.title || comment?.albumTitle || '这首作品';
@@ -19,19 +20,14 @@ function cleanOutput(value, max = 1200) {
 }
 
 async function callDeepSeek({ key, model, messages, maxTokens, signal }) {
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    signal,
-    headers: {
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.62,
-      max_tokens: maxTokens
-    })
+  const response = await deepseekChat({
+    key,
+    model,
+    messages,
+    temperature: 0.62,
+    maxTokens,
+    thinking: 'high',
+    signal
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error?.message || `DeepSeek failed: ${response.status}`);
@@ -52,7 +48,7 @@ export default async function handler(req, res) {
     const item = req.body?.item || {};
     const comment = req.body?.comment || {};
     const key = process.env.DEEPSEEK_API_KEY;
-    const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+    const model = resolveModel();
     const maxTokens = Math.max(800, Math.min(1800, Number(process.env.DEEPSEEK_COMMENT_MAX_TOKENS || 1100)));
     let text = fallbackReply(item, comment);
     let fallback = false;

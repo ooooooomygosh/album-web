@@ -26,10 +26,14 @@
     "react-dom": "^19.2.1",
     "sonner": "^2.0.7",
     "typescript": "^5.9.3",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.25",
+    "tailwindcss": "^3.4.19",
     "vercel": "^54.18.5"
   },
   "overrides": {
