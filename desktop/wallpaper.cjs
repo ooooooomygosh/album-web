@@ -27,10 +27,9 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
     if (!active || polling) return; polling = true; const token = generation;
     try {
       const result = await readRoom(); if (token !== generation) return;
-      if (!result?.authenticated) { stop(); return; }
       const next = cleanSnapshot(result.room); // Other pages retain the last room until explicitly stopped.
       if (next) { const json = JSON.stringify(next); if (json !== lastJSON) { snapshot = next; lastJSON = json; window?.webContents.send('wallpaper:update', snapshot); } }
-      else if (snapshot?.spinning) { snapshot = { ...snapshot, spinning: false, statusText: '已离开房间 · 旋转已暂停' }; lastJSON = JSON.stringify(snapshot); window?.webContents.send('wallpaper:update', snapshot); }
+      else if (snapshot?.spinning) { snapshot = { ...snapshot, spinning: false, statusText: '旋转已暂停' }; lastJSON = JSON.stringify(snapshot); window?.webContents.send('wallpaper:update', snapshot); }
     } catch { /* A brief page reload leaves the last validated scene visible. */ }
     finally { polling = false; }
   }
@@ -39,11 +38,11 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
     try {
       if (!['win32', 'darwin'].includes(process.platform)) throw new Error('动态桌面支持 macOS 与 Windows。');
       const result = await readRoom(), first = cleanSnapshot(result?.room);
-      if (!result?.authenticated || !first) throw new Error('请先进入温馨房间，再应用桌面动态背景。');
+      if (!first) throw new Error('小屋还没准备好，请稍后再试。');
       if (token !== generation) return;
       snapshot = first; lastJSON = JSON.stringify(first);
       const display = screen.getDisplayMatching(getMain().getBounds());
-      const created = new BrowserWindow({ ...display.bounds, title: 'Album Circle · 动态桌面', ...(process.platform === 'darwin' ? { type: 'desktop', hiddenInMissionControl: true } : {}), frame: false, show: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false, backgroundColor: '#38200f',
+      const created = new BrowserWindow({ ...display.bounds, title: '心流小屋 · 动态桌面', ...(process.platform === 'darwin' ? { type: 'desktop', hiddenInMissionControl: true } : {}), frame: false, show: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false, backgroundColor: '#38200f',
         webPreferences: { preload: path.join(__dirname, 'wallpaper-preload.cjs'), partition: 'album-circle-wallpaper', sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, backgroundThrottling: false, spellcheck: false } });
       window = created; handle = process.platform === 'win32' ? hwnd(created) : null; created.webContents.setFrameRate(30);
       if (!(await created.webContents.session.protocol.isProtocolHandled('album-desktop'))) registerProtocol(created.webContents.session.protocol);

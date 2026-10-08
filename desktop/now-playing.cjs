@@ -71,7 +71,7 @@ function createNowPlaying({ platform = process.platform, helperPath, spawnProces
   }
   function runMac(action) {
     return new Promise((resolve) => execFileProcess('/usr/bin/osascript', ['-l', 'JavaScript', '-e', MAC_SCRIPT, action], { timeout: 5000, maxBuffer: 256 * 1024, encoding: 'utf8' }, (error, stdout) => {
-      if (error) resolve({ available: true, active: false, error: /not authori[sz]ed|-1743/i.test(String(error.message)) ? '请在“系统设置 › 隐私与安全性 › 自动化”中允许 Album Circle 控制音乐播放器。' : '' });
+      if (error) resolve({ available: true, active: false, error: /not authori[sz]ed|-1743/i.test(String(error.message)) ? '请在“系统设置 › 隐私与安全性 › 自动化”中允许心流小屋控制音乐播放器。' : '' });
       else { try { resolve(JSON.parse(stdout)); } catch { resolve({ available: true, active: false }); } }
     }));
   }

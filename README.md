@@ -1,363 +1,105 @@
-# Album Circle 1.6.0 · 心流小屋
+<div align="center">
 
-一个像素风 Lo-fi 温馨小屋：把喜欢的专辑放上唱片架，连接常用的播放来源听歌，用番茄钟、待办和环境音专注工作，还能把小屋设为动态桌面，或让小猫出门成为桌宠。macOS / Windows 客户端见 [GitHub Releases](https://github.com/ooooooomygosh/album-web/releases/latest)；网页版可安装为 PWA。
+<img src="public/icons/icon-192.png" width="96" alt="心流小屋图标：戴耳机的像素小猫">
 
-- **小屋**：像素 / 写实木屋，十二格唱片架和唱机。窗外天气与室内光线随时间变化，屋里住着一只像素小猫。
-- **专注**：番茄钟、待办、7 天统计和连续天数，完成专注可以得小鱼干、升级、解锁配饰和天气；按 Z 进入沉浸模式。
-- **声音**：程序合成的雨声、壁炉、风声、白噪声和黑胶底噪，加上离线生成的 Lofi 电台；唱机播放时 Lofi 自动调低。
-- **音源**：QQ 音乐、网易云（Simple Music 模块）、Music Assistant、本地音乐文件夹，以及「系统正在播放」（Windows 系统媒体控制；macOS 上的 Music / Spotify）。
-- **桌面**：动态桌面背景（Windows / macOS），以及透明、置顶、可拖动的桌宠小猫，两者共用一个托盘入口。
-- **账号与同步**：默认使用本地模式；可选云端账号用于在线房间、只读分享和 AI 导览。专注数据的云端同步计划在下一阶段实现。
+# 心流小屋 · Flow Cabin
 
-macOS / Windows 客户端以本地收藏为默认，云端账号、数据库、AI 和在线分享为可选服务。最新版安装包见 [GitHub Releases](https://github.com/ooooooomygosh/album-web/releases/latest)。
+**一间属于你的像素 Lo-fi 小屋：把喜欢的专辑放上唱片架，一边听歌一边专注。**
 
-无需登录即可管理专辑、唱片盒与黑胶外观。打开“收藏与分享”可离线手动添加专辑、导出或导入收藏；软件设置中切换云端账号，登录后返回本地模式即可发布只读展柜链接，或手动同步收藏到专用云端房间。访客通过浏览器查看分享，无需注册。公开分享是当次快照，后续修改需重新发布。
+macOS / Windows 桌面软件 · 所有数据保存在本机，不需要注册
 
-客户端开发：先在项目根目录运行 `npm ci`，再运行 `npm --prefix desktop ci`。`npm run desktop:dev` 启动软件；`npm --prefix desktop run dist:mac` 构建 Mac 两种芯片版本；Windows 上运行 `npm --prefix desktop run dist:win`。构建输出为 `desktop/release/`。标签 `v*` 触发 GitHub 自动构建、检查和发布三个平台版本。详见 [客户端说明](desktop/README.md)。
+[下载最新版](https://github.com/ooooooomygosh/album-web/releases/latest) · [功能](#功能) · [截图](#截图) · [开发](#开发)
 
+<img src="docs/images/cabin-focus.jpg" alt="心流小屋：像素木屋、唱片架、唱机、专注计时与小猫" width="100%">
 
-### 心流小屋代码位置
+</div>
 
-| 位置 | 职责 |
+## 小屋
+
+壁炉噼啪作响，窗外下着雪，唱机上放着你最喜欢的那张专辑。心流小屋把你的收藏放进一间温暖的木屋：十二格唱片架、一台可以真的放歌的唱机，还有一只陪你工作的像素小猫。
+
+<table>
+<tr>
+<td width="50%"><img src="public/room-scenes/pixel-cabin.png" alt="像素风木屋原画"><br><sub><b>像素小屋</b> · 默认风格，封面也会被像素化</sub></td>
+<td width="50%"><img src="public/room-scenes/warm-cabin.png" alt="写实风木屋原画"><br><sub><b>写实小屋</b> · 一键切换，同一间屋子的另一种质感</sub></td>
+</tr>
+</table>
+
+## 功能
+
+**唱片架与唱机**
+- 从 Apple 曲库或 QQ 音乐搜索专辑，粘贴 QQ 音乐专辑链接也能精确识别；找不到的也可以手动填写。
+- 十二格唱片架，滚轮或方向键翻页；双击封面或把唱片拖到唱机上就能放盘。
+- 每张唱片都有一张卡片：曲目、发行信息、你的笔记，点任意一首从那里开始播放。
+- 自定义每张黑胶的底色、透明度和最多三色的泼溅；用「唱片盒」给收藏分组，按流派、年代筛选。
+- 挑选一批专辑，导出一张专辑墙图片。
+
+**连接你常用的播放器**
+| 音源 | 说明 |
 | --- | --- |
-| `src/focus/` | 番茄钟状态机、待办、统计与奖励（`focus-model.mjs` 为纯函数），专注面板 UI |
-| `src/audio/` | 程序合成环境音（`ambience.mjs`）、Tone.js Lofi 生成器（`lofi-engine.mjs`）、混音状态 |
-| `src/pet/` | 像素小猫精灵（`cat-sprites.mjs`）、行为模型、屋内小猫与桌宠窗口页面 |
-| `src/room-ambience.mjs`、`src/companion-room.css` | 窗外天气、昼夜光线、沉浸模式 |
-| `src/CompanionBridge.jsx` | 向动态桌面和桌宠提供只读的展示快照（不含登录信息） |
-| `desktop/pet.cjs`、`companion-sync.cjs` | 桌宠窗口、点击穿透、拖动、右键菜单与白名单命令 |
-| `desktop/now-playing.cjs`、`native/NowPlaying.cs` | 系统正在播放（Windows SMTC / macOS JXA） |
-| `desktop/local-music.cjs` | 本地音乐扫描、按专辑分组、带 Range 的原位播放 |
-| `public/sw.js`、`manifest.webmanifest` | 可安装网页版与离线外壳 |
+| 系统正在播放 | Spotify、网易云音乐、QQ 音乐、Apple Music 等正在放的歌会出现在唱机上，可以暂停和切歌（Windows 读取系统媒体控制；macOS 支持 Music 和 Spotify） |
+| 本地音乐 | 选择电脑里的音乐文件夹，按标签整理成专辑，音乐留在原位置播放 |
+| QQ 音乐 / 网易云 | 在独立窗口登录自己的账号后播放（基于 [Simple Music](https://github.com/Yyyangshenghao/simple-music) 模块，受平台会员与版权限制） |
+| Music Assistant | 连接你已有的 [Music Assistant](https://github.com/music-assistant/server) 服务器，在家里的音箱上播放 |
 
-验证：`npm run desktop:test`（单元测试）；界面测试 `npm --prefix desktop run test:focus`、`test:pet`、`test:sources`；PWA 检查在 `npm run build` 后运行 `node scripts/pwa-smoke.mjs`。
+**专注**
+- 番茄钟：时长可调，每几轮一次长休息，结束时有提示音和系统通知；关掉窗口躲进托盘也照常计时。
+- 待办：拖拽排序，选一项开始专注，记录每项专注了几轮。
+- 统计：最近 7 天的专注时长、连续天数和累计时间。
+- 奖励：每完成一轮得一条小鱼干，升级后解锁小猫的耳机、围巾、毛线帽，以及雨天、星空等窗景。
+- 按 <kbd>Z</kbd> 进入沉浸模式，屋子里只剩唱片、壁炉、小猫和计时。
 
-Album Circle is a collaborative album and song sharing web app. A room can collect music recommendations from friends, show albums in a visual cabinet, attach comments and ratings, and generate AI listening guides from catalog metadata plus web research.
+**声音**
+- 雨声、壁炉、风声、白噪声、黑胶底噪，全部由程序实时合成，可以分别调音量，离线也能用。
+- Lofi 电台：离线实时生成的 Lo-fi 音乐，每 16 小节换一段；唱机放歌时会自动调低。
 
-Production: https://album-circle.vercel.app
+**小猫与桌面**
+- 小猫会跟着音乐摇头、陪你看书、休息时散步、深夜打瞌睡，点它会回应你。
+- 「小猫出门」：小猫跳到桌面上，成为透明、置顶的桌宠，可以随意拖动，右键能开始专注。
+- 「设为桌面动态背景」：整间小屋成为桌面壁纸，天气、小猫和计时同步显示。
 
-## What It Does
+<p align="center"><img src="docs/images/cat-poses.png" alt="小猫的几种状态：待机、听歌、庆祝、戴毛线帽、睡觉、陪你看书" width="88%"></p>
 
-- Account registration, login, profile editing, avatars, public music tags, and music-persona reports.
-- Room creation, invite links, public discovery, password-gated rooms, member profiles, and room-isolated data.
-- Global music search for albums and songs with title, artist, link, and type filters.
-- iTunes Search plus MusicBrainz / Cover Art Archive enrichment for covers, tracks, release versions, years, labels, and source metadata.
-- Share-link recognition for Apple Music, Spotify, Netease Cloud Music, QQ Music, and other music URLs.
-- Album cabinet overview with hover/focus previews, configurable cover size, hover style, layout, filters, and copy.
-- URL-addressable item detail pages with tracks, comments, AI guides, listening links, ratings, and member attribution.
-- Hidden 3D cover corridor easter egg from the top-left room brand mark.
-- Ratings stored separately from comments so users can rate without writing a comment.
-- AI background essays, comment replies, recommendations, and persona analysis through server-only API keys.
-- Tavily-backed web research for AI background, recommendation, and persona generation.
-- Firebase Admin / Firestore-backed users, sessions, rooms, showroom items, ratings, and comments.
-- Responsive Liquid Glass-inspired UI with reduced motion, glass strength, and rainbow status-frame controls.
-- Vite PWA shell and Vercel serverless API deployment.
+## 截图
 
-## Tech Stack
+| | |
+| --- | --- |
+| <img src="docs/images/cabin-pixel.jpg" alt="像素小屋与唱机"> | <img src="docs/images/cabin-warm.jpg" alt="写实小屋"> |
+| 像素小屋：唱机正在转，小猫戴着围巾 | 写实风格 |
+| <img src="docs/images/record-card.jpg" alt="唱片卡片"> | <img src="docs/images/add-album.jpg" alt="添加专辑"> |
+| 唱片卡片：曲目、笔记、自定义黑胶 | 添加专辑：曲库搜索 / 本地音乐 / 手动填写 |
+| <img src="docs/images/cabin-stats.jpg" alt="专注统计与奖励"> | <img src="docs/images/cabin-zen.jpg" alt="沉浸模式"> |
+| 专注统计与小屋奖励 | 沉浸模式 |
 
-- Frontend: React 19, Vite, plain global CSS, lucide-react icons.
-- Backend/API: Vercel serverless functions in `api/`.
-- Database/auth sessions: Firebase Admin SDK and Firestore.
-- Catalog search: iTunes Search, MusicBrainz, Cover Art Archive.
-- AI: DeepSeek/OpenAI-compatible chat completion routes.
-- Research: Tavily search summaries injected into AI prompts.
-- Verification: Playwright-based review script plus API smoke tests.
+<sub>截图中的专辑封面均为程序生成的示意图。</sub>
 
-## File Map
+## 数据与隐私
+
+- 唱片、笔记、黑胶外观、唱片盒、专注记录和待办都保存在这台电脑，不需要注册任何账号。
+- 「收藏与备份」可以导出一个备份文件，换电脑时导入即可；从旧版 Album Circle 升级会自动迁移原来的本地收藏。
+- 平台登录信息用系统加密保存在本机，只在播放时使用。桌宠和动态桌面窗口只拿到计时、曲名这类显示数据。
+
+## 开发
+
+```bash
+npm ci                       # 前端依赖（React + Vite）
+npm --prefix desktop ci      # 桌面端依赖（Electron）
+npm run desktop:dev          # 构建并启动客户端
+npm run desktop:test         # 单元测试
+npm --prefix desktop run dist:mac   # 打包 macOS（Windows 上用 dist:win）
+```
+
+推送 `v*` 标签会在 GitHub Actions 上构建 Windows 与 macOS（Apple Silicon / Intel）安装包，跑完检查后发布 Release。界面测试和更多说明见 [desktop/README.md](desktop/README.md)，结构说明见 [docs/architecture.md](docs/architecture.md)。
 
 ```text
-.
-├── api/
-│   ├── _firebase.js          # Firebase Admin init and session validation helpers
-│   ├── auth.js               # login/signup/profile/settings/stats/persona account APIs
-│   ├── rooms.js              # room create/join/switch/settings/discovery APIs
-│   ├── search.js             # iTunes/MusicBrainz/Cover Art Archive candidate search
-│   ├── items.js              # room showroom item CRUD
-│   ├── comments.js           # room comment CRUD and permissions
-│   ├── ratings.js            # per-user item rating upsert and summaries
-│   ├── resolve-link.js       # music URL parser/resolver
-│   ├── admin.js              # admin room/user/config operations
-│   └── ai/
-│       ├── _research.js      # Tavily research helpers and source normalization
-│       ├── background.js     # AI background / long guide generation
-│       ├── comment.js        # AI follow-up comments
-│       └── recommend.js      # recommendations and persona chat/report APIs
-├── src/
-│   ├── main.jsx              # main React SPA, room state, routing, panels, settings
-│   ├── styles.css            # base Liquid Glass design system and app styles
-│   ├── final-overrides.css   # late-stage cabinet/detail/topbar refinements
-│   ├── ExperimentalCorridorCarousel.jsx  # hidden 3D cover corridor component
-│   ├── corridor-carousel.css # isolated styles for the hidden corridor and brand mark
-│   └── firebaseClient.js     # optional frontend Firebase analytics init
-├── lib/
-│   ├── member-profile.js     # member profile normalization helpers
-│   └── music-persona.js      # persona report normalization helpers
-├── scripts/
-│   ├── review.mjs            # Playwright browser review and screenshots
-│   ├── api-smoke.mjs         # production/local API smoke tests
-│   ├── local-api-server.mjs  # helper for local API testing
-│   ├── member-profile-smoke.mjs
-│   ├── hero-config-smoke.mjs
-│   └── persona-identity-smoke.mjs
-├── docs/
-│   ├── architecture.md       # architecture notes and contracts
-│   ├── deployment.md         # deployment checklist and production review history
-│   ├── product-plan.md       # product roadmap and planning notes
-│   └── research-sources.md   # references for music APIs and product research
-├── public/                   # icon and manifest assets
-├── index.html                # Vite entry HTML
-├── vercel.json               # Vercel build, functions, and SPA rewrite config
-└── package.json              # scripts and dependencies
+src/            小屋界面：CabinRoom、唱机、唱片卡片、添加专辑、专注面板、声音、小猫
+desktop/        Electron 主进程：本地收藏、曲库搜索、音源服务、桌宠、动态桌面、托盘
+public/         字体、小屋原画、图标
+docs/           结构说明、路线图、截图
 ```
 
-## Main Frontend Concepts
+## 致谢
 
-Most UI currently lives in `src/main.jsx`. It is intentionally a single large file, so use search symbols when changing a feature:
-
-- `App`: owns session, room, items, comments, settings, ratings, URL state, and mode state.
-- `GlobalMusicSearch`: topbar search/add entry. Enter and button submit both call `runOnlineSearch`.
-- `AlbumCabinetPage`, `AlbumCabinetGrid`, `AlbumCabinetTile`: default cabinet overview.
-- `AlbumDetailPage`: URL item detail page shown with `?room=<roomId>&item=<itemId>`.
-- `CabinetSettingsPopover`: cabinet-specific display and copy settings.
-- `AddMusic`: advanced add flow.
-- `Review`, `Ai`, `RoomPanel`, `ProfilePanel`, `AdminPanel`: secondary modes.
-- `RatingPanel`: per-item rating UI.
-- `MemberProfileModal`, `ConfirmDialog`: modal UI surfaces.
-- `ExperimentalCorridorCarousel`: hidden 3D cover corridor opened from the top-left brand mark.
-
-URL state is part of the product contract:
-
-- Cabinet: `?room=<roomId>&view=cabinet`
-- Detail: `?room=<roomId>&item=<itemId>`
-- Optional filter: `mine=1`
-
-Use `openCabinet()` and `openItemDetail(itemId)` instead of manually mutating mode and history.
-
-## Hidden 3D Cover Corridor
-
-The top-left room brand mark is a button with class `brand corridor-secret-trigger`. It opens `ExperimentalCorridorCarousel`.
-
-Key files:
-
-- `src/ExperimentalCorridorCarousel.jsx`
-- `src/corridor-carousel.css`
-- `src/main.jsx` import and render near the end of `App`
-
-Behavior:
-
-- Reads current `items` from `App`; it does not fetch, write Firestore, or change room data.
-- Uses a virtual unbounded `activeIndex`, so rotating past the last cover continues to `-360deg`, `-720deg`, etc. It should not snap back to `0deg`.
-- The displayed item uses `clampIndex(activeIndex, count)`, so UI labels still show `01 / N`.
-- Current cover is larger, brighter, and pushed forward; side covers are lower opacity and blurred.
-- Background uses the current cover as a blurred “cover wash” when a cover image exists, with palette fallback.
-- Manual controls: drag, wheel, previous/next buttons, ArrowLeft/ArrowRight, Home/End, Escape close.
-- Detail navigation: click the active cover to close the corridor and call `openItemDetail(active.id)`.
-- Autoplay: `自动/暂停` button plus `速度` range control. It is off by default and disabled when reduced motion is active.
-- Mobile/coarse pointer fallback: horizontal scroll-snap rail instead of full 3D transforms.
-- Reduced motion fallback: disables transform animations and autoplay.
-
-When editing this feature, keep styles in `corridor-carousel.css` so it does not destabilize the main cabinet/detail styles.
-
-## Backend/API Summary
-
-All serverless APIs use JSON and expect a session token for room/user operations unless documented otherwise.
-
-- `GET/POST /api/auth`
-  - login/signup/profile/avatar/settings/stats/persona-related account data
-  - `action: "updateSettings"` merges whitelisted private settings into the user document
-- `GET/POST /api/rooms`
-  - list rooms, discover rooms, create rooms, join rooms, update room settings
-- `GET /api/search`
-  - query music candidates with `term`, `type`, `title`, `artist`
-  - combines iTunes plus optional MusicBrainz enrichment
-- `GET /api/resolve-link`
-  - parse platform links into structured search hints
-- `GET/POST/DELETE /api/items?roomId=...`
-  - room showroom item CRUD
-- `GET/POST/DELETE /api/comments?roomId=...`
-  - comments with owner/admin deletion permissions
-- `GET/POST /api/ratings?roomId=...`
-  - rating summary and current-user upsert for an item
-- `POST /api/ai/background`
-  - rich background/listening guide generation before item persistence
-- `POST /api/ai/comment`
-  - AI follow-up comment generation
-- `POST /api/ai/recommend`
-  - recommendations, persona report, and persona chat
-- `GET/POST/DELETE /api/admin`
-  - admin console data and admin-only operations
-
-Firestore collections are organized around users and rooms:
-
-- `albumCircleUsers/{userId}`
-  - session hashes, private settings, profile, persona data
-- `albumCircleRooms/{roomId}`
-  - room metadata, members, member profiles
-- `albumCircleRooms/{roomId}/items/{itemId}`
-  - canonical room music items
-- `albumCircleRooms/{roomId}/comments/{commentId}`
-  - comments and AI replies
-- `albumCircleRooms/{roomId}/ratings/{ratingId}`
-  - one rating per user per item
-- `albumCircleConfig/ai`
-  - admin-managed AI generation settings
-
-## Environment Variables
-
-Copy `.env.example` and fill secrets locally. Do not commit real `.env.local` or `.vercel/.env.*` files.
-
-Important variables:
-
-```bash
-FIREBASE_SERVICE_ACCOUNT_JSON=
-FIREBASE_STORAGE_BUCKET=
-DEEPSEEK_API_KEY=
-DEEPSEEK_MODEL=deepseek-v4-flash
-DEEPSEEK_BACKGROUND_MODEL=deepseek-v4-pro
-DEEPSEEK_PERSONA_MODEL=deepseek-v4-pro
-TAVILY_API_KEY=
-MUSICBRAINZ_USER_AGENT=AlbumCircle/0.1 (https://album-circle.vercel.app)
-ADMIN_LOGIN=admin
-ADMIN_PASSWORD=
-```
-
-Useful tuning variables are listed in `.env.example`, including AI token limits and Tavily timeouts.
-
-## Local Development
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run only the frontend Vite server:
-
-```bash
-npm run dev
-```
-
-Run Vercel dev so API routes work locally:
-
-```bash
-FIREBASE_SERVICE_ACCOUNT_JSON="$(cat /path/to/serviceAccountKey.json)" \
-DEEPSEEK_API_KEY="your-key" \
-TAVILY_API_KEY="your-key" \
-npm run vercel-dev
-```
-
-Open http://localhost:5173/ unless Vercel reports another port.
-
-## Verification
-
-Fast checks:
-
-```bash
-npm run build
-git diff --check
-```
-
-API and browser smoke checks:
-
-```bash
-npm run api:smoke
-npm run member:smoke
-npm run hero:smoke
-npm run persona:smoke
-npm run review
-```
-
-The review script creates screenshots and JSON under `artifacts/`:
-
-- `artifacts/desktop.png`
-- `artifacts/mobile.png`
-- `artifacts/review-report.json`
-
-Production checks:
-
-```bash
-APP_URL=https://album-circle.vercel.app npm run review
-USE_VERCEL_CURL=1 APP_URL=https://album-circle.vercel.app npm run api:smoke
-```
-
-## Deployment
-
-The app is deployed on Vercel. `vercel.json` configures:
-
-- `npm run build`
-- output directory `dist`
-- Vite framework
-- longer max durations for AI serverless routes
-- SPA rewrite for non-API paths
-
-Typical production deployment:
-
-```bash
-npx vercel pull --yes --environment production
-npm run build
-npx vercel build --prod
-npx vercel deploy --prebuilt --prod
-```
-
-Current production alias:
-
-```text
-https://album-circle.vercel.app
-```
-
-Important maintenance note: if another developer is actively editing or deploying, do not deploy from an older worktree. Use the current active project directory, apply the smallest patch needed, run build, then deploy the prebuilt output. This avoids overwriting unrelated work.
-
-## Development Guidelines
-
-- Prefer targeted edits. The project often has multiple active changes in parallel.
-- Do not run destructive git commands such as `git reset --hard` or `git checkout --` unless explicitly requested.
-- Before changing UI, inspect the relevant existing CSS because `styles.css`, `final-overrides.css`, and feature-specific CSS may all affect the same elements.
-- Keep experimental or highly specific UI in isolated files when possible. The corridor uses this pattern.
-- Use existing helpers and contracts:
-  - `mergeUserSettings()` for user settings
-  - `roomQueryUrl()`, `parseRoomQuery()`, `openCabinet()`, `openItemDetail()` for URL state
-  - `AlbumArt` for standard cover rendering
-  - `api()` / `apiWithTimeout()` for frontend API calls
-- Forms should support keyboard submit, labels, disabled/loading states, and clear error text.
-- Motion must honor both `prefers-reduced-motion` and the in-app reduced motion setting.
-- Images should include explicit dimensions and useful `alt` text unless decorative.
-
-## Common Debug Tasks
-
-Search does not return expected albums:
-
-1. Check `/api/search?term=...&type=album`.
-2. Confirm iTunes result ordering and MusicBrainz enrichment.
-3. Inspect candidate fields: `title`, `artist`, `year`, `cover`, `tracks`, `match`, `source`.
-
-Adding an item fails:
-
-1. Check `/api/ai/background` for timeout or malformed AI output.
-2. Confirm `FIREBASE_SERVICE_ACCOUNT_JSON` is valid.
-3. Confirm `/api/items?roomId=...` POST receives the enriched candidate.
-
-Room data looks stale:
-
-1. Check `loadRoomData()` in `src/main.jsx`.
-2. Verify `room.id`, `session.token`, and Firestore room membership.
-3. Confirm URL state is not pointing at a missing `item`.
-
-Ratings do not update:
-
-1. Check `/api/ratings?roomId=...&itemId=...`.
-2. Confirm POST body has `itemId` and `score`.
-3. Confirm `ratingsByItem[item.id]` is refreshed after submit.
-
-Hidden corridor does not open:
-
-1. Confirm `src/main.jsx` imports `ExperimentalCorridorCarousel` and `./corridor-carousel.css`.
-2. Confirm `corridorOpen` state exists in `App`.
-3. Confirm the top-left brand element has `className="brand corridor-secret-trigger"`.
-4. Confirm the component is rendered inside the logged-in room shell.
-
-## Related Docs
-
-- `docs/architecture.md`: architecture and API contracts
-- `docs/deployment.md`: deployment checklist and production review history
-- `docs/product-plan.md`: product roadmap and planning notes
-- `docs/research-sources.md`: API and research references
+- 参考与灵感：[Chill Pulse](https://store.steampowered.com/app/2826180/Chill_Pulse/)、[lofi-engine](https://github.com/meel-hd/lofi-engine)、[next-beats](https://github.com/btahir/next-beats)、[Study Saga](https://github.com/AchilleasMakris/Study-Saga-Releases)。只借鉴思路，代码均为本项目原创。
+- 使用：[Simple Music](https://github.com/Yyyangshenghao/simple-music)（GPL-3.0）、[Music Assistant](https://github.com/music-assistant/server) 接口、[Tone.js](https://tonejs.github.io/)、[music-metadata](https://github.com/Borewit/music-metadata)、[Heroicons](https://heroicons.com/)、HarmonyOS Sans SC 字体。详见 [public/licenses](public/licenses)。
+- 曲库数据来自 iTunes Search、MusicBrainz 与 Cover Art Archive。

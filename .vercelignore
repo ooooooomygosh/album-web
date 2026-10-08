@@ -1,7 +1,0 @@
-.agents/
-skills-lock.json
-artifacts/
-desktop/
-.env*
-!.env.example
-work/

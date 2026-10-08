@@ -107,15 +107,14 @@ test('QQ retries stop at the limit and never retry HTTP or other business errors
   }
 });
 
-test('QQ failure never falls through to iTunes; original auth request remains unchanged', async () => {
+test('QQ failure never falls through to iTunes; unknown API routes stay on this computer', async () => {
   const forwarded = [];
   const router = createSiteRouter({ webRoot: path.join(__dirname, 'fixtures/web'), qq: { search: async () => { throw new Error('QQ unavailable'); } }, forward: async (request) => { forwarded.push(request); return Response.json({ forwarded: true }); } });
   const failed = await router(new Request(`https://album-circle.vercel.app/api/search?provider=qq&term=${encodeURIComponent(albumUrl)}`));
   assert.equal(failed.status, 502); assert.equal(forwarded.length, 0);
-  const original = new Request('https://album-circle.vercel.app/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Session-Token': 'test-only' }, body: JSON.stringify({ action: 'login' }) });
-  await router(original);
-  assert.equal(forwarded[0], original);
-  assert.equal(forwarded[0].headers.get('X-Session-Token'), 'test-only');
+  const legacy = await router(new Request('https://album-circle.vercel.app/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login' }) }));
+  assert.equal(legacy.status, 404); assert.equal(forwarded.length, 0); // The virtual origin is never contacted.
+  const cover = await router(new Request('https://is1-ssl.mzstatic.com/image/cover.jpg')); assert.equal((await cover.json()).forwarded, true); // Other hosts load normally.
   assert.equal((await router(new Request('https://album-circle.vercel.app/%2e%2e/main.cjs'))).status, 404);
   assert.equal((await router(new Request('https://album-circle.vercel.app/'))).status, 200);
 });

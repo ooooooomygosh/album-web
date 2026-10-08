@@ -79,7 +79,7 @@ function RecordEditor({ item, close }) {
     if (update((old) => ({ ...old, styles: { ...old.styles, [key]: previewStyle }, genres: { ...old.genres, [key]: genreList(genres) }, rooms: { ...old.rooms, [roomId]: { ...(old.rooms[roomId] || {}), boxes: (old.rooms[roomId]?.boxes || []).map((box) => ({ ...box, keys: memberships.includes(box.id) ? [...new Set([...box.keys, key])] : box.keys.filter((value) => value !== key) })) } } }))) close();
   };
   return <LibraryDialog title="自定义唱片" close={close} className="record-editor">
-    <p className="record-dialog-intro"><strong>{item.title}</strong> · {item.artist}<br/>只调整黑胶视觉，原专辑封面保持原始内容。设置按当前账号保存在这台电脑。</p>
+    <p className="record-dialog-intro"><strong>{item.title}</strong> · {item.artist}<br/>只调整黑胶视觉，原专辑封面保持原始内容。设置保存在这台电脑。</p>
     <form onSubmit={save}>
       <div className="record-editor-grid"><div className="record-preview-column"><div className={`record-style-preview ${fullDisc ? 'is-disc-only' : ''}`} aria-label="黑胶样式预览"><VinylDisc item={item} value={previewStyle}/>{item.cover ? <img src={item.cover} alt={`${item.title} 原封面`} draggable="false"/> : <span className="record-preview-placeholder"><Album/>{item.title}</span>}</div><button type="button" aria-pressed={fullDisc} onClick={() => setFullDisc(!fullDisc)}>{fullDisc ? '查看封面与黑胶' : '查看完整黑胶'}</button></div>
         <div className="record-style-fields">
@@ -114,7 +114,7 @@ export function RecordBoxControls({ items, filters, setFilters, count }) {
     <label>年代<select aria-label="筛选年代" value={filters.decade} onChange={(event) => change('decade', event.target.value)}><option value="all">全部年代</option><option value="unknown">年份待补充</option>{decades.map((decade) => <option key={decade} value={decade}>{decade} 年代</option>)}</select></label>
     <label>来源<select aria-label="筛选来源" value={filters.provider} onChange={(event) => change('provider', event.target.value)}><option value="all">全部来源</option><option value="qq">QQ 音乐</option><option value="itunes">iTunes</option><option value="other">其他来源</option></select></label>
     <span className="record-filter-count">{count} / {items.length} 条</span><button type="button" className="record-clear-filters" onClick={() => setFilters({ box: 'all', genre: 'all', decade: 'all', provider: 'all' })}>清除音乐筛选</button>
-    <small>唱片盒仅在当前房间使用，保存在本机。流派来自已有标签或手动填写。</small>{library.error && <p role="alert" className="record-error">{library.error}</p>}
+    <small>唱片盒保存在这台电脑。流派来自已有标签或手动填写。</small>{library.error && <p role="alert" className="record-error">{library.error}</p>}
     {open && <BoxManager items={items} roomId={roomId} close={() => setOpen(false)}/>}
   </div>;
 }
@@ -134,7 +134,7 @@ function BoxManager({ items, roomId, close }) {
   };
   const toggle = (key, checked) => mutate((current) => current.map((box) => box.id !== selectedId ? box : { ...box, keys: checked ? [...new Set([...box.keys, key])] : box.keys.filter((value) => value !== key) }));
   return <LibraryDialog title="管理唱片盒" close={close} className="record-box-manager">
-    <p className="record-dialog-intro">唱片盒是当前房间的个人分组。一张专辑可放进多个盒子；删除盒子不会删除专辑。</p>
+    <p className="record-dialog-intro">唱片盒是你给唱片做的分组。一张专辑可放进多个盒子；删除盒子不会删除专辑。</p>
     <form className="record-new-box" onSubmit={(event) => { event.preventDefault(); if (!validName(name)) return; if (boxes.length >= 64) { setLocalError('每个房间最多 64 个唱片盒。'); return; } const id = crypto.randomUUID(); if (mutate((current) => [...current, { id, name: name.trim(), keys: [] }])) { setName(''); setSelectedId(id); } }}>
       <input aria-label="新唱片盒名称" placeholder="给新唱片盒命名" maxLength="40" value={name} onChange={(event) => setName(event.target.value)}/><button className="record-primary" type="submit"><Plus size={17}/>新建唱片盒</button>
     </form>

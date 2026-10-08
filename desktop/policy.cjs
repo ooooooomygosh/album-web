@@ -1,5 +1,8 @@
 'use strict';
 
+// Virtual origin of the cabin page. Every request to it is answered on this
+// computer (site-router.cjs); it is kept so data saved by earlier versions
+// under this origin's localStorage stays available.
 const SITE_ORIGIN = 'https://album-circle.vercel.app';
 const SHELL_ORIGIN = 'album-desktop://shell';
 const SHELL_URL = `${SHELL_ORIGIN}/index.html`;

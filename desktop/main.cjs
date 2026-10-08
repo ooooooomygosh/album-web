@@ -8,7 +8,7 @@ const { createQQMusic } = require('./qq-music.cjs');
 const { createSiteRouter } = require('./site-router.cjs');
 const { DEFAULT_SETTINGS, normalizeSettings, appearanceScript, listSystemFonts } = require('./settings.cjs');
 const { createWallpaper } = require('./wallpaper.cjs');
-const { createLocalAPI } = require('./local-api.cjs');
+const { createCollectionStore } = require('./collection-store.cjs');
 const { createMusicService } = require('./music-service.cjs');
 const { openQQLogin, openNeteaseLogin, clearQQLogin, clearNeteaseLogin } = require('./music-login.cjs');
 const { createPet } = require('./pet.cjs');
@@ -17,7 +17,11 @@ const { createLocalMusic } = require('./local-music.cjs');
 const { sendCompanionCommand } = require('./companion-sync.cjs');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'album-desktop', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
-app.setName('Album Circle');
+app.setName('心流小屋');
+// HTTP headers must be ASCII: keep the Chinese name out of the User-Agent.
+app.userAgentFallback = app.userAgentFallback.replace(/[^\x20-\x7e]+(?=\/)/g, 'FlowCabin');
+// Data stays in the folder used since the first release ("Album Circle").
+if (!process.env.ALBUM_DESKTOP_TEST_PROFILE) app.setPath('userData', path.join(app.getPath('appData'), 'Album Circle'));
 app.setAppUserModelId('com.albumcircle.desktop');
 
 // Tests receive a separate storage directory. The distributed app cannot be configured to load another site.
@@ -42,7 +46,8 @@ let settingsOpen = false;
 let systemFonts = [];
 let wallpaper;
 let music;
-let localAPI;
+let collection;
+let catalog;
 let companionTray;
 let pet;
 let localMusic;
@@ -59,8 +64,8 @@ function restoreMainWindow() {
 function companionsActive() { return Boolean(wallpaperState.active || wallpaperState.busy || petState.active); }
 function refreshTray() {
   if (companionsActive()) {
-    if (!companionTray) { companionTray = new Tray(icon); companionTray.on('double-click', restoreMainWindow); }
-    companionTray.setToolTip('Album Circle · 心流小屋');
+    if (!companionTray) { companionTray = new Tray(path.join(__dirname, 'assets', 'tray.png')); companionTray.on('double-click', restoreMainWindow); }
+    companionTray.setToolTip('心流小屋');
     companionTray.setContextMenu(Menu.buildFromTemplate([
       { label: '打开小屋', click: restoreMainWindow },
       { label: '开始 / 暂停专注', click: () => sendCompanionCommand(siteView?.webContents, 'focus-toggle') },
@@ -109,10 +114,8 @@ async function saveAppearance(value) {
   fs.mkdirSync(app.getPath('userData'), { recursive: true });
   fs.writeFileSync(settingsPath() + '.tmp', JSON.stringify(next));
   fs.renameSync(settingsPath() + '.tmp', settingsPath());
-  const modeChanged = appearance.connectionMode !== next.connectionMode;
   appearance = next;
   await applyAppearance();
-  if (modeChanged) { lastGoodUrl = SITE_ORIGIN + '/'; await navigate(lastGoodUrl); }
   sendState();
   return { settings: appearance, display: currentDisplay() };
 }
@@ -135,7 +138,7 @@ function sendState(extra = {}) {
     loading,
     error: currentError,
     url: isSiteUrl(contents?.getURL()) ? contents.getURL() : lastGoodUrl,
-    title: contents?.getTitle() || 'Album Circle',
+    title: contents?.getTitle() || '心流小屋',
     canBack: Boolean(contents && !contents.isDestroyed() && contents.navigationHistory.canGoBack()),
     canForward: Boolean(contents && !contents.isDestroyed() && contents.navigationHistory.canGoForward()),
     version: app.getVersion(),
@@ -195,7 +198,7 @@ async function navigate(url = lastGoodUrl) {
   try {
     await siteView.webContents.loadURL(url);
   } catch (error) {
-    if (error.code !== 'ERR_ABORTED' && loading) showFailure('暂时无法连接 Album Circle，请检查网络后重试。');
+    if (error.code !== 'ERR_ABORTED' && loading) { writeLog('load-error', error.code || error.message); showFailure('小屋暂时没能打开，请重新载入。'); }
   }
 }
 
@@ -220,7 +223,7 @@ async function wireRemoteView() {
   });
   contents.on('did-start-loading', () => { loading = true; sendState(); });
   contents.on('did-finish-load', async () => {
-    if (documentHttpFailed) { showFailure('原站服务暂时不可用，请稍后重新连接。'); return; }
+    if (documentHttpFailed) { showFailure('小屋暂时没能打开，请重新载入。'); return; }
     // Chromium can finish rendering its internal error document after did-fail-load.
     if (currentError) { loading = false; sendState(); return; }
     clearTimeout(loadTimer);
@@ -240,7 +243,7 @@ async function wireRemoteView() {
   });
   contents.on('page-title-updated', () => sendState());
   contents.on('did-fail-load', (_event, errorCode, _description, _url, isMainFrame) => {
-    if (isMainFrame && errorCode !== -3) showFailure('暂时无法连接 Album Circle，请检查网络后重试。');
+    if (isMainFrame && errorCode !== -3) { writeLog('load-failed', `${errorCode} ${_description}`); showFailure('小屋暂时没能打开，请重新载入。'); }
   });
   contents.on('render-process-gone', (_event, details) => {
     showFailure('页面已暂停运行。点击重新连接即可恢复。');
@@ -256,12 +259,16 @@ async function wireRemoteView() {
   const session = contents.session;
   const qq = createQQMusic((url, options) => net.fetch(url, { ...options, bypassCustomProtocolHandlers: true }));
   if (await session.protocol.isProtocolHandled('https')) session.protocol.unhandle('https');
-  session.protocol.handle('https', createSiteRouter({
+  const route = createSiteRouter({
     webRoot: path.join(__dirname, 'web'),
     forward: (request) => session.fetch(request, { bypassCustomProtocolHandlers: true }),
-    qq, localAPI, getAppearance: () => ({ ...appearance, platform: process.platform }),
+    qq, collection, catalog, getAppearance: () => ({ ...appearance, platform: process.platform }),
     music: (request, pathname) => music.proxy(request, pathname, (url, options) => net.fetch(url, options))
-  }));
+  });
+  session.protocol.handle('https', async (request) => {
+    try { return await route(request); }
+    catch (error) { writeLog('route-error', error.message); return new Response('Unavailable', { status: 502 }); }
+  });
   session.setPermissionRequestHandler((webContents, permission, callback) => {
     // Notifications announce the end of a focus round.
     callback(isSiteUrl(webContents.getURL()) && ['clipboard-sanitized-write', 'notifications'].includes(permission));
@@ -279,7 +286,7 @@ async function wireRemoteView() {
   session.webRequest.onHeadersReceived({ urls: [`${SITE_ORIGIN}/*`] }, (details, callback) => {
     if (details.resourceType === 'mainFrame' && details.statusCode >= 400) {
       documentHttpFailed = true;
-      setImmediate(() => showFailure('原站服务暂时不可用，请稍后重新连接。'));
+      setImmediate(() => showFailure('小屋暂时没能打开，请重新载入。'));
     }
     const headers = { ...details.responseHeaders };
     if (details.resourceType === 'mainFrame' && !Object.keys(headers).some((key) => key.toLowerCase() === 'content-security-policy')) {
@@ -294,7 +301,6 @@ function handleSiteCommand(value) {
   if (url.protocol !== 'album-desktop:' || url.hostname !== 'action' || url.username || url.password || !isSiteUrl(siteView?.webContents.getURL())) return false;
   switch (url.pathname) {
     case '/settings': toggleSettings(true); break;
-    case '/cloud-connect': saveAppearance({ ...appearance, connectionMode: 'cloud' }).then(() => toggleSettings(false)).catch(() => {}); break;
     case '/minimize': mainWindow.minimize(); break;
     case '/maximize': if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false); else if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); break;
     case '/close': mainWindow.close(); break;
@@ -324,43 +330,14 @@ function notifyMusic(result) {
   if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent('album-music-account', {detail: ${JSON.stringify(result)}}));`).catch(() => {});
 }
 
-async function clearLogin() {
-  const answer = await dialog.showMessageBox(mainWindow, {
-    type: 'question', title: '清除本机登录',
-    message: '清除这台电脑的登录状态和网站缓存？',
-    detail: '下次需要重新登录。原站中的专辑、评论和账户数据会保留。',
-    buttons: ['取消', '清除并重新登录'], defaultId: 0, cancelId: 0
-  });
-  if (answer.response !== 1) return;
-  wallpaper.stop();
-  // Personal collection notes survive the account/cache reset.
-  const purchaseNotes = await siteView.webContents.executeJavaScript("Object.fromEntries(Object.entries(localStorage).filter(([key]) => key === 'album-circle-purchases-v1' || key === 'album-circle-wall-v1' || key.startsWith('album-circle-display-') || key.startsWith('album-circle-library-v1-')))");
-  if (JSON.stringify(purchaseNotes).length > 8 * 1024 * 1024) {
-    await dialog.showMessageBox(mainWindow, { type: 'error', title: '保留本机资料', message: '本机收藏设置较多，无法安全完成清理。', detail: '登录和收藏设置均未清除。请先备份应用数据再重试。' });
-    return;
-  }
-  siteView.webContents.stop();
-  await siteView.webContents.session.clearStorageData();
-  await siteView.webContents.session.clearCache();
-  await siteView.webContents.executeJavaScript(`Object.entries(${JSON.stringify(purchaseNotes)}).forEach(([key,value]) => localStorage.setItem(key,value))`);
-  lastGoodUrl = `${SITE_ORIGIN}/`;
-  await navigate();
-}
-
-function copyCurrentLink() {
-  clipboard.writeText(lastGoodUrl);
-  sendState({ notice: '当前链接已复制' });
-}
 
 function showToolbarMenu() {
   const [width] = mainWindow.getContentSize();
   Menu.buildFromTemplate([
-    { label: `macOS / Windows 客户端 · ${app.getVersion()}`, enabled: false },
+    { label: `心流小屋 · ${app.getVersion()}`, enabled: false },
     { type: 'separator' },
     { label: '设置', click: () => toggleSettings(true) },
-    { label: '清除本机登录', click: clearLogin },
-    { label: '打开日志目录', click: () => shell.openPath(app.getPath('userData')) },
-    { label: '在浏览器中打开', click: () => openExternal(lastGoodUrl) }
+    { label: '打开数据文件夹', click: () => shell.openPath(app.getPath('userData')) },
   ]).popup({ window: mainWindow, x: Math.max(0, width - 250), y: toolbarHeight });
 }
 
@@ -368,13 +345,9 @@ function createMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: '应用', submenu: [
       { label: '设置', accelerator: 'CmdOrCtrl+,', click: () => toggleSettings(true) },
-      { label: '返回首页', accelerator: 'CmdOrCtrl+H', click: () => navigate(`${SITE_ORIGIN}/`) },
-      { label: '刷新页面', accelerator: 'CmdOrCtrl+R', click: () => navigate() },
-      { label: '复制当前链接', accelerator: 'CmdOrCtrl+Shift+C', click: copyCurrentLink },
-      { label: '在浏览器中打开', click: () => openExternal(lastGoodUrl) },
+      { label: '重新载入小屋', accelerator: 'CmdOrCtrl+R', click: () => navigate(`${SITE_ORIGIN}/`) },
       { type: 'separator' },
-      { label: '清除本机登录', click: clearLogin },
-      { type: 'separator' },
+        { type: 'separator' },
       { role: 'quit', label: '退出' }
     ]},
     { label: '编辑', submenu: [
@@ -389,10 +362,10 @@ function createMenus() {
       { role: 'togglefullscreen', label: '全屏' }
     ]},
     { label: '帮助', submenu: [
-      { label: '打开日志目录', click: () => shell.openPath(app.getPath('userData')) },
-      { label: '关于 Album Circle', click: () => dialog.showMessageBox(mainWindow, {
-        type: 'info', title: 'Album Circle', message: `Album Circle ${app.getVersion()}`,
-        detail: 'macOS / Windows 客户端\n使用 HarmonyOS Sans SC 字体，Copyright 2021 Huawei Device Co., Ltd.\n字体原文件与授权协议随应用打包。\nQQ 搜索、封面和曲目来自 QQ 音乐。\n本地收藏无需账号；云端房间、分享与 AI 为可选服务。\n\n服务地址：' + SITE_ORIGIN + '\n登录状态保存在这台电脑。'
+      { label: '打开数据文件夹', click: () => shell.openPath(app.getPath('userData')) },
+      { label: '关于心流小屋', click: () => dialog.showMessageBox(mainWindow, {
+        type: 'info', title: '心流小屋', message: `心流小屋 ${app.getVersion()}`,
+        detail: '像素 Lo-fi 小屋：收藏专辑、听歌和专注。\n所有收藏与专注记录保存在这台电脑。\n\n使用 HarmonyOS Sans SC 字体，Copyright 2021 Huawei Device Co., Ltd.，字体原文件与授权协议随应用打包。\nQQ / 网易云播放模块来自 Simple Music（GPL-3.0）；曲库搜索来自 iTunes Search 与 MusicBrainz。'
       }) }
     ]}
   ]));
@@ -405,7 +378,8 @@ function registerShellProtocol(targetProtocol = protocol) {
     '/app.js': ['renderer/app.js', 'text/javascript; charset=utf-8'],
     '/fonts.css': ['renderer/fonts.css', 'text/css; charset=utf-8'],
     '/fonts/LICENSE.txt': ['web/fonts/LICENSE.txt', 'text/plain; charset=utf-8'],
-    '/icon.png': ['assets/icon.png', 'image/png']
+    '/icon.png': ['assets/icon.png', 'image/png'],
+    '/cabin.png': ['web/room-scenes/pixel-cabin.png', 'image/png']
   };
   for (const weight of ['Thin', 'Light', 'Regular', 'Medium', 'Bold', 'Black']) assets[`/fonts/HarmonyOS_Sans_SC_${weight}.ttf`] = [`web/fonts/HarmonyOS_Sans_SC_${weight}.ttf`, 'font/ttf'];
   for (const name of fs.readdirSync(path.join(__dirname, 'renderer', 'icons'))) assets[`/icons/${name}`] = [`renderer/icons/${name}`, name.endsWith('.svg') ? 'image/svg+xml' : 'text/plain'];
@@ -440,11 +414,6 @@ function registerIpc() {
       case 'ready': sendState(); break;
       case 'retry': await navigate(); break;
       case 'home': await navigate(`${SITE_ORIGIN}/`); break;
-      case 'back': if (siteView.webContents.navigationHistory.canGoBack()) siteView.webContents.navigationHistory.goBack(); break;
-      case 'forward': if (siteView.webContents.navigationHistory.canGoForward()) siteView.webContents.navigationHistory.goForward(); break;
-      case 'copy': copyCurrentLink(); break;
-      case 'browser': openExternal(lastGoodUrl); break;
-      case 'clear': await clearLogin(); break;
       case 'menu': showToolbarMenu(); break;
       case 'settings': toggleSettings(true); break;
       case 'settings-close': toggleSettings(false); break;
@@ -452,7 +421,6 @@ function registerIpc() {
       case 'minimize': mainWindow.minimize(); break;
       case 'maximize': if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); break;
       case 'close': mainWindow.close(); break;
-      case 'network-restored': if (currentError) { clearTimeout(retryTimer); retryTimer = setTimeout(() => navigate(), 900); } break;
       default: throw new Error('Unknown command');
     }
     return true;
@@ -473,7 +441,7 @@ async function createWindow() {
   const display = Number.isFinite(preferences.x) && Number.isFinite(preferences.y) ? screen.getDisplayMatching(preferences) : screen.getPrimaryDisplay();
   mainWindow = new BrowserWindow({
     ...safeSavedWindow(preferences, display.workArea), minWidth: Math.min(900, display.workArea.width), minHeight: Math.min(600, display.workArea.height),
-    title: 'Album Circle', icon, backgroundColor: '#111317', show: false,
+    title: '心流小屋', icon, backgroundColor: '#24160f', show: false,
     // Keep the native resize style: removing it breaks real fullscreen on Windows.
     autoHideMenuBar: true, frame: false, thickFrame: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true }
@@ -482,7 +450,7 @@ async function createWindow() {
     // Not throttled: the focus timer, ambience and companion state keep running while hidden in the tray.
     webPreferences: { partition: 'persist:album-circle-v1', nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, allowRunningInsecureContent: false, spellcheck: false, backgroundThrottling: false }
   });
-  siteView.setBackgroundColor('#111317');
+  siteView.setBackgroundColor('#24160f');
   mainWindow.contentView.addChildView(siteView);
   siteView.setVisible(false);
   resizeView();
@@ -530,14 +498,16 @@ else {
     registerShellProtocol(); registerIpc();
     wallpaper = createWallpaper({ app, getMain: () => mainWindow, getSite: () => siteView?.webContents, status: wallpaperStatus, appearanceScript, getAppearance: () => appearance, log: writeLog, registerProtocol: registerShellProtocol });
     pet = createPet({ directory: app.getPath('userData'), getSite: () => siteView?.webContents, status: petStatus, registerProtocol: registerShellProtocol, restoreMain: restoreMainWindow, log: writeLog });
-    localAPI = createLocalAPI(path.join(app.getPath('userData'), 'local'));
+    collection = createCollectionStore({ directory: app.getPath('userData') });
+    const search = import('./catalog-search.mjs');
+    catalog = async (params) => (await search).searchCatalog(params);
     localMusic = createLocalMusic({ directory: app.getPath('userData'), resizeCover: (buffer) => { const image = nativeImage.createFromBuffer(buffer); return image.isEmpty() ? null : image.resize({ width: Math.min(600, image.getSize().width), quality: 'good' }).toJPEG(86); } });
     const nowPlaying = createNowPlaying({ helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'NowPlaying.exe') : path.join(__dirname, 'native', 'bin', 'NowPlaying.exe') });
     music = createMusicService({ directory: app.getPath('userData'), safeStorage, nowPlaying, localMusic, login: (provider) => provider === 'qq' ? openQQLogin(mainWindow) : openNeteaseLogin(mainWindow), logout: (provider) => provider === 'qq' ? clearQQLogin() : clearNeteaseLogin() });
     writeLog('started', app.getVersion()); await createWindow();
   }).catch((error) => {
     writeLog('startup-error', error.message);
-    dialog.showErrorBox('Album Circle 启动失败', '请关闭后重新打开应用。\n' + error.message);
+    dialog.showErrorBox('心流小屋启动失败', '请关闭后重新打开应用。\n' + error.message);
     app.quit();
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

@@ -22,11 +22,12 @@
 @keyframes bubble-pop{from{scale:.7;opacity:0}to{scale:1;opacity:1}}
 
 /* Zen mode keeps only the room, the cat, the timer badge and an exit. */
-.room-zen .app .topbar,.room-zen .cabin-room .room-now-playing,.room-zen .room-shelf-navigation,.room-zen .cabin-room .cabin-toolbar>span,.room-zen .cabin-toolbar-actions>:not(.zen-keep){display:none!important}
+.room-zen .app-titlebar,.room-zen .cabin-room .room-now-playing,.room-zen .room-shelf-navigation,.room-zen .cabin-room .cabin-toolbar>:not(.zen-keep),.room-zen .shelf-filters{display:none!important}
 .room-zen .cabin-room .cabin-toolbar{top:14px;left:auto;right:16px;background:#27180d99}
 .room-zen .room-cat,.wallpaper-room .room-cat{bottom:28px}
-.room-zen .room-turntable{opacity:.25;transition:opacity .3s}.room-zen .room-turntable:hover,.room-zen .room-turntable:focus-within{opacity:1}
-.room-focus-open .room-shelf-navigation{right:calc(min(360px,100% - 32px) + 30px)}
+.room-zen .room-turntable{opacity:.08;transition:opacity .3s}.room-zen .room-turntable:hover,.room-zen .room-turntable:focus-within{opacity:1}
+/* The focus dock covers the shelf buttons; the wheel and arrow keys still page. */
+.room-focus-open .room-shelf-navigation{display:none}
 .cabin-toolbar-group{display:flex;gap:8px;align-items:center}
 .music-local{display:grid;gap:8px;margin-top:14px}.music-local h3{margin:0}.music-local p{margin:0}
 .music-local-folders{list-style:none;margin:0;padding:0;display:grid;gap:5px}.music-local-folders li{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #ad80534d;border-radius:8px}.music-local-folders span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

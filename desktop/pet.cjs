@@ -33,7 +33,7 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
   }
   async function start() {
     if (window) { window.showInactive(); return; }
-    const created = new BrowserWindow({ ...defaultBounds(), title: 'Album Circle · 桌宠小猫', frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, show: false,
+    const created = new BrowserWindow({ ...defaultBounds(), title: '心流小屋 · 桌宠小猫', frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, show: false,
       webPreferences: { preload: path.join(__dirname, 'pet-preload.cjs'), partition: 'album-circle-pet', sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, backgroundThrottling: false, spellcheck: false } });
     window = created;
     created.setAlwaysOnTop(true, 'floating'); created.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });

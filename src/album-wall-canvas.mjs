@@ -1,11 +1,12 @@
 import { wallGeometry, normalizeWall } from './album-wall-model.mjs';
 const cache = new Map();
-export async function loadWallCover(value, desktop = false) {
+export async function loadWallCover(value) {
   if (!value) return null;
   if (!cache.has(value)) cache.set(value, (async () => {
     try {
-      const external = new URL(value, window.location.href).origin !== window.location.origin;
-      const target = desktop ? `/desktop-image?url=${encodeURIComponent(value)}` : external ? `/api/cover?url=${encodeURIComponent(value)}` : value;
+      // Local and inline artwork is read directly; catalog artwork goes through the desktop cover proxy.
+      const url = new URL(value, window.location.href);
+      const target = url.protocol === 'data:' || url.origin === window.location.origin ? value : `/desktop-image?url=${encodeURIComponent(value)}`;
       const response = await fetch(target, { credentials: 'omit', signal: AbortSignal.timeout(18000) });
       if (!response.ok) return null;
       const blob = await response.blob();

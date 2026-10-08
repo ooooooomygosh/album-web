@@ -18,7 +18,7 @@ export default function RoomTurntable({ item, spinning, trackIndex = 0, style, i
         <span className="turntable-foot turntable-foot-left"/><span className="turntable-foot turntable-foot-right"/>
         <div className="turntable-platter"><span className="platter-rings"/>{item && <div className="turntable-record" key={item.id}><div className="turntable-disc-rotation"><VinylDisc item={item} value={style}/><ShowroomArtwork item={item} className="turntable-label"/></div></div>}</div>
         <div className="turntable-tonearm"><i/><span/></div><span className="turntable-indicator"/><span className="turntable-speed-knob"/>
-        <span className="turntable-brand">ALBUM CIRCLE · 33⅓</span>
+        <span className="turntable-brand">FLOW CABIN · 33⅓</span>
       </div>
     </div>
     <div className="turntable-side-cabinet">

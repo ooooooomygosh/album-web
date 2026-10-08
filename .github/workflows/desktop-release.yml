@@ -15,15 +15,15 @@ jobs:
           - runner: windows-2022
             platform: win
             arch: x64
-            executable: release/win-unpacked/Album Circle.exe
+            executable: release/win-unpacked/心流小屋.exe
           - runner: macos-15
             platform: mac
             arch: arm64
-            executable: release/mac-arm64/Album Circle.app/Contents/MacOS/Album Circle
+            executable: release/mac-arm64/心流小屋.app/Contents/MacOS/心流小屋
           - runner: macos-15-intel
             platform: mac
             arch: x64
-            executable: release/mac/Album Circle.app/Contents/MacOS/Album Circle
+            executable: release/mac/心流小屋.app/Contents/MacOS/心流小屋
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,6 @@ jobs:
       - run: npm --prefix desktop ci --no-audit --no-fund
       - run: npm --prefix desktop run build:native
       - run: npm --prefix desktop run build:music
-      - run: npm --prefix desktop run build:local
       - run: npm --prefix desktop run build:web
       - run: npm run desktop:test
       - name: Package Windows
@@ -88,4 +87,4 @@ jobs:
           cd release
           sha256sum *.exe *.dmg *.zip > SHA256SUMS.txt
           cd ..
-          gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "Album Circle $GITHUB_REF_NAME · macOS & Windows" --notes-file desktop/RELEASE-NOTES.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "心流小屋 Flow Cabin $GITHUB_REF_NAME · macOS & Windows" --notes-file desktop/RELEASE-NOTES.md --verify-tag
