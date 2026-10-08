@@ -8,7 +8,7 @@ import './pet.css';
 // everywhere except the painted cat pixels and the speech bubble.
 function PetApp() {
   const api = window.albumPet, [snapshot, setSnapshot] = useState(null), [size, setSize] = useState(192);
-  const cat = useCatBehaviour({ focus: snapshot?.focus || {}, playing: Boolean(snapshot?.playing), track: snapshot?.track || '', lastActivity: 0 });
+  const cat = useCatBehaviour({ focus: snapshot?.focus || {}, playing: Boolean(snapshot?.playing), track: snapshot?.track || '', lastActivity: 0, reduceMotion: Boolean(snapshot?.reduceMotion) });
   const box = useRef(null), frame = useRef(0), hit = useRef(false), drag = useRef(null), [dragging, setDragging] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -50,8 +50,8 @@ function PetApp() {
   };
   return <div className="pet-stage" onContextMenu={(event) => { event.preventDefault(); api?.menu(); }}>
     {cat.bubble && <div className="pet-bubble" role="status" onClick={() => api?.open()}>{cat.bubble}</div>}
-    <div ref={box} className={`pet-cat ${dragging ? 'is-dragging' : ''}`} onPointerDown={down} onPointerMove={moveDrag} onPointerUp={up} onPointerCancel={up} onDoubleClick={(event) => { if (overCat(event)) api?.open(); }}>
-      <PixelCat pose={pose} accessory={accessory} reduceMotion={Boolean(snapshot?.reduceMotion)} onFrame={(index) => { frame.current = index; }}/>
+    <div ref={box} style={{ transform: `translateX(${dragging ? 0 : cat.x}px)` }} className={`pet-cat ${dragging ? 'is-dragging' : ''}`} onPointerDown={down} onPointerMove={moveDrag} onPointerUp={up} onPointerCancel={up} onDoubleClick={(event) => { if (overCat(event)) api?.open(); }}>
+      <PixelCat pose={pose} accessory={accessory} skin={snapshot?.focus?.catSkin} reduceMotion={cat.reduced} onFrame={(index) => { frame.current = index; }}/>
     </div>
   </div>;
 }

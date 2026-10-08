@@ -14,13 +14,14 @@ const TABS = [['timer', '番茄钟', Clock], ['tasks', '待办', ListBullet], ['
 export function FocusTimer() {
   const focus = useFocus(), { timer, settings, tasks } = focus.state, [editing, setEditing] = useState(false);
   const idle = timer.phase === 'idle', remaining = idle ? phaseDuration(settings, 'focus') : focus.remaining;
-  const total = idle ? remaining : phaseDuration(settings, timer.phase), progress = total ? 1 - remaining / total : 0;
+  const displayRemaining = settings.hideSeconds ? Math.ceil(remaining / 60000) * 60000 : remaining;
+  const total = idle ? remaining : phaseDuration(settings, timer.phase), progress = total ? Math.max(0, 1 - displayRemaining / total) : 0;
   const task = tasks.find((item) => item.id === timer.taskId);
   const number = (key, label, max) => <label>{label}<input type="number" min="1" max={max} value={settings[key]} onChange={(event) => focus.settings({ [key]: event.target.value })}/></label>;
   const check = (key, label) => <label className="focus-check"><input type="checkbox" checked={settings[key]} onChange={(event) => focus.settings({ [key]: event.target.checked })}/>{label}</label>;
   return <div className={`focus-timer phase-${timer.phase} ${timer.paused ? 'is-paused' : ''}`}>
     <p className="focus-phase" role="status">{PHASE_LABELS[timer.phase]}{timer.paused ? ' · 已暂停' : ''}</p>
-    <PixelClock text={formatClock(remaining)} label={`剩余 ${formatClock(remaining)}`}/>
+    <PixelClock text={formatClock(remaining, settings.hideSeconds)} label={`剩余 ${formatClock(remaining, settings.hideSeconds)}`}/>
     <div className="focus-progress" aria-hidden="true"><span style={{ width: `${progress * 100}%` }}/></div>
     <div className="focus-rounds" aria-label={`本组第 ${timer.round % settings.longEvery + (timer.phase === 'focus' ? 1 : 0)} 轮`}>{Array.from({ length: settings.longEvery }, (_, index) => <span key={index} className={index < timer.round % settings.longEvery ? 'is-done' : index === timer.round % settings.longEvery && timer.phase === 'focus' ? 'is-active' : ''}/>)}</div>
     <label className="focus-current-task">当前任务<select aria-label="当前专注任务" value={timer.taskId} onChange={(event) => focus.selectTask(event.target.value || timer.taskId)}><option value="">自由专注</option>{tasks.filter((item) => !item.done || item.id === timer.taskId).map((item) => <option key={item.id} value={item.id}>{item.text}</option>)}</select></label>
@@ -34,7 +35,7 @@ export function FocusTimer() {
     </div>
     {editing && <div className="focus-settings">
       <div className="focus-settings-grid">{number('focusMin', '专注（分）', 180)}{number('shortMin', '短休（分）', 60)}{number('longMin', '长休（分）', 90)}{number('longEvery', '几轮长休', 8)}</div>
-      {check('autoBreak', '专注结束自动开始休息')}{check('autoFocus', '休息结束自动开始专注')}{check('notify', '系统通知')}{check('chime', '提示音')}{check('autoSound', '开始专注时打开声音')}
+      {check('hideSeconds', '隐藏秒数（仅显示剩余分钟）')}{check('autoBreak', '专注结束自动开始休息')}{check('autoFocus', '休息结束自动开始专注')}{check('notify', '系统通知')}{check('chime', '提示音')}{check('autoSound', '开始专注时打开声音')}
     </div>}
     {focus.error && <p className="record-error" role="alert">{focus.error}</p>}
   </div>;
@@ -63,7 +64,7 @@ export function SoundMixer() {
 export function FocusBadge({ onClick }) {
   const focus = useFocus(), { timer } = focus.state;
   if (timer.phase === 'idle') return <button type="button" className="focus-badge" onClick={onClick}><Clock size={17}/>专注</button>;
-  return <button type="button" className={`focus-badge is-running phase-${timer.phase}`} onClick={onClick} aria-label={`${PHASE_LABELS[timer.phase]}，剩余 ${formatClock(focus.remaining)}`}><Clock size={17}/>{formatClock(focus.remaining)}{timer.paused ? ' ⏸' : ''}</button>;
+  return <button type="button" className={`focus-badge is-running phase-${timer.phase}`} onClick={onClick} aria-label={`${PHASE_LABELS[timer.phase]}，剩余 ${formatClock(focus.remaining, focus.state.settings.hideSeconds)}`}><Clock size={17}/>{formatClock(focus.remaining, focus.state.settings.hideSeconds)}{timer.paused ? ' ⏸' : ''}</button>;
 }
 
 export default function FocusDock({ open, close, tab, setTab }) {

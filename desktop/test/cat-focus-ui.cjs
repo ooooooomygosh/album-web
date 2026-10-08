@@ -1,0 +1,119 @@
+'use strict';
+// Cabin productivity flow: focus dock, tasks, a full pomodoro with a fake
+// clock, rewards, the room cat, the sound mixer and Zen mode.
+const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
+const { mountFixture } = require('./ui-fixture.cjs');
+const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results'); fs.mkdirSync(output, { recursive: true });
+const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `cat-focus-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
+const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
+const report = { executablePath, startedAt: new Date().toISOString(), fixtureData: true, checks: [], pageErrors: [] };
+const check = (name, detail = {}) => { report.checks.push({ name, passed: true, ...detail }); console.log('PASS ' + name); };
+let app, site, host;
+(async () => {
+  app = await _electron.launch({ executablePath, args: process.env.ALBUM_QA_EXE ? [] : [desktop], env }); app.context().setDefaultTimeout(18000); await app.firstWindow();
+  for (let i = 0; i < 100; i++) { site = app.context().pages().find((p) => p.url().startsWith('https://album-circle.vercel.app')); host = app.context().pages().find((p) => p.url() === 'album-desktop://shell/index.html'); if (site && host) break; await new Promise((r) => setTimeout(r, 100)); }
+  site.on('pageerror', (e) => report.pageErrors.push(e.message));
+  await site.addInitScript(() => {
+    window.__catPaints = 0;
+    const fill = CanvasRenderingContext2D.prototype.fillRect;
+    CanvasRenderingContext2D.prototype.fillRect = function(...args) { if (this.canvas.__qaRoomCat ||= Boolean(this.canvas.closest('.room-cat'))) window.__catPaints++; return fill.apply(this, args); };
+  });
+  await site.clock.install({ time: new Date('2026-10-08T12:00:00') });
+  await mountFixture(app, site, { showroom: 'room' });
+  const cat = site.locator('.room-cat .pixel-cat'); await cat.waitFor();
+  await site.clock.fastForward(89000);
+  assert.notEqual(await cat.getAttribute('data-pose'), 'walk');
+  let walked = false;
+  for (let i = 0; i < 140; i++) { await site.clock.fastForward(500); if (await cat.getAttribute('data-pose') === 'walk') { walked = true; break; } }
+  assert.equal(walked, true); await site.clock.fastForward(3000);
+  const x = await cat.evaluate(el => new DOMMatrix(getComputedStyle(el).transform).m41); assert.ok(x > 0 && x <= 16);
+  await site.screenshot({ path: path.join(output, 'cat-orange-walking.png') });
+  await site.clock.fastForward(9000); assert.notEqual(await cat.getAttribute('data-pose'), 'walk');
+  check('room-cat-rests-then-walks-a-bounded-path-and-rests');
+  await site.emulateMedia({ reducedMotion: 'reduce' });
+  await site.locator('.room-cat .pixel-cat[data-reduced-motion="true"]').waitFor(); await site.clock.fastForward(160000); await site.clock.runFor(1000); assert.notEqual(await cat.getAttribute('data-pose'), 'walk');
+  const still = await cat.evaluate(el => el.toDataURL()); await site.clock.runFor(1200); assert.equal(await cat.evaluate(el => el.toDataURL()), still);
+  check('os-reduced-motion-stops-walking-and-sprite-animation');
+  await site.emulateMedia({ reducedMotion: 'no-preference' });
+  await host.evaluate(() => window.albumDesktop.settings('apply', { reduceMotion: true }));
+  await site.locator('.room-cat .pixel-cat[data-reduced-motion="true"]').waitFor();
+  check('app-reduced-motion-preference-is-respected');
+  await host.evaluate(() => window.albumDesktop.settings('apply', { reduceMotion: false }));
+  await site.locator('.room-cat .pixel-cat[data-reduced-motion="false"]').waitFor();
+  await site.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
+  await site.clock.runFor(500); const paints = await site.evaluate(() => window.__catPaints);
+  await site.clock.runFor(1500); assert.equal(await site.evaluate(() => window.__catPaints), paints);
+  await site.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
+  await site.clock.runFor(1200); assert.ok(await site.evaluate(() => window.__catPaints) > paints);
+  check('background-pauses-drawing-and-visible-resumes');
+  await site.locator('.focus-badge').click(); await site.getByRole('tab', { name: '统计' }).click();
+  await site.getByRole('button', { name: '黑猫', exact: true }).click(); assert.equal(await cat.getAttribute('data-skin'), 'black');
+  await site.screenshot({ path: path.join(output, 'cat-black-room.png') });
+  await site.getByRole('tab', { name: '番茄钟' }).click(); await site.getByRole('button', { name: '计时设置' }).click();
+  await site.getByLabel('专注（分）').fill('2'); await site.getByLabel('隐藏秒数（仅显示剩余分钟）').check();
+  await site.getByLabel('提示音', { exact: true }).uncheck(); await site.getByLabel('系统通知', { exact: true }).uncheck();
+  await site.getByRole('button', { name: '开始专注', exact: true }).click();
+  assert.match(await site.locator('.focus-badge').innerText(), /2 分钟/);
+  const clock = await site.locator('.focus-timer .pixel-clock').innerHTML(), progress = await site.locator('.focus-progress span').getAttribute('style');
+  await site.clock.fastForward(10000);
+  assert.equal(await site.locator('.focus-timer .pixel-clock').innerHTML(), clock); assert.equal(await site.locator('.focus-progress span').getAttribute('style'), progress);
+  await site.clock.fastForward(51000); assert.match(await site.locator('.focus-badge').innerText(), /1 分钟/);
+  await site.getByRole('button', { name: '暂停', exact: true }).click(); await site.clock.fastForward(120000); assert.match(await site.locator('.focus-badge').innerText(), /1 分钟/);
+  await site.getByRole('button', { name: '继续', exact: true }).click();
+  await site.screenshot({ path: path.join(output, 'focus-hidden-seconds.png') });
+  await site.evaluate(() => { window.__phaseCount = 0; window.addEventListener('album-focus-phase', () => window.__phaseCount++); });
+  await site.clock.fastForward(60000); assert.equal(await site.evaluate(() => window.__phaseCount), 1);
+  await site.clock.fastForward(1000); assert.equal(await site.evaluate(() => window.__phaseCount), 1);
+  check('minutes-stay-still-between-boundaries-pause-resume-and-finish-once');
+  await site.reload(); await cat.waitFor(); assert.equal(await cat.getAttribute('data-skin'), 'black');
+  if (!await site.getByRole('tab', { name: '番茄钟' }).isVisible()) await site.locator('.focus-badge').click(); await site.getByRole('tab', { name: '番茄钟' }).click(); await site.getByRole('button', { name: '计时设置' }).click(); assert.equal(await site.getByLabel('隐藏秒数（仅显示剩余分钟）').isChecked(), true);
+  check('skin-and-display-preferences-persist-after-reload');
+  await site.locator('.focus-dock-close').click();
+  const opened = app.waitForEvent('window', page => page.url().includes('/pet/pet.html'));
+  await site.getByRole('button', { name: '小猫出门' }).click(); const pet = await opened;
+  pet.on('pageerror', (e) => report.pageErrors.push(e.message));
+  await pet.locator('.pixel-cat[data-skin="black"]').waitFor();
+  const bounds = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().includes('/pet/pet.html')).getBounds());
+  const before = await bounds();
+  await pet.clock.install();
+  let petWalk = false;
+  for (let i = 0; i < 170; i++) { await pet.clock.fastForward(1000); if (await pet.locator('.pixel-cat').getAttribute('data-pose') === 'walk') { petWalk = true; break; } }
+  assert.ok(petWalk); await pet.clock.fastForward(2000);
+  assert.deepEqual(await bounds(), before);
+  await pet.screenshot({ path: path.join(output, 'cat-black-pet-walking.png') });
+  await pet.emulateMedia({ reducedMotion: 'reduce' }); await pet.clock.runFor(500);
+  assert.notEqual(await pet.locator('.pixel-cat').getAttribute('data-pose'), 'walk');
+  const petPaint = await pet.locator('.pixel-cat').evaluate(el => el.toDataURL()); await pet.clock.runFor(1000); assert.equal(await pet.locator('.pixel-cat').evaluate(el => el.toDataURL()), petPaint);
+  check('desktop-pet-receives-black-skin-walks-without-moving-native-window-and-respects-reduced-motion');
+  await site.getByRole('button', { name: '让小猫回家' }).click(); await cat.waitFor(); assert.equal(pet.isClosed(), true);
+  await site.getByRole('button', { name: '小猫出门' }).click(); await site.waitForFunction(() => !document.querySelector('.room-cat'));
+  await site.clock.runFor(500); const afterUnmount = await site.evaluate(() => window.__catPaints);
+  await site.clock.runFor(1500); assert.equal(await site.evaluate(() => window.__catPaints), afterUnmount);
+  check('unmounted-room-sprite-stops-drawing');
+
+  const snapshot = await site.evaluate(() => ({ ...window.albumRoomSnapshot(), focus: { ...window.albumCompanionSnapshot().focus, phase: 'focus', paused: true, endsAt: 0, remaining: 61000 } }));
+  await app.evaluate(async ({ app, BrowserWindow, ipcMain, session }, snapshot) => {
+    const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs');
+    const { registerShellProtocol } = require('./shell-protocol.cjs'), { cleanSnapshot } = require('./wallpaper-model.cjs');
+    const partition = session.fromPartition('album-circle-wallpaper'); registerShellProtocol(partition.protocol);
+    ipcMain.removeHandler('wallpaper:snapshot'); ipcMain.handle('wallpaper:snapshot', () => cleanSnapshot(snapshot));
+    const win = new BrowserWindow({ width: 1280, height: 900, show: true, webPreferences: { partition: 'album-circle-wallpaper', preload: app.getAppPath() + '/wallpaper-preload.cjs', sandbox: true, contextIsolation: true, nodeIntegration: false } });
+    await win.loadURL('album-desktop://wallpaper/wallpaper.html'); globalThis.__qaWallpaper = win;
+  }, snapshot);
+  const wallpaper = app.context().pages().find(p => p.url().includes('/wallpaper/wallpaper.html'));
+  wallpaper.on('pageerror', e => report.pageErrors.push(e.message));
+  await wallpaper.locator('.pixel-cat[data-skin="black"]').waitFor();
+  assert.equal(await wallpaper.locator('.pixel-clock').getAttribute('aria-label'), '2 分钟');
+  await wallpaper.screenshot({ path: path.join(output, 'cat-wallpaper-hidden-seconds.png') });
+  await app.evaluate(({ app }, snapshot) => {
+    const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs');
+    globalThis.__qaWallpaper.webContents.send('wallpaper:update', require('./wallpaper-model.cjs').cleanSnapshot({ ...snapshot, focus: { ...snapshot.focus, remaining: 60000, catSkin: 'orange' } }));
+  }, snapshot);
+  await wallpaper.locator('.pixel-cat[data-skin="orange"]').waitFor(); assert.equal(await wallpaper.locator('.pixel-clock').getAttribute('aria-label'), '1 分钟');
+  await app.evaluate(() => globalThis.__qaWallpaper.destroy());
+  check('isolated-wallpaper-reuses-focus-snapshot-for-skin-and-minute-boundaries-no-native-attachment-claimed');
+  assert.deepEqual(report.pageErrors, []); report.passed = true;
+})().catch((error) => { report.error = error.stack || error.message; report.passed = false; process.exitCode = 1; }).finally(async () => {
+  report.finishedAt = new Date().toISOString(); fs.writeFileSync(path.join(output, 'cat-focus-ui-report.json'), JSON.stringify(report, null, 2));
+  if (!report.passed) console.error(report.error); await app?.close().catch(() => {});
+});

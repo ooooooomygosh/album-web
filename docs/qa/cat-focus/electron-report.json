@@ -1,0 +1,46 @@
+{
+  "executablePath": "/workspace/album-web/desktop/node_modules/electron/dist/electron.exe",
+  "startedAt": "2026-10-08T17:42:05.322Z",
+  "fixtureData": true,
+  "checks": [
+    {
+      "name": "room-cat-rests-then-walks-a-bounded-path-and-rests",
+      "passed": true
+    },
+    {
+      "name": "os-reduced-motion-stops-walking-and-sprite-animation",
+      "passed": true
+    },
+    {
+      "name": "app-reduced-motion-preference-is-respected",
+      "passed": true
+    },
+    {
+      "name": "background-pauses-drawing-and-visible-resumes",
+      "passed": true
+    },
+    {
+      "name": "minutes-stay-still-between-boundaries-pause-resume-and-finish-once",
+      "passed": true
+    },
+    {
+      "name": "skin-and-display-preferences-persist-after-reload",
+      "passed": true
+    },
+    {
+      "name": "desktop-pet-receives-black-skin-walks-without-moving-native-window-and-respects-reduced-motion",
+      "passed": true
+    },
+    {
+      "name": "unmounted-room-sprite-stops-drawing",
+      "passed": true
+    },
+    {
+      "name": "isolated-wallpaper-reuses-focus-snapshot-for-skin-and-minute-boundaries-no-native-attachment-claimed",
+      "passed": true
+    }
+  ],
+  "pageErrors": [],
+  "passed": true,
+  "finishedAt": "2026-10-08T17:42:14.787Z"
+}

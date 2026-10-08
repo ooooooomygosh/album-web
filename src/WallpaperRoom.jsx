@@ -15,7 +15,7 @@ function WallpaperTimer({ focus }) {
   const now = useClock(1000);
   if (!focus || focus.phase === 'idle') return null;
   const remaining = focus.endsAt ? Math.max(0, focus.endsAt - now) : focus.remaining;
-  return <div className={`wallpaper-focus phase-${focus.phase}`}><small>{PHASE_LABELS[focus.phase]}{focus.paused ? ' · 暂停' : ''}{focus.task ? ` · ${focus.task}` : ''}</small><PixelClock text={formatClock(remaining)}/></div>;
+  return <div className={`wallpaper-focus phase-${focus.phase}`}><small>{PHASE_LABELS[focus.phase]}{focus.paused ? ' · 暂停' : ''}{focus.task ? ` · ${focus.task}` : ''}</small><PixelClock text={formatClock(remaining, focus.hideSeconds)}/></div>;
 }
 function WallpaperRoom() {
   const [snapshot, setSnapshot] = useState(null);

@@ -6,7 +6,7 @@ export const PHASES = ['idle', 'focus', 'shortBreak', 'longBreak'];
 export const PHASE_LABELS = { idle: '准备开始', focus: '专注中', shortBreak: '短休息', longBreak: '长休息' };
 const MINUTE = 60000, DAY = 86400000;
 
-export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false });
+export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false, hideSeconds: false, catSkin: 'orange' });
 // Rewards follow the Chill Pulse idea of unlocking cosy extras by working.
 export const UNLOCKS = Object.freeze([
   { id: 'snow', kind: 'weather', level: 1, name: '雪夜窗景' },
@@ -27,7 +27,7 @@ export function normalizeSettings(value = {}) {
   return {
     focusMin: clamp(v.focusMin, 1, 180, DEFAULT_SETTINGS.focusMin), shortMin: clamp(v.shortMin, 1, 60, DEFAULT_SETTINGS.shortMin),
     longMin: clamp(v.longMin, 1, 90, DEFAULT_SETTINGS.longMin), longEvery: clamp(v.longEvery, 2, 8, DEFAULT_SETTINGS.longEvery),
-    autoBreak: v.autoBreak !== false, autoFocus: v.autoFocus === true, notify: v.notify !== false, chime: v.chime !== false, autoSound: v.autoSound === true
+    autoBreak: v.autoBreak !== false, autoFocus: v.autoFocus === true, notify: v.notify !== false, chime: v.chime !== false, autoSound: v.autoSound === true, hideSeconds: v.hideSeconds === true, catSkin: v.catSkin === 'black' ? 'black' : 'orange'
   };
 }
 function normalizeTimer(value = {}) {
@@ -73,7 +73,8 @@ export function remainingMs(timer, now) {
   if (!timer || timer.phase === 'idle') return 0;
   return timer.paused ? timer.remaining : Math.max(0, timer.endsAt - now);
 }
-export function formatClock(ms) {
+export function formatClock(ms, hideSeconds = false) {
+  if (hideSeconds) return `${Math.max(0, Math.ceil(ms / MINUTE))} 分钟`;
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
@@ -209,5 +210,5 @@ export function equip(state, kind, value) {
 // Compact read-only form shared with the wallpaper and desktop pet windows.
 export function focusSnapshot(state, now) {
   const task = state.tasks.find((item) => item.id === state.timer.taskId);
-  return { phase: state.timer.phase, paused: state.timer.paused, remaining: remainingMs(state.timer, now), endsAt: state.timer.paused ? 0 : state.timer.endsAt, round: state.timer.round, task: task?.text || '', fish: state.rewards.fish, level: levelInfo(state.rewards.xp).level, accessory: state.rewards.equipped.accessory, weather: state.rewards.equipped.weather };
+  return { hideSeconds: state.settings.hideSeconds, catSkin: state.settings.catSkin, phase: state.timer.phase, paused: state.timer.paused, remaining: remainingMs(state.timer, now), endsAt: state.timer.paused ? 0 : state.timer.endsAt, round: state.timer.round, task: task?.text || '', fish: state.rewards.fish, level: levelInfo(state.rewards.xp).level, accessory: state.rewards.equipped.accessory, weather: state.rewards.equipped.weather };
 }
