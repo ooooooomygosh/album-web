@@ -7,7 +7,7 @@
 - 动态背景错误提示显示 5 秒后消退，也可手动关闭。应用中可以取消；沿用 `wallpaper-start` / `wallpaper-stop` 与原有只读快照接口。
 - 动态背景在创建窗口前注册独立 session 的协议并检查入口资源。资源读取异常返回 404，不再让异常逃出协议处理函数。启动有 20 秒截止时间；取消时中断资源请求和正在启动的 Windows helper；关闭/崩溃时销毁窗口并清理计时器，过期异步结果不能影响后续启动。
 - 主页面唱机标题是拖动手柄，支持鼠标、触控、方向键移动，双击或 Home 复位。相对位置保存在现有 room 设置中，窗口改变尺寸时重新约束位置。播放按钮、曲目选择、双击放盘与专辑拖放保留。
-- 默认黑胶底色来自封面采样中数量最多的颜色分组，用于拖拽预览、唱片卡片、唱机和已有壁纸快照。复用 `/desktop-image`，无新增外部 API、服务器或 Electron bridge 接口。封面不存在、读取失败或跨域不可读时回退原默认黑胶色。保存的手动颜色和取色等待期间的编辑优先。
+- 默认黑胶底色来自封面采样中数量最多的颜色分组，用于拖拽预览、唱片卡片、唱机和已有壁纸快照。复用 `/desktop-image`，无新增外部 API、服务器或 Electron bridge 接口。封面不存在、读取失败或跨域不可读时回退原默认黑胶色。保存的手动底色和取色等待期间明确选择的底色优先；只编辑透明度、泼溅或泼溅配色时仍跟随主色，且不丢失其他编辑。“恢复默认黑胶”重新启用自动主色。
 
 **根因边界：** 已确认旧代码的提示常驻、缺少启动截止时间/崩溃清理和异步竞态；资源 I/O 异常也会从原协议处理函数直接抛出。最新 main 的完整构建在 Linux 上可以加载 `album-desktop://wallpaper/wallpaper.html`，尚不能断定用户原生平台截图中的 `ERR_FAILED (-2)` 究竟由哪项环境条件触发。这里没有把 Linux 资源加载成功当成 Windows/macOS 桌面挂载通过。
 
@@ -18,6 +18,7 @@
 | `npm run build` | 通过 |
 | `npm --prefix desktop run build:web` | 通过，包含 wallpaper/pet HTML 与资源 |
 | `npm run desktop:test` | 62 项通过 |
+| `DISPLAY=:99 npm --prefix desktop run test:cover-editor` | 4 组延迟封面编辑检查通过，含透明度、泼溅、手选底色和恢复默认 |
 | `DISPLAY=:99 npm --prefix desktop run test:improvements` | 9 组检查通过，无页面异常 |
 | `DISPLAY=:99 npm --prefix desktop run test:library` | 5 组检查通过，含真实重启保存的颜色 |
 | `DISPLAY=:99 npm --prefix desktop run test:shelf` | 9 组检查通过，含 1024/1920/3840 布局 |

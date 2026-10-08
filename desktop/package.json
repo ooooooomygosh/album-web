@@ -20,6 +20,7 @@
     "test:library": "node test/library-ui.cjs",
     "test:room": "node test/room-ui.cjs",
     "test:improvements": "node test/improvements-ui.cjs",
+    "test:cover-editor": "node test/cover-editor-ui.cjs",
     "test:music": "node test/music-ui.cjs",
     "dist:mac": "npm run build:native && npm run build:music && npm run build:web && electron-builder --mac dmg zip --arm64 --x64 --publish never",
     "dist:win": "npm run dist -- --publish never",
