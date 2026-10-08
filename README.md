@@ -1,4 +1,4 @@
-# Album Circle 1.5.0
+# Album Circle 1.5.1
 
 macOS / Windows 客户端以本地收藏为默认，云端账号、数据库、AI 和在线分享为可选服务。最新版安装包见 [GitHub Releases](https://github.com/ooooooomygosh/album-web/releases/latest)。
 

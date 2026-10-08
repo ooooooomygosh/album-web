@@ -1,4 +1,4 @@
-# Album Circle macOS / Windows 客户端 1.5.0
+# Album Circle macOS / Windows 客户端 1.5.1
 
 默认本地模式：软件在用户数据目录保存收藏，无需注册或远程数据库。搜索与平台播放需要联网；手动添加、展柜浏览、黑胶样式、唱片盒和已有收藏的管理可离线使用。
 
@@ -8,7 +8,7 @@
 
 跨平台发布：根目录和 desktop 目录分别安装依赖。macOS 运行 `npm run dist:mac`；Windows 运行 `npm run dist:win`。文件输出到 `desktop/release/`，macOS 两种芯片分别生成 DMG 和 ZIP，Windows 生成安装版及便携版。GitHub 标签触发三组构建，所有检查通过后生成 Release 和 SHA256 校验文件。当前 Mac 包采用 ad-hoc 签名，没有 Apple 公证；Windows 未设置发布者证书。
 
-下方为 1.4.0 原始交付功能记录，历史验收数量和 Windows 路径保留用于追溯；1.5.0 的验证以当前测试及 GitHub 构建结果为准。
+下方为 1.4.0 原始交付功能记录，历史验收数量和 Windows 路径保留用于追溯；1.5.1 的验证以当前测试及 GitHub 构建结果为准。
 
 # Album Circle Windows 联网客户端 1.4.0
 

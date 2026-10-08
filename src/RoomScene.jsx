@@ -7,9 +7,18 @@ export const ROOM_DRAG_TYPE = 'application/x-album-circle-record';
 export default function RoomScene({ look = 'warm', items = [], selectedId, select, load, startRow = 0, children }) {
   const viewport = useRef(null), [geometry, setGeometry] = useState({});
   useLayoutEffect(() => {
-    const update = () => { const rect = viewport.current.getBoundingClientRect(); setGeometry(roomGeometry(rect.width, rect.height)); };
-    const observer = new ResizeObserver(update); observer.observe(viewport.current); update();
-    return () => observer.disconnect();
+    const room = viewport.current.closest('.cabin-room');
+    const toolbar = room?.querySelector('.cabin-toolbar'), footer = room?.querySelector('.room-now-playing');
+    const header = room ? document.querySelector('.app .topbar') : null;
+    const update = () => {
+      const rect = viewport.current.getBoundingClientRect();
+      const safeArea = room ? { top: Math.max(toolbar?.getBoundingClientRect().bottom || 0, header?.getBoundingClientRect().bottom || 0) - rect.top + 12, bottom: footer ? rect.bottom - footer.getBoundingClientRect().top + 12 : 12 } : undefined;
+      setGeometry(roomGeometry(rect.width, rect.height, safeArea));
+    };
+    let frame;
+    const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); });
+    [viewport.current, toolbar, footer, header].filter(Boolean).forEach((element) => observer.observe(element)); update();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, []);
   const { columns, rows } = SHELF[look] || SHELF.warm;
   return <div ref={viewport} className="room-scene cabin-scene" aria-label={look === 'pixel' ? '像素温馨小屋' : '写实温馨小屋'} data-room-look={look}>

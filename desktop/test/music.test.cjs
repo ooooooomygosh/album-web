@@ -55,6 +55,14 @@ test('shelf row navigation covers final partial row and preserves fixed geometry
   assert.equal(view.startRow, 1); assert.equal(view.items.length, 10); assert.equal(view.items.at(-1).id, 13); assert.equal(shelfWindow([], -1).startRow, 0);
   for (const [width, height] of [[960, 600], [1920, 1080], [3440, 1440], [3840, 2160]]) { const g = roomGeometry(width, height); assert.ok(g.left <= 0 && g.top <= 0 && g.left + g.width >= width && g.top + g.height >= height); }
 });
+test('small-window shelf stays between the top controls and album footer', async () => {
+  const { roomGeometry } = await import('../../src/room-model.mjs');
+  for (const [width, height] of [[800, 600], [1024, 768], [1440, 600], [1920, 1080]]) {
+    const geometry = roomGeometry(width, height, { top: 190, bottom: 120 }), scale = geometry.width / 1448;
+    assert.ok(geometry.top + 200 * scale >= 190 - 0.01);
+    assert.ok(geometry.top + 701 * scale <= height - 120 + 0.01);
+  }
+});
 test('audio identifiers come from original QQ track IDs, other catalogs require version selection', async () => {
   const { exactTrack } = await import('../../src/room-playback.mjs'); const item = { tracks: ['原曲名'], trackDetails: [{ providerId: '001n4C3p1yv0FU' }] };
   assert.equal(exactTrack(item, 0, 'qq').id, '001n4C3p1yv0FU'); assert.equal(exactTrack(item, 0, 'netease'), null); assert.equal(exactTrack({ tracks: ['原曲名'] }, 0, 'qq'), null);
