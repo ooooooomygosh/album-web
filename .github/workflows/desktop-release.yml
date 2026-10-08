@@ -37,6 +37,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm --prefix desktop ci --no-audit --no-fund
       - run: npm --prefix desktop run build:native
+        env:
+          REQUIRE_NOWPLAYING: '1'
       - run: npm --prefix desktop run build:music
       - run: npm --prefix desktop run build:web
       - run: npm run desktop:test
