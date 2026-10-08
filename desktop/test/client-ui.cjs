@@ -8,11 +8,12 @@ async function launch() {
   const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: profile }; delete env.ELECTRON_RUN_AS_NODE;
   application = await electron.launch({ ...(process.env.ALBUM_QA_EXE ? { executablePath: path.resolve(process.env.ALBUM_QA_EXE), args: [] } : { args: [path.join(__dirname, '..')] }), env });
   await application.firstWindow();
-  await application.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.unmaximize(); window.setSize(1024, 768); });
   await application.evaluate(async ({ webContents }) => { const started = Date.now(); while (!webContents.getAllWebContents().some((contents) => contents.getURL().startsWith('https://album-circle.vercel.app'))) { if (Date.now() - started > 30000) throw new Error('Site view did not open'); await new Promise((resolve) => setTimeout(resolve, 100)); } });
   site = await application.waitForEvent('window', { predicate: (page) => page.url().startsWith('https://album-circle.vercel.app'), timeout: 5000 }).catch(() => application.windows().find((page) => page.url().startsWith('https://album-circle.vercel.app')));
   assert.ok(site); site.on('pageerror', (error) => report.pageErrors.push(error.message));
   await site.getByRole('button', { name: '收藏与分享', exact: true }).waitFor({ timeout: 30000 });
+  await application.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.unmaximize(); window.setSize(1024, 768); });
+  await site.waitForFunction(() => innerWidth <= 1100);
 }
 const check = (value) => report.checks.push(value);
 (async () => {
