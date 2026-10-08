@@ -40,9 +40,9 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
     const svg = document.querySelector('.cabin-hearth-light').cloneNode(true); svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', '1448'); svg.setAttribute('height', '1086');
     const image = new Image(); image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg)); await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = 1448; canvas.height = 1086; const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
-    const points = { window: [245, 230], wall: [600, 80], couch: [125, 680], album: [700, 450], floor: [1160, 870], stone: [1300, 640] };
+    const points = { window: [245, 230], wall: [600, 80], couch: [125, 680], album: [700, 450], floor: [1395, 1000], stone: [1323, 640], mantel: [1350, 440], pillarFront: [1250, 620], shelfWood: [1123, 610], hearthFront: [1360, 838], hearthShadow: [1410, 944], rug: [1250, 990], hearthTop: [1390, 778] };
     return Object.fromEntries(Object.entries(points).map(([name, [x, y]]) => [name, [...ctx.getImageData(x, y, 1, 1).data]]));
-  }); for (const name of ['window', 'wall', 'couch', 'album']) assert.equal(maskPixels[name][3], 0); assert.ok(maskPixels.stone[3] > maskPixels.floor[3]); check('material-pass-leaves-unmasked-surfaces-untouched', maskPixels);
+  }); for (const name of ['window', 'wall', 'couch', 'album', 'mantel', 'pillarFront', 'shelfWood', 'hearthFront', 'hearthShadow', 'rug']) assert.equal(maskPixels[name][3], 0); assert.ok(maskPixels.stone[3] > maskPixels.floor[3]); assert.ok(maskPixels.hearthTop[3] > 0); check('material-pass-leaves-unmasked-surfaces-untouched', maskPixels);
   await site.emulateMedia({ reducedMotion: 'reduce' }); await site.locator('.cabin-atmosphere[data-motion=reduced]').waitFor();
   const reduced = await sample(site); await pause(500); assert.deepEqual(await sample(site), reduced); await site.screenshot({ path: path.join(output, 'reduced-motion.png') }); check('system-reduced-motion-freezes-snow-flames-and-light');
   await site.emulateMedia({ reducedMotion: 'no-preference' }); await site.locator('.cabin-atmosphere[data-motion=running]').waitFor();

@@ -18,7 +18,7 @@ export function atmosphereFrame(seconds, look = 'warm', weather = 'snow') {
       y: (hash(i + 61) * height + seconds * speed) % height, radius: .6 + depth * 1.25, alpha: .28 + depth * .48 };
   }) : [];
   const heat = gentleNoise(seconds * .23, 87) * .7 + gentleNoise(seconds * .51, 92) * .3;
-  return { snow, light: .065 + heat * .045, surfaces: surfaceLighting(seconds) };
+  return { snow, light: .065 + heat * .045, surfaces: surfaceLighting(seconds, look) };
 }
 // A single bounded loop for both canvases and the composited light. Hidden windows
 // retain their last frame; reduced motion draws a steady representative frame.
@@ -43,12 +43,16 @@ export function createAtmosphereLoop({ draw, request, cancel, now }) {
 
 // Hand-authored 2.5D surface samples for this fixed camera. These are not inferred
 // scene normals or ray-traced shadows: masks supply occlusion, normals supply incidence.
+export const FIRE_LIGHT_SOURCE = { warm: [1409, 661, -30], pixel: [1409, 674, -30] };
+// Visibility encodes conservative occlusion by the left jamb and raised hearth.
+// Front-facing masonry, shelf wood and an assumed glass glint are not exposed.
 export const MATERIAL_SURFACES = {
-  stone: { position: [1280, 648, 30], normal: [1, 0, .3], albedo: .8, roughness: .95, specular: .02 },
-  floor: { position: [1110, 864, 220], normal: [0, -1, 0], albedo: .65, roughness: .72, specular: .06 },
-  wood: { position: [1118, 609, 30], normal: [1, 0, .2], albedo: .42, roughness: .78, specular: .025 },
-  metal: { position: [1344, 652, 35], normal: [.35, 0, 1], albedo: .18, roughness: .24, specular: .65 },
-  glass: { position: [1364, 584, 30], normal: [.18, .15, 1], albedo: .035, roughness: .12, specular: .8 }
+  stone: { position: [1325, 655, 0], normal: [1, 0, -.15], albedo: .72, roughness: .95, specular: .02, visibility: .8 },
+  hearth: { position: [1375, 774, 65], normal: [0, -1, 0], albedo: .72, roughness: .95, specular: .02, visibility: .75 },
+  floor: { position: [1410, 1000, 260], normal: [0, -1, 0], albedo: .55, roughness: .8, specular: .025, visibility: .22 },
+  wood: { position: [1118, 609, 0], normal: [0, 0, 1], albedo: .42, roughness: .78, specular: .025, visibility: 0 },
+  metal: { position: [1358, 655, 0], normal: [1, 0, -.15], albedo: .18, roughness: .24, specular: .4, visibility: .7 },
+  glass: { position: [1364, 584, 0], normal: [0, 0, 1], albedo: .035, roughness: .12, specular: .8, visibility: 0 }
 };
 const unit = (v) => { const length = Math.hypot(...v) || 1; return v.map((x) => x / length); };
 const dot = (a, b) => a.reduce((sum, v, i) => sum + v * b[i], 0);
@@ -59,10 +63,11 @@ export function materialResponse(surface, source, energy) {
   const view = unit([724 - surface.position[0], 543 - surface.position[1], 1600 - surface.position[2]]);
   const half = unit(light.map((value, i) => value + view[i]));
   const specular = Math.pow(Math.max(0, dot(normal, half)), 8 + (1 - surface.roughness) * 72) * surface.specular;
-  return Math.min(.18, energy / (1 + (distance / 520) ** 2) * (surface.albedo * incidence + specular));
+  return Math.min(.18, energy * (surface.visibility ?? 1) / (1 + (distance / 240) ** 2) * (surface.albedo * incidence + specular));
 }
-export function surfaceLighting(seconds) {
+export function surfaceLighting(seconds, look = 'warm') {
   const heat = gentleNoise(seconds * .23, 87) * .7 + gentleNoise(seconds * .51, 92) * .3;
-  const source = [1432 + (gentleNoise(seconds * .31, 21) - .5) * 8, 655 + (gentleNoise(seconds * .27, 62) - .5) * 10, 160];
+  const origin = FIRE_LIGHT_SOURCE[look] || FIRE_LIGHT_SOURCE.warm;
+  const source = [origin[0] + (gentleNoise(seconds * .31, 21) - .5) * 4, origin[1] + (gentleNoise(seconds * .27, 62) - .5) * 6, origin[2]];
   return Object.fromEntries(Object.entries(MATERIAL_SURFACES).map(([name, surface]) => [name, materialResponse(surface, source, .12 + heat * .065)]));
 }

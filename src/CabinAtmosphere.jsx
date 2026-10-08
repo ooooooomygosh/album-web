@@ -74,21 +74,17 @@ export default function CabinAtmosphere({ look, weather }) {
     <canvas ref={fire} className="cabin-hearth-fire" style={placement(geometry.fire)}/>
     <svg ref={light} className="cabin-hearth-light" viewBox="0 0 1448 1086" preserveAspectRatio="none">
       <defs>
-        <radialGradient id={`${gradient}-stone`} cx="98%" cy="68%" r="90%"><stop stopColor="#ffc071"/><stop offset=".55" stopColor="#ff9a38" stopOpacity=".6"/><stop offset="1" stopColor="#ff9a38" stopOpacity="0"/></radialGradient>
-        <radialGradient id={`${gradient}-floor`} cx="83%" cy="20%" r="72%"><stop stopColor="#ffce81"/><stop offset=".5" stopColor="#ffa94b" stopOpacity=".45"/><stop offset="1" stopColor="#ffa94b" stopOpacity="0"/></radialGradient>
-        <linearGradient id={`${gradient}-wood`}><stop stopColor="#ffad61" stopOpacity="0"/><stop offset="1" stopColor="#ffbb6d"/></linearGradient>
+        {/* One scene-coordinate light origin; never object-bounding-box centres. */}
+        <radialGradient id={`${gradient}-near`} gradientUnits="userSpaceOnUse" cx="1409" cy={look === 'pixel' ? 674 : 661} r="240"><stop stopColor="#ffd69b"/><stop offset=".45" stopColor="#ffb56b" stopOpacity=".65"/><stop offset="1" stopColor="#ffb56b" stopOpacity="0"/></radialGradient>
+        <radialGradient id={`${gradient}-floor`} gradientUnits="userSpaceOnUse" cx="1440" cy="988" r="160" gradientTransform="translate(1440 988) scale(1 .62) translate(-1440 -988)"><stop stopColor="#ffbd79" stopOpacity=".65"/><stop offset="1" stopColor="#ffbd79" stopOpacity="0"/></radialGradient>
       </defs>
-      <g data-surface="stone" fill={`url(#${gradient}-stone)`}>
-        <path d="M1215 394H1448V495L1329 489L1215 488Z" opacity=".48"/>
-        <path d="M1216 491L1328 498V744L1216 750Z"/>
-        <path d="M1181 768L1328 742L1448 779V913L1181 832Z" opacity=".85"/>
-      </g>
-      <path data-surface="floor" d="M282 794L1144 790L1180 834L1448 917V1086L1320 938L283 937Z" fill={`url(#${gradient}-floor)`} opacity=".65"/>
-      <g data-surface="wood" fill={`url(#${gradient}-wood)`} opacity=".38">
-        <path d="M440 710H1128V779H440Z"/><path d="M1113 203L1140 198V778L1113 777Z"/>
-      </g>
-      <path data-surface="metal" d={look === 'pixel' ? 'M1343 533V721L1448 751' : 'M1344 529V706L1448 743'} fill="none" stroke="#ffdda0" strokeWidth="2" opacity="1"/>
-      <path data-surface="glass" d="M1364 556L1364 617" fill="none" stroke="#ffe7bc" strokeWidth="2" opacity=".35"/>
+      {/* Only the inward-facing narrow reveal, not the front pillar or mantel. */}
+      <path data-surface="stone" d="M1311 548L1330 543V744L1310 739Z" fill={`url(#${gradient}-near)`}/>
+      {/* Top of the hearth receives downward light; its vertical fascia stays dark. */}
+      <path data-surface="hearth" d={look === 'pixel' ? 'M1330 753L1448 784V808L1244 772Z' : 'M1330 743L1448 775V799L1244 764Z'} fill={`url(#${gradient}-near)`}/>
+      {/* Conservative spill beyond the raised-hearth shadow, outside the rug. */}
+      <path data-surface="floor" d="M1341 957L1448 986V1086H1429Z" fill={`url(#${gradient}-floor)`}/>
+      <path data-surface="metal" d={look === 'pixel' ? 'M1356 551V722L1448 747' : 'M1356 545V691L1448 716'} fill="none" stroke={`url(#${gradient}-near)`} strokeWidth="1.5"/>
     </svg>
   </div>;
 }

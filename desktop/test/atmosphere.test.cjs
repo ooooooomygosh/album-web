@@ -53,9 +53,18 @@ test('material incidence, distance and roughness produce bounded separate surfac
   let previous = surfaceLighting(0);
   for (let i = 1; i < 1000; i++) {
     const next = surfaceLighting(i / 24);
-    assert.equal(Object.keys(next).length, 5);
+    assert.equal(Object.keys(next).length, 6);
     for (const name of Object.keys(next)) { assert.ok(next[name] >= 0 && next[name] <= .18); assert.ok(Math.abs(next[name] - previous[name]) < .003); }
     assert.ok(next.stone > next.wood); assert.ok(next.stone > next.floor); previous = next;
   }
+  assert.equal(previous.wood, 0); assert.equal(previous.glass, 0);
   assert.equal('window' in previous, false); assert.equal('ui' in previous, false);
+});
+test('fire origin stays inside each firebox and blocked furniture/front faces receive no added light', async () => {
+  const { ATMOSPHERE, FIRE_LIGHT_SOURCE, surfaceLighting } = await model;
+  for (const look of ['warm', 'pixel']) {
+    const box = ATMOSPHERE[look].fire, [x, y, depth] = FIRE_LIGHT_SOURCE[look];
+    assert.ok(x > box.x && x < box.x + box.width); assert.ok(y > box.y && y < box.y + box.height); assert.ok(depth < 0);
+    for (const time of [0, .3, 2, 8, 120]) { const light = surfaceLighting(time, look); assert.equal(light.wood, 0); assert.equal(light.glass, 0); assert.ok(light.hearth > light.floor); assert.ok(light.stone > light.floor); }
+  }
 });
