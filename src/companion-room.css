@@ -1,6 +1,5 @@
 /* Window weather and daylight over the cabin artwork, plus the room cat. */
 .cabin-weather{position:absolute;left:13.15%;top:15.9%;width:14.7%;height:25%;pointer-events:none;opacity:0;transition:opacity 1.2s;clip-path:polygon(0 0,46% 0,46% 45%,0 45%,0 0,0 55%,46% 55%,46% 100%,0 100%,0 55%,54% 55%,100% 55%,100% 100%,54% 100%,54% 55%,54% 45%,100% 45%,100% 0,54% 0,54% 45%)}
-.cabin-scene:not([data-weather=snow]) .cabin-snow{opacity:0}
 .cabin-scene[data-weather=rain] .cabin-weather{opacity:.85;background-image:linear-gradient(#22324c88,#22324c88),repeating-linear-gradient(105deg,transparent 0 9px,#cfe3ff55 9px 10px,transparent 10px 23px),repeating-linear-gradient(100deg,transparent 0 15px,#dcecff3d 15px 16px,transparent 16px 31px);background-size:100% 100%,90px 70px,120px 95px;animation:cabin-rain .55s linear infinite}
 @keyframes cabin-rain{to{background-position:0 0,-18px 70px,-16px 95px}}
 .cabin-scene[data-weather=starry] .cabin-weather{opacity:1;background-image:radial-gradient(circle,#fff6 1px,transparent 1.6px),radial-gradient(circle,#ffe7a8aa 1.2px,transparent 2px),linear-gradient(#0b1230aa,#1a235066);background-size:23px 29px,61px 47px,100% 100%;background-position:3px 4px,11px 19px,0 0;animation:cabin-twinkle 3.2s ease-in-out infinite alternate}

@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import CabinAtmosphere from './CabinAtmosphere';
 import { VinylDisc } from './RecordLibrary';
 import { Disc3 } from './icons';
 import { roomGeometry, SHELF } from './room-model.mjs';
@@ -37,8 +38,7 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
           </div>;
         })}
       </div></div>
-      <div className="cabin-fire-glow" aria-hidden="true"/>
-      <div className="cabin-snow" aria-hidden="true"/>
+      <CabinAtmosphere look={look} weather={normalizeWeather(weather)}/>
       <div className="cabin-weather" aria-hidden="true"/>
       <div className="cabin-daylight" aria-hidden="true"/>
     </div>

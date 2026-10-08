@@ -425,6 +425,15 @@ async function createWindow() {
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('before-input-event', exitFullscreenOnEscape);
+  // Non-throttled child views retain Page Visibility/focus on host hide. Forward
+  // standard DOM focus lifecycle for visual consumers; timers/audio stay live.
+  // This exposes no new IPC channel or renderer method.
+  for (const [nativeEvent, domEvent] of [['hide', 'blur'], ['minimize', 'blur'], ['show', 'focus'], ['restore', 'focus']]) {
+    mainWindow.on(nativeEvent, () => {
+      const contents = siteView?.webContents;
+      if (contents && !contents.isDestroyed()) contents.executeJavaScript(`window.dispatchEvent(new Event('${domEvent}'));`).catch(() => {});
+    });
+  }
   mainWindow.on('resize', () => { resizeView(); setImmediate(resizeView); });
   mainWindow.on('maximize', () => setImmediate(resizeView));
   mainWindow.on('unmaximize', () => setImmediate(resizeView));
