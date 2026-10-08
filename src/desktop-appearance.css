@@ -1,0 +1,40 @@
+/* Original, unmodified HarmonyOS Sans SC files are bundled under public/fonts. */
+@font-face { font-family: 'HarmonyOS Sans SC Bundled'; src: url('/fonts/HarmonyOS_Sans_SC_Thin.ttf') format('truetype'); font-weight: 250; font-style: normal; font-display: swap; }
+@font-face { font-family: 'HarmonyOS Sans SC Bundled'; src: url('/fonts/HarmonyOS_Sans_SC_Light.ttf') format('truetype'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: 'HarmonyOS Sans SC Bundled'; src: url('/fonts/HarmonyOS_Sans_SC_Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'HarmonyOS Sans SC Bundled'; src: url('/fonts/HarmonyOS_Sans_SC_Medium.ttf') format('truetype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'HarmonyOS Sans SC Bundled'; src: url('/fonts/HarmonyOS_Sans_SC_Bold.ttf') format('truetype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'HarmonyOS Sans SC Bundled'; src: url('/fonts/HarmonyOS_Sans_SC_Black.ttf') format('truetype'); font-weight: 900; font-style: normal; font-display: swap; }
+:root { --desktop-font: 'HarmonyOS Sans SC Bundled', sans-serif; --desktop-weight: 400; --desktop-heading-weight: 700; }
+html, body, button, input, textarea, select, h1, h2, h3, h4, p, span, strong, small, label, li, a, summary, div {
+  font-family: var(--desktop-font) !important;
+  font-synthesis: none;
+}
+body, p, li, label, input, textarea, select { font-weight: var(--desktop-weight) !important; }
+h1, h2, h3, h4, strong, b { font-weight: var(--desktop-heading-weight) !important; }
+.candidate-preview > .feature-art { width: min(100%, clamp(220px, 22vw, 420px)); aspect-ratio: 1; justify-self: center; }
+/* Border gradients avoid a mask-compositing failure that can cover the screen. */
+.rainbow-status-frame::before { padding: 0 !important; background: none !important; border: 2px solid transparent; border-image: linear-gradient(110deg, #64d2ff, #bf5af2, #ff375f, #ffd60a, #30d158) 1; mask: none !important; -webkit-mask: none !important; }
+html[data-desktop-theme='simple'] .app,
+html[data-desktop-theme='simple'] .corridor-overlay,
+html[data-desktop-theme='simple'] .immersive-detail {
+  --cover-a: #a6b2c3 !important; --cover-b: #858f9f !important; --cover-c: #e3e8ef !important;
+  --corridor-a: #a6b2c3 !important; --corridor-b: #858f9f !important; --corridor-c: #e3e8ef !important;
+  background: #11151b !important;
+}
+html[data-desktop-theme='simple'] .app::before,
+html[data-desktop-theme='simple'] .aurora { opacity: 0 !important; }
+html[data-desktop-theme='simple'] .corridor-background-layer { background: #11151b !important; }
+html[data-desktop-theme='simple'] .cabinet-page,
+html[data-desktop-theme='simple'] .glass-panel { background: #1a2029 !important; }
+html[data-desktop-reduce-motion='true'] *,
+html[data-desktop-reduce-motion='true'] *::before,
+html[data-desktop-reduce-motion='true'] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+/* Use the available CSS viewport; Chromium handles the display's native DPI. */
+@media (min-width: 1441px) {
+  .shell { width: calc(100% - clamp(44px, 4vw, 144px)) !important; max-width: none; }
+  .cabinet-page { min-height: calc(100vh - 210px); }
+}
+@media (min-width: 2400px) {
+  .cabinet-grid { gap: clamp(18px, 1.1vw, 36px); }
+}

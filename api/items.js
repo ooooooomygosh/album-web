@@ -75,7 +75,9 @@ function cleanItem(body) {
       trackNumber: Number(track?.trackNumber || 0),
       lengthMillis: Number(track?.lengthMillis || 0),
       source: String(track?.source || '').slice(0, 80),
-      recordingId: String(track?.recordingId || '').slice(0, 120)
+      recordingId: String(track?.recordingId || '').slice(0, 120),
+      providerId: String(track?.providerId || '').slice(0, 64),
+      mediaMid: String(track?.mediaMid || '').slice(0, 64)
     })).filter((track) => track.title) : [],
     metadataCompleteness: body.metadataCompleteness && typeof body.metadataCompleteness === 'object' ? body.metadataCompleteness : {},
     previewUrl: String(body.previewUrl || '').slice(0, 700),

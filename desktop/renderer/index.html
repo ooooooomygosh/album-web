@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Album Circle</title>
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand"><img src="icon.png" alt="" width="30" height="30"><span>Album Circle</span><small>桌面版</small></div>
+    <nav aria-label="页面导航">
+      <button id="back" class="icon-button" aria-label="返回" title="返回 Alt+←" disabled><svg viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg></button>
+      <button id="forward" class="icon-button" aria-label="前进" title="前进 Alt+→" disabled><svg viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></svg></button>
+      <button id="retry" class="icon-button" aria-label="刷新" title="刷新 Ctrl+R"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5"/></svg></button>
+      <button id="home" class="icon-button" aria-label="首页" title="返回首页"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10"/></svg></button>
+    </nav>
+    <div class="location" title="使用 Album Circle 原站数据"><svg viewBox="0 0 24 24"><path d="M6 10h12v10H6zM8 10V7a4 4 0 0 1 8 0v3"/></svg><span>album-circle.vercel.app</span><span id="status" class="status">正在连接</span></div>
+    <div class="actions"><button id="settings" class="icon-button" aria-label="设置" title="设置 Ctrl+," data-hero="cog-6-tooth"></button><button id="copy" class="text-button" aria-label="复制链接" aria-live="polite" title="复制当前房间或专辑链接">复制链接</button><button id="browser" class="icon-button" aria-label="在浏览器中打开" title="在浏览器中打开" data-hero="arrow-top-right-on-square"></button><button id="menu" class="icon-button" aria-label="更多选项" aria-haspopup="menu" data-hero="ellipsis-horizontal"></button><button id="minimize" class="icon-button" aria-label="最小化窗口" data-hero="minus"></button><button id="maximize" class="icon-button" aria-label="最大化或还原窗口" data-hero="stop"></button><button id="close" class="icon-button window-close" aria-label="关闭窗口" data-hero="x-mark"></button></div>
+  </header>
+  <main id="connection" class="connection">
+    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+    <section class="connection-content">
+      <img src="icon.png" class="hero-icon" alt="Album Circle" width="96" height="96">
+      <div class="eyebrow">YOUR LISTENING ROOM</div>
+      <h1 id="headline">连接你的音乐展柜</h1>
+      <p id="message">正在打开 Album Circle，封面、曲目和房间内容直接来自原站。</p>
+      <div id="loader" class="loading-dots" role="status" aria-label="正在连接"><i></i><i></i><i></i></div>
+      <div id="recovery" class="recovery" hidden><button id="retry-page" class="primary-button">重新连接</button><button id="browser-page" class="secondary-button">在浏览器中打开</button></div>
+      <div class="footnote"><span>使用原站账号登录 · 登录状态保存在这台电脑</span></div>
+    </section>
+  </main>
+  <section id="settings-panel" class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="settings-content">
+      <header class="settings-heading"><div><div class="eyebrow">MAKE IT YOURS</div><h1 id="settings-title">设置</h1><p>调整这台电脑上的音乐展柜。</p></div><button id="settings-close" class="secondary-button">完成</button></header>
+      <form id="settings-form">
+        <fieldset><legend>本地与云端</legend><div class="setting-row"><label for="connection-mode">数据模式<small>本地模式无需账号或数据库。云端模式用于在线房间与 AI。</small></label><select id="connection-mode"><option value="local">本地收藏 · 默认</option><option value="cloud">云端账号 · 可选</option></select></div><p class="hint">两种模式的数据分别保留。登录一次云端账号后，可返回本地模式分享展柜快照。</p></fieldset><fieldset><legend>展柜风格</legend><div class="setting-row"><label for="showroom">主界面<small>为专辑选择一个喜欢的展示空间。</small></label><select id="showroom"><option value="original">原始展柜</option><option value="room">温馨房间</option><option value="coverflow">Coverflow 封面流</option></select></div><p class="hint">温馨小屋采用木墙、雪窗、壁炉和十二格唱片架；在小屋内点击按钮切换写实 / 像素风格。<br>唱片盒、流派筛选与自定义黑胶按账号保存在本机。Coverflow 支持方向键、拖动和滚轮。</p></fieldset>
+        <fieldset><legend>外观</legend><div class="setting-row"><label for="theme">配色模式<small>简约配色，或让背景随当前专辑变化。</small></label><select id="theme"><option value="cover">跟随当前专辑</option><option value="simple">简约配色</option></select></div><label class="toggle-row"><span>减少动效<small>关闭旋转与渐变，切换时直接显示。</small></span><input id="reduce-motion" type="checkbox"></label></fieldset>
+        <fieldset><legend>字体</legend><div class="setting-row"><label for="font">界面字体<small>中文和英文统一使用所选字体。</small></label><select id="font"><option value="bundled">HarmonyOS Sans SC（内置默认）</option></select></div><p id="font-hint" class="hint">正在读取本机字体…</p><div class="setting-row"><label for="weight">正文粗细<small>标题使用较粗字重，保持阅读层次。</small></label><select id="weight"><option value="250">纤细 · Thin 250</option><option value="300">细体 · Light 300</option><option value="400">常规 · Regular 400</option><option value="500">中等 · Medium 500</option><option value="700">粗体 · Bold 700</option><option value="900">特粗 · Black 900</option></select></div><div class="font-preview" id="font-preview">把喜欢的音乐，收进你的展柜。<br><span>Album Circle · A place for your music. 0123456789</span></div><p class="hint">使用 HarmonyOS Sans SC · Copyright 2021 Huawei Device Co., Ltd.<br>六个原始字体文件和授权协议已随软件打包；本机字体需在当前电脑上安装。</p><button type="button" id="font-license" class="inline-button">查看字体授权协议</button><pre id="license-text" class="license-text" hidden></pre></fieldset>
+        <fieldset><legend>显示</legend><div class="setting-row"><label for="zoom">界面缩放<small>调整内容大小；100% 按系统显示缩放呈现。</small></label><div class="zoom-control"><input id="zoom" type="range" min="75" max="150" step="5"><output id="zoom-value" for="zoom">100%</output></div></div><p id="display-info" class="hint"></p><button type="button" id="fit-display" class="secondary-button">适配当前显示器</button><p class="hint">适配会最大化窗口。F11 进入全屏，按 Esc 退出。</p></fieldset>
+        <fieldset><legend>收藏管理</legend><label class="toggle-row"><span>显示购买记录<small>在专辑展柜记录购买日期和形式（CD / 黑胶）。</small></span><input id="show-purchases" type="checkbox"></label><p class="hint">默认关闭。关闭后隐藏全部购买标记和编辑入口，已保存记录会保留。<br>记录只保存在本机，三种展柜共用；不会修改房间里的云端专辑信息。</p></fieldset>
+        <footer class="settings-footer"><button type="button" id="settings-reset" class="secondary-button">恢复默认</button><span id="settings-notice" role="status">选择后立即应用并保存到本机</span><button type="submit" id="settings-save" class="primary-button">保存设置</button></footer>
+      </form>
+    </div>
+  </section>
+</body>
+</html>

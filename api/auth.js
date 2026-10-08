@@ -62,6 +62,7 @@ const defaultSettings = {
     customTheme: '#7ed7c9'
   },
   showroom: {
+    style: 'original',
     coverSize: 'comfortable',
     wallLayout: '4x3',
     hoverPreview: 'flip',
@@ -106,6 +107,7 @@ function cleanSettings(value = {}, fallback = defaultSettings) {
       customTheme: cleanHex(appearance.customTheme, fallback.appearance?.customTheme || defaultSettings.appearance.customTheme)
     },
     showroom: {
+      style: ['original', 'room', 'coverflow'].includes(showroom.style) ? showroom.style : fallback.showroom?.style || 'original',
       coverSize: ['compact', 'comfortable', 'large'].includes(showroom.coverSize) ? showroom.coverSize : fallback.showroom?.coverSize || 'comfortable',
       wallLayout: ['2x2', '3x3', '4x3', '5x4', 'auto'].includes(showroom.wallLayout) ? showroom.wallLayout : fallback.showroom?.wallLayout || '4x3',
       hoverPreview: ['flip', 'blur', 'lift'].includes(showroom.hoverPreview) ? showroom.hoverPreview : fallback.showroom?.hoverPreview || 'flip',

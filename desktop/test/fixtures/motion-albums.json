@@ -1,0 +1,535 @@
+[
+  {
+    "id": "qq-album-000MkMni19ClKG",
+    "type": "album",
+    "title": "叶惠美",
+    "artist": "周杰伦",
+    "albumTitle": "叶惠美",
+    "year": "2003",
+    "releaseDate": "2003-07-31",
+    "label": "杰威尔音乐有限公司",
+    "cover": "https://y.gtimg.cn/music/photo_new/T002R800x800M000000MkMni19ClKG_5.jpg",
+    "coverSource": "QQ 音乐",
+    "source": "QQ 音乐",
+    "confidenceLabel": "链接精确定位",
+    "externalId": "000MkMni19ClKG",
+    "externalIds": {
+      "qqAlbumMid": "000MkMni19ClKG",
+      "qqAlbumId": "8220"
+    },
+    "tracks": [
+      "以父之名",
+      "懦夫",
+      "晴天",
+      "三年二班",
+      "东风破",
+      "你听得到",
+      "同一种调调",
+      "她的睫毛",
+      "爱情悬崖",
+      "梯田",
+      "双刀"
+    ],
+    "trackDetails": [
+      {
+        "title": "以父之名",
+        "position": "1",
+        "discNumber": 1,
+        "trackNumber": 1,
+        "lengthMillis": 342000,
+        "source": "QQ 音乐",
+        "providerId": "001n4C3p1yv0FU"
+      },
+      {
+        "title": "懦夫",
+        "position": "2",
+        "discNumber": 1,
+        "trackNumber": 2,
+        "lengthMillis": 218000,
+        "source": "QQ 音乐",
+        "providerId": "000ZauFj0E8qi0"
+      },
+      {
+        "title": "晴天",
+        "position": "3",
+        "discNumber": 1,
+        "trackNumber": 3,
+        "lengthMillis": 269000,
+        "source": "QQ 音乐",
+        "providerId": "0039MnYb0qxYhV"
+      },
+      {
+        "title": "三年二班",
+        "position": "4",
+        "discNumber": 1,
+        "trackNumber": 4,
+        "lengthMillis": 280000,
+        "source": "QQ 音乐",
+        "providerId": "004csbVP1E2dv1"
+      },
+      {
+        "title": "东风破",
+        "position": "5",
+        "discNumber": 1,
+        "trackNumber": 5,
+        "lengthMillis": 315000,
+        "source": "QQ 音乐",
+        "providerId": "003uEbEr0jcW7c"
+      },
+      {
+        "title": "你听得到",
+        "position": "6",
+        "discNumber": 1,
+        "trackNumber": 6,
+        "lengthMillis": 230000,
+        "source": "QQ 音乐",
+        "providerId": "002elTc93yuXu2"
+      },
+      {
+        "title": "同一种调调",
+        "position": "7",
+        "discNumber": 1,
+        "trackNumber": 7,
+        "lengthMillis": 231000,
+        "source": "QQ 音乐",
+        "providerId": "000U62Ay0ndxCh"
+      },
+      {
+        "title": "她的睫毛",
+        "position": "8",
+        "discNumber": 1,
+        "trackNumber": 8,
+        "lengthMillis": 232000,
+        "source": "QQ 音乐",
+        "providerId": "001FSVRg08JLpi"
+      },
+      {
+        "title": "爱情悬崖",
+        "position": "9",
+        "discNumber": 1,
+        "trackNumber": 9,
+        "lengthMillis": 262000,
+        "source": "QQ 音乐",
+        "providerId": "0037FWzg2csDmh"
+      },
+      {
+        "title": "梯田",
+        "position": "10",
+        "discNumber": 1,
+        "trackNumber": 10,
+        "lengthMillis": 213000,
+        "source": "QQ 音乐",
+        "providerId": "000P0AxP15jei5"
+      },
+      {
+        "title": "双刀",
+        "position": "11",
+        "discNumber": 1,
+        "trackNumber": 11,
+        "lengthMillis": 291000,
+        "source": "QQ 音乐",
+        "providerId": "003BkwkH0iS8Ko"
+      }
+    ],
+    "expectedTrackCount": 11,
+    "match": 100,
+    "confidence": 100,
+    "platforms": [
+      "QQ 音乐"
+    ],
+    "palette": [
+      "#387c76",
+      "#74c2b4",
+      "#dce5c7"
+    ],
+    "tags": [
+      "album",
+      "qq",
+      "Rap"
+    ],
+    "collectionViewUrl": "https://y.qq.com/n/ryqq/albumDetail/000MkMni19ClKG",
+    "providerLinks": [
+      {
+        "provider": "qqMusic",
+        "type": "album",
+        "url": "https://y.qq.com/n/ryqq/albumDetail/000MkMni19ClKG",
+        "providerId": "000MkMni19ClKG",
+        "confidence": "exact",
+        "source": "qq"
+      }
+    ],
+    "sources": [
+      {
+        "provider": "QQ 音乐",
+        "id": "000MkMni19ClKG",
+        "url": "https://y.qq.com/n/ryqq/albumDetail/000MkMni19ClKG"
+      }
+    ],
+    "metadataCompleteness": {
+      "hasTracks": true,
+      "hasCover": true,
+      "trackCountMatches": true,
+      "sourcesUsed": [
+        "QQ 音乐"
+      ]
+    },
+    "context": "来自 QQ 音乐的《叶惠美》，含 11 首曲目。请核对歌手与发行版本。"
+  },
+  {
+    "id": "qq-album-000I5jJB3blWeN",
+    "type": "album",
+    "title": "范特西",
+    "artist": "周杰伦",
+    "albumTitle": "范特西",
+    "year": "2001",
+    "releaseDate": "2001-09-14",
+    "label": "杰威尔音乐有限公司",
+    "cover": "https://y.gtimg.cn/music/photo_new/T002R800x800M000000I5jJB3blWeN_3.jpg",
+    "coverSource": "QQ 音乐",
+    "source": "QQ 音乐",
+    "confidenceLabel": "链接精确定位",
+    "externalId": "000I5jJB3blWeN",
+    "externalIds": {
+      "qqAlbumMid": "000I5jJB3blWeN",
+      "qqAlbumId": "8217"
+    },
+    "tracks": [
+      "爱在西元前",
+      "爸，我回来了",
+      "简单爱",
+      "忍者",
+      "开不了口",
+      "上海一九四三",
+      "对不起",
+      "威廉古堡",
+      "双截棍",
+      "安静"
+    ],
+    "trackDetails": [
+      {
+        "title": "爱在西元前",
+        "position": "1",
+        "discNumber": 1,
+        "trackNumber": 1,
+        "lengthMillis": 234000,
+        "source": "QQ 音乐",
+        "providerId": "002usg9o4GTAKf"
+      },
+      {
+        "title": "爸，我回来了",
+        "position": "2",
+        "discNumber": 1,
+        "trackNumber": 2,
+        "lengthMillis": 235000,
+        "source": "QQ 音乐",
+        "providerId": "001mhQbn2eKHiR"
+      },
+      {
+        "title": "简单爱",
+        "position": "3",
+        "discNumber": 1,
+        "trackNumber": 3,
+        "lengthMillis": 270000,
+        "source": "QQ 音乐",
+        "providerId": "0009BCJK1nRaad"
+      },
+      {
+        "title": "忍者",
+        "position": "4",
+        "discNumber": 1,
+        "trackNumber": 4,
+        "lengthMillis": 158000,
+        "source": "QQ 音乐",
+        "providerId": "001MNqZU3YDLrE"
+      },
+      {
+        "title": "开不了口",
+        "position": "5",
+        "discNumber": 1,
+        "trackNumber": 5,
+        "lengthMillis": 284000,
+        "source": "QQ 音乐",
+        "providerId": "0020qX4u2JJRxK"
+      },
+      {
+        "title": "上海一九四三",
+        "position": "6",
+        "discNumber": 1,
+        "trackNumber": 6,
+        "lengthMillis": 195000,
+        "source": "QQ 音乐",
+        "providerId": "002YzCdA2Hybr0"
+      },
+      {
+        "title": "对不起",
+        "position": "7",
+        "discNumber": 1,
+        "trackNumber": 7,
+        "lengthMillis": 225000,
+        "source": "QQ 音乐",
+        "providerId": "000F0lmz1cBq4c"
+      },
+      {
+        "title": "威廉古堡",
+        "position": "8",
+        "discNumber": 1,
+        "trackNumber": 8,
+        "lengthMillis": 236000,
+        "source": "QQ 音乐",
+        "providerId": "0046grpK0A1l9G"
+      },
+      {
+        "title": "双截棍",
+        "position": "9",
+        "discNumber": 1,
+        "trackNumber": 9,
+        "lengthMillis": 201000,
+        "source": "QQ 音乐",
+        "providerId": "00218ObD0yrANX"
+      },
+      {
+        "title": "安静",
+        "position": "10",
+        "discNumber": 1,
+        "trackNumber": 10,
+        "lengthMillis": 334000,
+        "source": "QQ 音乐",
+        "providerId": "000amRvH3wxv56"
+      }
+    ],
+    "expectedTrackCount": 10,
+    "match": 100,
+    "confidence": 100,
+    "platforms": [
+      "QQ 音乐"
+    ],
+    "palette": [
+      "#387c76",
+      "#74c2b4",
+      "#dce5c7"
+    ],
+    "tags": [
+      "album",
+      "qq",
+      "Rap"
+    ],
+    "collectionViewUrl": "https://y.qq.com/n/ryqq/albumDetail/000I5jJB3blWeN",
+    "providerLinks": [
+      {
+        "provider": "qqMusic",
+        "type": "album",
+        "url": "https://y.qq.com/n/ryqq/albumDetail/000I5jJB3blWeN",
+        "providerId": "000I5jJB3blWeN",
+        "confidence": "exact",
+        "source": "qq"
+      }
+    ],
+    "sources": [
+      {
+        "provider": "QQ 音乐",
+        "id": "000I5jJB3blWeN",
+        "url": "https://y.qq.com/n/ryqq/albumDetail/000I5jJB3blWeN"
+      }
+    ],
+    "metadataCompleteness": {
+      "hasTracks": true,
+      "hasCover": true,
+      "trackCountMatches": true,
+      "sourcesUsed": [
+        "QQ 音乐"
+      ]
+    },
+    "context": "来自 QQ 音乐的《范特西》，含 10 首曲目。请核对歌手与发行版本。"
+  },
+  {
+    "id": "qq-album-003DFRzD192KKD",
+    "type": "album",
+    "title": "七里香",
+    "artist": "周杰伦",
+    "albumTitle": "七里香",
+    "year": "2004",
+    "releaseDate": "2004-08-03",
+    "label": "杰威尔音乐有限公司",
+    "cover": "https://y.gtimg.cn/music/photo_new/T002R800x800M000003DFRzD192KKD_2.jpg",
+    "coverSource": "QQ 音乐",
+    "source": "QQ 音乐",
+    "confidenceLabel": "链接精确定位",
+    "externalId": "003DFRzD192KKD",
+    "externalIds": {
+      "qqAlbumMid": "003DFRzD192KKD",
+      "qqAlbumId": "20612"
+    },
+    "tracks": [
+      "我的地盘",
+      "七里香",
+      "借口",
+      "外婆",
+      "将军",
+      "搁浅",
+      "乱舞春秋",
+      "困兽之斗",
+      "园游会",
+      "止战之殇"
+    ],
+    "trackDetails": [
+      {
+        "title": "我的地盘",
+        "position": "1",
+        "discNumber": 1,
+        "trackNumber": 1,
+        "lengthMillis": 244000,
+        "source": "QQ 音乐",
+        "providerId": "004WrpV81DMGHv"
+      },
+      {
+        "title": "七里香",
+        "position": "2",
+        "discNumber": 1,
+        "trackNumber": 2,
+        "lengthMillis": 299000,
+        "source": "QQ 音乐",
+        "providerId": "004Z8Ihr0JIu5s"
+      },
+      {
+        "title": "借口",
+        "position": "3",
+        "discNumber": 1,
+        "trackNumber": 3,
+        "lengthMillis": 260000,
+        "source": "QQ 音乐",
+        "providerId": "002XWgfo0IKPOH"
+      },
+      {
+        "title": "外婆",
+        "position": "4",
+        "discNumber": 1,
+        "trackNumber": 4,
+        "lengthMillis": 244000,
+        "source": "QQ 音乐",
+        "providerId": "0027gHes1HjRNe"
+      },
+      {
+        "title": "将军",
+        "position": "5",
+        "discNumber": 1,
+        "trackNumber": 5,
+        "lengthMillis": 204000,
+        "source": "QQ 音乐",
+        "providerId": "000yJtoB39k2NF"
+      },
+      {
+        "title": "搁浅",
+        "position": "6",
+        "discNumber": 1,
+        "trackNumber": 6,
+        "lengthMillis": 240000,
+        "source": "QQ 音乐",
+        "providerId": "001Bbywq2gicae"
+      },
+      {
+        "title": "乱舞春秋",
+        "position": "7",
+        "discNumber": 1,
+        "trackNumber": 7,
+        "lengthMillis": 279000,
+        "source": "QQ 音乐",
+        "providerId": "0031tzbX3Lps0M"
+      },
+      {
+        "title": "困兽之斗",
+        "position": "8",
+        "discNumber": 1,
+        "trackNumber": 8,
+        "lengthMillis": 269000,
+        "source": "QQ 音乐",
+        "providerId": "0048Gwq23HPs1o"
+      },
+      {
+        "title": "园游会",
+        "position": "9",
+        "discNumber": 1,
+        "trackNumber": 9,
+        "lengthMillis": 255000,
+        "source": "QQ 音乐",
+        "providerId": "003nEQHr3Ceet5"
+      },
+      {
+        "title": "止战之殇",
+        "position": "10",
+        "discNumber": 1,
+        "trackNumber": 10,
+        "lengthMillis": 274000,
+        "source": "QQ 音乐",
+        "providerId": "0042fRqf4fC8ZB"
+      }
+    ],
+    "expectedTrackCount": 10,
+    "match": 100,
+    "confidence": 100,
+    "platforms": [
+      "QQ 音乐"
+    ],
+    "palette": [
+      "#387c76",
+      "#74c2b4",
+      "#dce5c7"
+    ],
+    "tags": [
+      "album",
+      "qq",
+      "Rap"
+    ],
+    "collectionViewUrl": "https://y.qq.com/n/ryqq/albumDetail/003DFRzD192KKD",
+    "providerLinks": [
+      {
+        "provider": "qqMusic",
+        "type": "album",
+        "url": "https://y.qq.com/n/ryqq/albumDetail/003DFRzD192KKD",
+        "providerId": "003DFRzD192KKD",
+        "confidence": "exact",
+        "source": "qq"
+      }
+    ],
+    "sources": [
+      {
+        "provider": "QQ 音乐",
+        "id": "003DFRzD192KKD",
+        "url": "https://y.qq.com/n/ryqq/albumDetail/003DFRzD192KKD"
+      }
+    ],
+    "metadataCompleteness": {
+      "hasTracks": true,
+      "hasCover": true,
+      "trackCountMatches": true,
+      "sourcesUsed": [
+        "QQ 音乐"
+      ]
+    },
+    "context": "来自 QQ 音乐的《七里香》，含 10 首曲目。请核对歌手与发行版本。"
+  },
+  {
+    "name": "original-api-cover-and-tracks",
+    "passed": true,
+    "status": 200,
+    "title": "Wish You Were Here",
+    "artist": "Pink Floyd",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/aa/e0/ab/aae0ab6a-d906-a189-81bf-70b56aa43f7a/886445635843.jpg/600x600bb.jpg",
+    "tracks": [
+      "Shine On You Crazy Diamond, Part One",
+      "Welcome to the Machine",
+      "Have a Cigar",
+      "Wish You Were Here",
+      "Shine On You Crazy Diamond, Part Two"
+    ],
+    "source": "iTunes Search + MusicBrainz",
+    "id": "motion-pink-floyd",
+    "type": "album",
+    "year": "1975",
+    "albumTitle": "Wish You Were Here",
+    "palette": [
+      "#75a8ff",
+      "#f88d52",
+      "#101216"
+    ]
+  }
+]

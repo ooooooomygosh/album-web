@@ -1,0 +1,130 @@
+{
+  "name": "album-circle-desktop",
+  "version": "1.5.0",
+  "description": "Album Circle offline-first macOS and Windows desktop client",
+  "productName": "Album Circle",
+  "author": "Album Circle",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "prestart": "npm run build:native && npm run build:music && npm run build:web && npm run build:local",
+    "build:web": "npm --prefix .. run build -- --outDir desktop/web",
+    "predist": "npm run build:native && npm run build:music && npm run build:web && npm run build:local",
+    "prepack": "npm run build:native && npm run build:music && npm run build:web && npm run build:local",
+    "build:native": "node build-native.cjs",
+    "build:music": "node build-music.cjs",
+    "test": "node --test test/*.test.cjs",
+    "test:integration": "node test/integration.cjs",
+    "test:search": "node test/search-ui.cjs",
+    "test:motion": "node test/motion-ui.cjs",
+    "test:settings": "node test/settings-ui.cjs",
+    "test:showroom": "node test/showroom-ui.cjs",
+    "test:purchases": "node test/purchase-ui.cjs",
+    "test:delivery": "node test/delivery-ui.cjs",
+    "dist": "electron-builder --win nsis portable --x64",
+    "pack": "electron-builder --win --x64 --dir",
+    "test:library": "node test/library-ui.cjs",
+    "test:room": "node test/room-ui.cjs",
+    "test:music": "node test/music-ui.cjs",
+    "build:local": "node build-local.cjs",
+    "dist:mac": "npm run build:native && npm run build:music && npm run build:local && npm run build:web && electron-builder --mac dmg zip --arm64 --x64 --publish never",
+    "dist:win": "npm run dist -- --publish never",
+    "pack:mac": "npm run build:music && npm run build:local && npm run build:web && electron-builder --mac --arm64 --dir --publish never",
+    "test:client": "node test/client-ui.cjs"
+  },
+  "devDependencies": {
+    "electron": "44.6.0",
+    "electron-builder": "26.15.3",
+    "playwright": "1.63.0"
+  },
+  "build": {
+    "appId": "com.albumcircle.desktop",
+    "productName": "Album Circle",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "policy.cjs",
+      "settings.cjs",
+      "qq-music.cjs",
+      "site-router.cjs",
+      "preload.cjs",
+      "wallpaper.cjs",
+      "wallpaper-model.cjs",
+      "wallpaper-preload.cjs",
+      "music-service.cjs",
+      "music-policy.cjs",
+      "music-upstream.cjs",
+      "music-login.cjs",
+      "vendor/simple-music/LICENSE",
+      "vendor/simple-music/SOURCE.txt",
+      "web/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json",
+      "local-api.cjs",
+      "local-runtime.cjs"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "Album-Circle-${version}-${arch}-setup.${ext}",
+      "extraResources": [
+        {
+          "from": "native/bin/DesktopHost.exe",
+          "to": "native/DesktopHost.exe"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Album Circle",
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "language": "2052",
+      "runAfterFinish": false
+    },
+    "portable": {
+      "artifactName": "Album-Circle-${version}-${arch}-portable.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.music",
+      "icon": "assets/icon.png",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "artifactName": "Album-Circle-${version}-mac-${arch}.${ext}"
+    },
+    "publish": null
+  },
+  "dependencies": {
+    "NeteaseCloudMusicApi": "4.32.0",
+    "firebase-admin": "^14.1.0"
+  }
+}

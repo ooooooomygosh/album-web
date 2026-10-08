@@ -1,0 +1,34 @@
+import { useEffect, useState } from 'react';
+import { Settings, Minus, Maximize, X } from './icons';
+
+export function desktopCommand(command, params = {}) {
+  const url = new URL(`album-desktop://action/${command}`);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, String(value));
+  // A denied new-window request carries a fixed command without navigating
+  // or reloading the business page. No native IPC is exposed to that page.
+  window.open(url.href, '_blank');
+}
+export function useDesktopAppearance() {
+  const read = () => ({ ...(window.albumDesktopAppearance || {}), showroom: document.documentElement.dataset.desktopShowroom || 'original', reduceMotion: document.documentElement.dataset.desktopReduceMotion === 'true', showPurchases: document.documentElement.dataset.desktopPurchases === 'true', client: document.documentElement.dataset.desktopClient === 'true' });
+  const [appearance, setAppearance] = useState(read);
+  useEffect(() => {
+    const update = () => setAppearance(read());
+    window.addEventListener('album-desktop-settings', update);
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-desktop-showroom', 'data-desktop-reduce-motion', 'data-desktop-purchases', 'data-desktop-client'] });
+    update();
+    return () => { observer.disconnect(); window.removeEventListener('album-desktop-settings', update); };
+  }, []);
+  return appearance;
+}
+export function DesktopControls({ fallback = false }) {
+  const appearance = useDesktopAppearance();
+  if (!appearance.client) return null;
+  return <div className={`desktop-controls ${fallback ? 'desktop-fallback' : ''}`} aria-label="软件与窗口控制">
+    <button type="button" aria-label="软件设置" title="设置 · Ctrl+," onClick={() => desktopCommand('settings')}><Settings size={20}/></button>
+    <span className="window-control-divider"/>
+    <button type="button" aria-label="最小化窗口" title="最小化" onClick={() => desktopCommand('minimize')}><Minus size={18}/></button>
+    <button type="button" aria-label="最大化或还原窗口" title="最大化 / 还原" onClick={() => desktopCommand('maximize')}><Maximize size={16}/></button>
+    <button type="button" className="window-close" aria-label="关闭窗口" title="关闭" onClick={() => desktopCommand('close')}><X size={20}/></button>
+  </div>;
+}

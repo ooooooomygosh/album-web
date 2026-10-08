@@ -1,0 +1,34 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Music2 } from './icons';
+import { desktopCommand } from './desktop-client';
+import { musicRequest } from './room-playback.mjs';
+
+export default function MusicSettings({ close }) {
+  const dialog = useRef(null), [config, setConfig] = useState({}), [url, setURL] = useState(''), [token, setToken] = useState(''), [players, setPlayers] = useState([]), [playerId, setPlayerId] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const refresh = async () => { try { const next = await musicRequest('/config'); setConfig(next); setURL(next.maURL || ''); setPlayerId(next.playerId || ''); } catch (error) { setError(error.message); } };
+  useEffect(() => {
+    const previous = document.activeElement; dialog.current.showModal(); refresh();
+    const receive = (event) => { setBusy(false); setError(event.detail.error || ''); if (event.detail.ok) { setNotice('平台账户已更新。'); refresh(); } };
+    window.addEventListener('album-music-account', receive);
+    return () => { window.removeEventListener('album-music-account', receive); previous?.focus?.({ preventScroll: true }); };
+  }, []);
+  const connect = async (event) => {
+    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    try { const next = await musicRequest('/config', { maURL: url, ...(token ? { maToken: token } : {}), playerId }); setConfig(next); setToken(''); window.dispatchEvent(new Event('album-music-settings')); const result = await musicRequest('/ma/players'); setPlayers(result.players); setNotice(result.players.length ? '服务器连接成功，请选择播放器并保存。' : '已连接服务器，但没有可用播放器。请先在 Music Assistant 配置播放器。'); }
+    catch (error) { setError(error.message); } finally { setBusy(false); }
+  };
+  const account = (provider, logout = false) => { setBusy(true); setError(''); setNotice(''); desktopCommand(logout ? 'music-logout' : 'music-login', { provider }); };
+  return createPortal(<dialog ref={dialog} className="record-dialog music-settings" aria-label="音源与账户" onCancel={(event) => { event.preventDefault(); close(); }}>
+    <header><h2><Music2 size={22}/>音源与账户</h2><button type="button" aria-label="关闭音源设置" onClick={close}><X/></button></header>
+    <p className="record-dialog-intro">Simple Music 提供 QQ / 网易云播放模块；Music Assistant 连接你已有的服务器。平台登录只保存在本机。</p>
+    {[['qq', 'QQ 音乐', config.qqLoggedIn], ['netease', '网易云音乐', config.neteaseLoggedIn]].map(([provider, name, loggedIn]) => <div className="music-account" key={provider}><span><strong>{name}</strong><small>{loggedIn ? '已保存平台登录' : '未登录，可尝试平台允许的游客音频'}</small></span><button type="button" disabled={busy} onClick={() => account(provider)}>{loggedIn ? '重新登录' : '登录'}</button>{loggedIn && <button type="button" disabled={busy} onClick={() => account(provider, true)}>退出平台</button>}</div>)}
+    <form onSubmit={connect}><h3>Music Assistant</h3><p>通过服务器的已配置播放器发声。此处不自动安装或启动 Music Assistant。</p>
+      <label>服务器地址<input type="url" aria-label="Music Assistant 服务器地址" placeholder="http://192.168.1.8:8095" value={url} onChange={(event) => setURL(event.target.value)} required/></label>
+      <label>访问令牌<input type="password" aria-label="Music Assistant 访问令牌" value={token} onChange={(event) => setToken(event.target.value)} placeholder={config.maTokenSet ? '令牌已加密保存，留空可沿用' : '从服务器的用户资料中创建访问令牌'} autoComplete="off"/></label>
+      <button type="submit" disabled={busy}>{busy ? '正在连接…' : '连接并读取播放器'}</button>
+      {(players.length > 0 || playerId) && <><label>服务器播放器<select aria-label="Music Assistant 播放器" value={playerId} onChange={(event) => setPlayerId(event.target.value)}><option value="">请选择播放器</option>{playerId && !players.some((p) => p.id === playerId) && <option value={playerId}>{playerId}（已保存）</option>}{players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label><button type="button" disabled={busy || !playerId} onClick={async () => { try { await musicRequest('/config', { maURL: url, playerId }); window.dispatchEvent(new Event('album-music-settings')); setNotice('播放器已保存。'); } catch (error) { setError(error.message); } }}>保存播放器</button></>}
+    </form><p className="music-platform-note">在唱机上选择音源后，双击或拖拽放盘即可播放。音频受版权、地区和会员权限限制；仅有名称时需手动选择版本，不会自动替换收藏中的封面或曲目。</p>
+    {error && <p className="record-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}<footer><button type="button" className="record-primary" onClick={close}>完成音源设置</button></footer>
+  </dialog>, document.body);
+}

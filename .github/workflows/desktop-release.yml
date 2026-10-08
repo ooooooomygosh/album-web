@@ -1,0 +1,91 @@
+name: Desktop release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: win
+            arch: x64
+            executable: release/win-unpacked/Album Circle.exe
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            executable: release/mac-arm64/Album Circle.app/Contents/MacOS/Album Circle
+          - runner: macos-15-intel
+            platform: mac
+            arch: x64
+            executable: release/mac/Album Circle.app/Contents/MacOS/Album Circle
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix desktop ci --no-audit --no-fund
+      - run: npm --prefix desktop run build:native
+      - run: npm --prefix desktop run build:music
+      - run: npm --prefix desktop run build:local
+      - run: npm --prefix desktop run build:web
+      - run: npm run desktop:test
+      - name: Package Windows
+        if: matrix.platform == 'win'
+        working-directory: desktop
+        run: npx electron-builder --win nsis portable --x64 --publish never
+      - name: Package macOS
+        if: matrix.platform == 'mac'
+        working-directory: desktop
+        run: npx electron-builder --mac dmg zip --${{ matrix.arch }} --publish never
+      - name: Verify packaged local client
+        run: npm --prefix desktop run test:client
+        env:
+          ALBUM_QA_SKIP_WALLPAPER: '1'
+          ALBUM_QA_EXE: ${{ matrix.executable }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: client-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checks-${{ matrix.platform }}-${{ matrix.arch }}
+          path: desktop/test-results/client/
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: client-*
+          merge-multiple: true
+          path: release
+      - name: Publish tested desktop builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cd release
+          sha256sum *.exe *.dmg *.zip > SHA256SUMS.txt
+          cd ..
+          gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" --title "Album Circle $GITHUB_REF_NAME · macOS & Windows" --notes-file desktop/RELEASE-NOTES.md --verify-tag

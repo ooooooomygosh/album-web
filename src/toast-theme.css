@@ -1,0 +1,147 @@
+/*
+ * Album Circle · Sonner Toast 玻璃质感覆写
+ * ----------------------------------------------
+ * sonner 在运行时向 <head> 注入默认样式（晚于打包 CSS），
+ * 因此视觉覆写统一加 !important 以稳赢级联。
+ * 审美对齐 .glass-panel 的 Liquid Glass：透明白描边 + 极光外发光 + 背景虚化。
+ * 动效交给 sonner 自带的入场/退场（transform: var(--y) 堆叠），
+ * 这里只把缓动改成项目的 spring 曲线，不覆盖其 transform 变量。
+ */
+
+/* 容器：确保不被裁切、文字继承项目字体 */
+[data-sonner-toaster] {
+  --width: 360px !important;
+  font-family: inherit !important;
+}
+
+/* 单条 toast 的玻璃质感 */
+[data-sonner-toast] {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--cover-a), transparent 86%),
+      color-mix(in srgb, var(--cover-b), transparent 90%)
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, calc(var(--glass-alpha, 0.62) * 0.16)),
+      rgba(255, 255, 255, calc(var(--glass-alpha, 0.62) * 0.06))
+    ),
+    linear-gradient(180deg, #ffffff29, #ffffff05) !important;
+  border: 1px solid color-mix(in srgb, var(--cover-c), white 14%) !important;
+  box-shadow:
+    inset 0 1px #ffffff38,
+    0 22px 80px #00000047,
+    0 0 90px color-mix(in srgb, var(--cover-a), transparent 82%) !important;
+  backdrop-filter: blur(24px) saturate(1.45) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.45) !important;
+  color: #f8fbff !important;
+  border-radius: 16px !important;
+  padding: 14px 16px !important;
+  /* 仅替换缓动，不覆盖 sonner 控制的 transform/opacity 变量，避免堆叠跳动 */
+  transition:
+    transform 460ms var(--polish-ease-spring),
+    opacity 360ms var(--polish-ease-soft),
+    height 400ms var(--polish-ease-soft),
+    box-shadow 240ms var(--polish-ease-soft) !important;
+}
+
+/* 标题 / 描述 */
+[data-sonner-toast] [data-title] {
+  color: #f8fbff !important;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+}
+[data-sonner-toast] [data-description] {
+  color: rgba(248, 251, 255, 0.82) !important;
+  font-size: 13px;
+  line-height: 1.45;
+}
+[data-sonner-toast] [data-content] {
+  align-items: flex-start;
+}
+
+/* 类型外发光：用专辑/情绪色区分成功与错误 */
+[data-sonner-toast][data-type="success"] {
+  box-shadow:
+    inset 0 1px #ffffff38,
+    0 22px 80px #00000047,
+    0 0 92px color-mix(in srgb, #8fe388, transparent 78%) !important;
+}
+[data-sonner-toast][data-type="error"] {
+  box-shadow:
+    inset 0 1px #ffffff38,
+    0 22px 80px #00000047,
+    0 0 92px color-mix(in srgb, #ff7da8, transparent 76%) !important;
+}
+[data-sonner-toast][data-type="warning"] {
+  box-shadow:
+    inset 0 1px #ffffff38,
+    0 22px 80px #00000047,
+    0 0 92px color-mix(in srgb, #f3d74c, transparent 78%) !important;
+}
+[data-sonner-toast][data-type="info"] {
+  box-shadow:
+    inset 0 1px #ffffff38,
+    0 22px 80px #00000047,
+    0 0 92px color-mix(in srgb, var(--cover-a), transparent 82%) !important;
+}
+
+/* 图标统一用玻璃描边色，避免 sonner 默认灰 */
+[data-sonner-toast] [data-icon] {
+  color: #f8fbff !important;
+}
+[data-sonner-toast][data-type="success"] [data-icon] { color: #8fe388 !important; }
+[data-sonner-toast][data-type="error"] [data-icon] { color: #ff7da8 !important; }
+[data-sonner-toast][data-type="warning"] [data-icon] { color: #f3d74c !important; }
+
+/* 关闭按钮 */
+[data-sonner-toast] [data-close-button] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: #f8fbff !important;
+}
+[data-sonner-toast] [data-close-button]:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* 操作按钮（toast.promise / toast(..., { action })） */
+[data-sonner-toast] [data-button] {
+  background: color-mix(in srgb, var(--cover-a), white 18%) !important;
+  color: #0c0f12 !important;
+  font-weight: 600;
+  border-radius: 10px !important;
+}
+
+/* loading 转圈用主题色 */
+[data-sonner-toast][data-type="loading"] [data-icon] {
+  color: var(--cover-a) !important;
+}
+
+/* 入场微光：仅在挂载时短暂呼吸，不干扰 sonner 的 transform 堆叠 */
+[data-sonner-toast][data-mounted="true"] {
+  animation: toast-glass-in 420ms var(--polish-ease-soft) both !important;
+}
+@keyframes toast-glass-in {
+  from {
+    opacity: 0;
+    filter: blur(6px) saturate(1.2);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0) saturate(1.45);
+  }
+}
+
+/* 降低动效：尊重 prefers-reduced-motion 与 .reduce-motion */
+.reduce-motion [data-sonner-toast] {
+  transition: opacity 200ms ease !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast] {
+    transition: opacity 200ms ease !important;
+    animation: none !important;
+  }
+}

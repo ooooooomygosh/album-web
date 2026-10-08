@@ -1,0 +1,741 @@
+/*
+ * Album Circle · Motion & Aesthetics Polish
+ * ----------------------------------------------
+ * 独立的动效与审美增强层。所有新规则都遵循既有 Liquid Glass 风格，
+ * 仅在不破坏现有交互、aria 行为或 prefers-reduced-motion 的前提下叠加。
+ *
+ * 主要新增：
+ *  1. 顶栏品牌位的呼吸光晕 + 滚动微扫光
+ *  2. 柜展封面的 3D 浮起、反射光条、悬停 tilt
+ *  3. AI 卡片的键盘聚焦流光
+ *  4. 评论卡片的左缘 accent 与"写字"流光
+ *  5. 评分滑块的拖尾光带
+ *  6. 模态弹窗的幕布模糊 + 弹簧入场
+ *  7. 滚动入场渐显（IntersectionObserver 可由组件添加 .is-in-view）
+ *  8. 顶栏/底栏的极光噪声背景
+ *
+ *  所有动效都受 .reduce-motion 限制；增强只在新 .polish-* 容器内生效。
+ */
+
+/* ========== 全局 token 微调 ========== */
+:root {
+  --polish-ease-spring: cubic-bezier(0.16, 1.05, 0.24, 1.02);
+  --polish-ease-snap: cubic-bezier(0.2, 0.95, 0.18, 1);
+  --polish-ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --polish-accent: color-mix(in srgb, var(--cover-c), white 18%);
+  --polish-accent-soft: color-mix(in srgb, var(--cover-c), transparent 65%);
+  --polish-accent-a: color-mix(in srgb, var(--cover-a), transparent 35%);
+  --polish-accent-b: color-mix(in srgb, var(--cover-b), transparent 38%);
+}
+
+/* ========== 1. 顶栏 —— 呼吸光晕 + 滚动扫光 ========== */
+.topbar {
+  position: relative;
+  isolation: isolate;
+}
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--cover-c), transparent 55%),
+      transparent 35%,
+      color-mix(in srgb, var(--cover-a), transparent 65%) 65%,
+      color-mix(in srgb, var(--cover-b), transparent 55%)
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0.72;
+  pointer-events: none;
+  animation: polish-topbar-frame 9s var(--polish-ease-soft) infinite;
+}
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--cover-c), white 30%) 50%,
+    transparent
+  );
+  background-size: 220% 100%;
+  background-position: 0% 50%;
+  opacity: 0.68;
+  animation: polish-topbar-scan 6.4s var(--polish-ease-soft) infinite;
+  pointer-events: none;
+}
+@keyframes polish-topbar-frame {
+  0%, 100% {
+    opacity: 0.55;
+    filter: saturate(1);
+  }
+  50% {
+    opacity: 0.85;
+    filter: saturate(1.15);
+  }
+}
+@keyframes polish-topbar-scan {
+  0%, 18% {
+    background-position: 100% 50%;
+    opacity: 0;
+  }
+  32%, 68% {
+    opacity: 0.7;
+  }
+  82%, 100% {
+    background-position: -120% 50%;
+    opacity: 0;
+  }
+}
+
+.brand-mark {
+  position: relative;
+  overflow: visible;
+}
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--cover-a), transparent 30%) 0%,
+    transparent 65%
+  );
+  filter: blur(8px);
+  opacity: 0.6;
+  z-index: -1;
+  animation: polish-brand-halo 4.8s var(--polish-ease-soft) infinite;
+}
+@keyframes polish-brand-halo {
+  0%, 100% {
+    opacity: 0.32;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.62;
+    transform: scale(1.04);
+  }
+}
+
+/* 顶栏的 mode-tabs 在按下时增加按压缩放 */
+.mode-tabs button {
+  transition:
+    background 220ms var(--polish-ease-soft),
+    color 220ms var(--polish-ease-soft),
+    transform 240ms var(--polish-ease-spring),
+    box-shadow 280ms var(--polish-ease-soft);
+}
+.mode-tabs button:not(.active):hover {
+  color: #f8fbffe6;
+  background: rgba(255, 255, 255, 0.045);
+  transform: translateY(-1px);
+}
+.mode-tabs button.active {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    0 8px 22px color-mix(in srgb, var(--cover-c), transparent 78%);
+}
+.mode-tabs button:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ========== 2. 柜展封面 —— 3D 浮起、悬停 tilt、反射光条 ========== */
+.cabinet-tile {
+  position: relative;
+  transition:
+    transform 540ms var(--polish-ease-spring),
+    filter 360ms var(--polish-ease-soft);
+}
+.cabinet-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, 0.22) 48%,
+    transparent 58%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  background-position: -120% 50%;
+  opacity: 0;
+  transition: opacity 320ms var(--polish-ease-soft);
+  mix-blend-mode: screen;
+  z-index: 3;
+}
+.cabinet-tile:hover::after,
+.cabinet-tile:focus-visible::after {
+  opacity: 0.9;
+  animation: polish-tile-sheen 1.4s var(--polish-ease-soft) 1;
+}
+.cabinet-tile:hover {
+  transform: translate3d(0, -8px, 0) scale(1.018);
+  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.55));
+}
+.cabinet-tile:focus-visible {
+  outline: none;
+  transform: translate3d(0, -6px, 0) scale(1.012);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--cover-c), white 22%),
+    0 18px 42px rgba(0, 0, 0, 0.5);
+}
+.cabinet-tile:active {
+  transform: translate3d(0, -2px, 0) scale(0.985);
+  transition-duration: 140ms;
+}
+.cabinet-card-face {
+  will-change: transform, box-shadow, filter;
+  transition:
+    transform 760ms var(--polish-ease-spring),
+    box-shadow 380ms var(--polish-ease-soft),
+    filter 380ms var(--polish-ease-soft),
+    border-color 280ms var(--polish-ease-soft);
+}
+.cabinet-tile:hover .cabinet-card-face {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 22px 60px rgba(0, 0, 0, 0.5);
+  filter: brightness(1.04) saturate(1.06);
+}
+@keyframes polish-tile-sheen {
+  0% {
+    background-position: -120% 50%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.85;
+  }
+  100% {
+    background-position: 220% 50%;
+    opacity: 0;
+  }
+}
+
+/* ========== 3. AI 卡片 —— 键盘聚焦流光 ========== */
+.ai-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 360ms var(--polish-ease-spring),
+    border-color 280ms var(--polish-ease-soft),
+    box-shadow 360ms var(--polish-ease-soft);
+}
+.ai-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--ai-angle, 220deg),
+    transparent 0deg,
+    color-mix(in srgb, var(--cover-a), transparent 50%) 90deg,
+    color-mix(in srgb, var(--cover-c), transparent 35%) 180deg,
+    color-mix(in srgb, var(--cover-b), transparent 55%) 270deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms var(--polish-ease-soft);
+  animation: polish-ai-spin 8s linear infinite paused;
+  z-index: 1;
+}
+.ai-card:hover::before,
+.ai-card:focus-within::before {
+  opacity: 0.8;
+  animation-play-state: running;
+}
+@keyframes polish-ai-spin {
+  to {
+    --ai-angle: 580deg;
+  }
+}
+@supports (background: conic-gradient(from 0deg, #000, #fff)) {
+  @property --ai-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 220deg;
+  }
+}
+
+/* ========== 4. 评论卡片 —— 左缘 accent 与"写字"流光 ========== */
+.comment {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    border-color 280ms var(--polish-ease-soft),
+    transform 360ms var(--polish-ease-spring),
+    box-shadow 320ms var(--polish-ease-soft);
+}
+.comment::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cover-c), transparent 30%),
+    color-mix(in srgb, var(--cover-a), transparent 60%) 50%,
+    transparent
+  );
+  opacity: 0.85;
+  transform-origin: 50% 50%;
+  transition: transform 380ms var(--polish-ease-spring), opacity 280ms;
+}
+.comment::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--cover-c), transparent 84%) 50%,
+    transparent
+  );
+  background-size: 240% 100%;
+  background-position: 200% 50%;
+  opacity: 0;
+  transition: opacity 320ms var(--polish-ease-soft);
+  mix-blend-mode: screen;
+}
+.comment:hover {
+  transform: translateX(2px);
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.comment:hover::after {
+  opacity: 1;
+  animation: polish-comment-shine 1.6s var(--polish-ease-soft) 1;
+}
+.comment:hover::before {
+  transform: scaleY(1.04);
+}
+@keyframes polish-comment-shine {
+  0% { background-position: 200% 50%; opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { background-position: -120% 50%; opacity: 0; }
+}
+
+/* ========== 5. 评分滑块 —— 拖尾光带 ========== */
+.rating-panel input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--cover-c), white 14%) 0%,
+      color-mix(in srgb, var(--cover-c), white 14%) calc(var(--rating-fill, 0) * 1%),
+      rgba(255, 255, 255, 0.08) calc(var(--rating-fill, 0) * 1%),
+      rgba(255, 255, 255, 0.08) 100%
+    );
+  outline: none;
+  transition: filter 220ms var(--polish-ease-soft);
+}
+.rating-panel input[type="range"]:hover {
+  filter: brightness(1.06);
+}
+.rating-panel input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 32% 30%,
+      rgba(255, 255, 255, 0.95),
+      color-mix(in srgb, var(--cover-c), white 6%) 65%
+    );
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--cover-c), transparent 70%),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  cursor: grab;
+  transition:
+    transform 220ms var(--polish-ease-spring),
+    box-shadow 220ms var(--polish-ease-soft);
+}
+.rating-panel input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.08);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--cover-c), transparent 60%),
+    0 8px 22px rgba(0, 0, 0, 0.5);
+}
+.rating-panel input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(0.94);
+}
+.rating-panel input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 32% 30%,
+      rgba(255, 255, 255, 0.95),
+      color-mix(in srgb, var(--cover-c), white 6%) 65%
+    );
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--cover-c), transparent 70%),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+  cursor: grab;
+  transition:
+    transform 220ms var(--polish-ease-spring),
+    box-shadow 220ms var(--polish-ease-soft);
+}
+.rating-panel input[type="range"]:focus-visible {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--cover-c), transparent 60%),
+    0 0 18px color-mix(in srgb, var(--cover-c), transparent 75%);
+}
+
+/* ========== 6. 模态弹窗 —— 幕布模糊 + 弹簧入场 ========== */
+.overlay,
+.modal-overlay,
+.confirm-dialog,
+.global-search-popover,
+.cabinet-settings-panel,
+.member-modal {
+  animation: polish-modal-in 460ms var(--polish-ease-spring) both;
+}
+@keyframes polish-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.965);
+    filter: blur(10px) saturate(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.006);
+    filter: blur(0) saturate(1);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0) saturate(1);
+  }
+}
+.overlay-backdrop {
+  animation: polish-curtain-in 360ms var(--polish-ease-soft) both;
+}
+@keyframes polish-curtain-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px) saturate(1);
+    -webkit-backdrop-filter: blur(0px) saturate(1);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(18px) saturate(1.3);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  }
+}
+
+/* ========== 7. 滚动入场渐显 (.is-in-view) ========== */
+.polish-reveal {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  filter: blur(8px);
+  transition:
+    opacity 720ms var(--polish-ease-soft),
+    transform 720ms var(--polish-ease-spring),
+    filter 720ms var(--polish-ease-soft);
+  will-change: opacity, transform, filter;
+}
+.polish-reveal.is-in-view {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+/* 错位入场 */
+.polish-reveal[data-stagger="1"] { transition-delay: 60ms; }
+.polish-reveal[data-stagger="2"] { transition-delay: 120ms; }
+.polish-reveal[data-stagger="3"] { transition-delay: 180ms; }
+.polish-reveal[data-stagger="4"] { transition-delay: 240ms; }
+.polish-reveal[data-stagger="5"] { transition-delay: 300ms; }
+.polish-reveal[data-stagger="6"] { transition-delay: 360ms; }
+
+/* ========== 8. 极光噪声背景（顶栏/页脚感） ========== */
+.polish-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 18% 30%, var(--polish-accent-a), transparent 35%),
+    radial-gradient(circle at 84% 70%, var(--polish-accent-b), transparent 38%);
+  filter: blur(26px) saturate(1.2);
+  opacity: 0.55;
+  z-index: -1;
+  animation: polish-noise-drift 14s var(--polish-ease-soft) infinite alternate;
+}
+@keyframes polish-noise-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 1%, 0) scale(1.04); }
+}
+
+/* ========== 9. 按钮的微悬浮 ========== */
+.primary-action,
+.secondary-action,
+.ai-card button,
+.full-action {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 220ms var(--polish-ease-spring),
+    box-shadow 280ms var(--polish-ease-soft),
+    background 280ms var(--polish-ease-soft),
+    color 220ms var(--polish-ease-soft);
+}
+.primary-action:hover,
+.secondary-action:hover,
+.ai-card button:hover,
+.full-action:hover {
+  transform: translateY(-1px);
+}
+.primary-action:active,
+.secondary-action:active,
+.ai-card button:active,
+.full-action:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 120ms;
+}
+
+/* ========== 10. 头像/成员堆叠 hover 时的轻微浮起 ========== */
+.member-stack button {
+  transition:
+    transform 220ms var(--polish-ease-spring),
+    box-shadow 280ms var(--polish-ease-soft),
+    filter 220ms var(--polish-ease-soft);
+}
+.member-stack button:hover {
+  transform: translateY(-4px) scale(1.08);
+  filter: brightness(1.1);
+  box-shadow:
+    0 16px 28px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+
+/* ========== 11. 段落入场渐变 (在评论流与 AI 卡片网格) ========== */
+.showroom-comments .comment:nth-child(1) { animation-delay: 40ms; }
+.showroom-comments .comment:nth-child(2) { animation-delay: 100ms; }
+.showroom-comments .comment:nth-child(3) { animation-delay: 160ms; }
+.showroom-comments .comment:nth-child(4) { animation-delay: 220ms; }
+.showroom-comments .comment {
+  animation: polish-comment-in 620ms var(--polish-ease-spring) both;
+}
+@keyframes polish-comment-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* ========== 12. 文本渐显 (sub) ========== */
+.copy p,
+.copy .eyebrow,
+.copy h1,
+.copy h2 {
+  text-wrap: balance;
+}
+
+/* ========== Reduced Motion ========== */
+.reduce-motion .topbar::before,
+.reduce-motion .topbar::after,
+.reduce-motion .brand-mark::after,
+.reduce-motion .cabinet-tile:hover::after,
+.reduce-motion .ai-card::before,
+.reduce-motion .comment::after,
+.reduce-motion .polish-noise::before,
+.reduce-motion .showroom-comments .comment,
+.reduce-motion .polish-reveal {
+  animation: none !important;
+  transition: none !important;
+}
+.reduce-motion .cabinet-tile:hover,
+.reduce-motion .cabinet-tile:focus-visible {
+  transform: none !important;
+}
+.reduce-motion .comment:hover {
+  transform: none !important;
+}
+.reduce-motion .ai-card:hover::before,
+.reduce-motion .ai-card:focus-within::before {
+  opacity: 0 !important;
+}
+
+/* ========== 13. 评论发送中（乐观更新占位） ========== */
+.comment-pending {
+  opacity: 0.62;
+  animation: polish-comment-pending 1.4s var(--polish-ease-soft) infinite;
+}
+.comment-pending::before {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cover-a), transparent 20%), transparent);
+  animation: polish-comment-pending-bar 1.4s var(--polish-ease-soft) infinite;
+}
+@keyframes polish-comment-pending {
+  0%, 100% { opacity: 0.62; }
+  50% { opacity: 0.4; }
+}
+@keyframes polish-comment-pending-bar {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+.reduce-motion .comment-pending {
+  animation: none !important;
+  opacity: 0.7;
+}
+
+/* ========== 小屏适配 ========== */
+@media (max-width: 760px) {
+  .cabinet-tile:hover,
+  .cabinet-tile:focus-visible {
+    transform: none;
+    filter: none;
+  }
+  .cabinet-tile:active {
+    transform: scale(0.985);
+  }
+  .comment:hover {
+    transform: none;
+  }
+}
+
+/* ========== 14. 发布评论按钮禁用态（详情页 composer） ========== */
+.showroom-comments > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ========== 15. 骨架屏（首屏加载占位） ========== */
+@keyframes polish-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-tile,
+.skeleton-comment {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.04) 30%,
+      rgba(255, 255, 255, 0.14) 50%,
+      rgba(255, 255, 255, 0.04) 70%
+    );
+  background-size: 200% 100%;
+  animation: polish-shimmer 1.4s var(--polish-ease-soft) infinite;
+}
+.skeleton-tile {
+  aspect-ratio: 1 / 1;
+}
+.skeleton-comment {
+  min-height: 84px;
+  border-radius: 14px;
+}
+.reduce-motion .skeleton-tile,
+.reduce-motion .skeleton-comment {
+  animation: none !important;
+}
+
+/* ========== 16. 触控目标（桌面端最小 38px，移动端 44px） ========== */
+.secondary-chip,
+.filter-chip,
+.cabinet-summary-chip,
+.primary-action,
+.secondary-action {
+  min-height: 38px;
+}
+@media (max-width: 760px) {
+  .secondary-chip,
+  .filter-chip,
+  .cabinet-summary-chip,
+  .primary-action,
+  .secondary-action {
+    min-height: 44px;
+  }
+}
+
+/* ========== 17. 柜展筛选与排序栏 ========== */
+.cabinet-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 18px 0 4px;
+}
+.cabinet-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(248, 251, 255, 0.8);
+}
+.cabinet-filters select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 38px;
+  padding: 0 30px 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23f8fbff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E") right 10px center / 12px no-repeat,
+    linear-gradient(135deg, color-mix(in srgb, var(--cover-a), transparent 88%), transparent),
+    rgba(255, 255, 255, 0.06);
+  color: #f8fbff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 220ms var(--polish-ease-soft), box-shadow 220ms var(--polish-ease-soft);
+}
+.cabinet-filters select:hover {
+  border-color: rgba(255, 255, 255, 0.34);
+}
+.cabinet-filters select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--cover-c), white 26%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cover-c), transparent 64%);
+}
+
+/* 重排过渡（配合筛选 / 排序） */
+.cabinet-listitem {
+  transition: transform 420ms var(--polish-ease-spring), opacity 360ms var(--polish-ease-soft);
+}

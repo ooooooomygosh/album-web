@@ -1,0 +1,61 @@
+'use strict';
+const { test } = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { createMusicService } = require('../music-service.cjs'), { safeAudioURL, serverURL } = require('../music-policy.cjs'), { cleanSnapshot } = require('../wallpaper-model.cjs');
+const safeStorage = { isEncryptionAvailable: () => true, encryptString: (v) => Buffer.from([...v].reverse().join('')), decryptString: (b) => [...b.toString()].reverse().join('') };
+const upstream = { handleQQSearch: async () => [{ mid: '001n4C3p1yv0FU', name: '以父之名', artists: [{ name: '周杰伦' }], album: { name: '叶惠美' } }], handleSearch: async () => [], handleQQSongUrl: async () => ({ url: 'https://ws.stream.qqmusic.qq.com/test.mp3?vkey=SECRET', playable: true }), normalizeLoginInfo: () => ({}), handleSongUrl: async () => ({ playable: false, message: '需要平台权限' }), audioProxyHeadersFor: (_url, range) => ({ Range: range }) };
+async function fixture(t, overrides = {}) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'album-music-test-'));
+  const service = createMusicService({ directory, safeStorage, login: async () => ({ ok: true, cookie: 'uin=12345; qm_keyst=LOGIN_SECRET' }), logout: async () => {}, upstream: { ...upstream, ...overrides }, fetch: async (_url, options) => new Response(Buffer.from('audio bytes'), { status: options.headers.Range ? 206 : 200, headers: { 'content-type': 'audio/mpeg', 'content-range': 'bytes 0-10/11' } }) });
+  const request = (url, value, headers) => service.proxy(new Request('https://album-circle.vercel.app/desktop-music' + url, { ...(value === undefined ? {} : { method: 'POST', body: JSON.stringify(value) }), headers }), url, fetch);
+  t.after(() => { service.stop(); fs.rmSync(directory, { recursive: true, force: true }); }); return { service, request, directory };
+}
+test('audio address boundary excludes credentials, arbitrary servers and local networks', () => {
+  assert.ok(safeAudioURL('https://ws.stream.qqmusic.qq.com/a.mp3')); assert.ok(safeAudioURL('https://m8.music.126.net/a.mp3'));
+  for (const url of ['http://127.0.0.1/a.mp3', 'https://evil.test/a.mp3', 'https://qqmusic.qq.com.evil.test/a', 'https://x:y@ws.stream.qqmusic.qq.com/a', 'file:///C:/x']) assert.equal(safeAudioURL(url), false);
+  assert.equal(serverURL('http://192.168.1.8:8095'), 'http://192.168.1.8:8095'); assert.throws(() => serverURL('http://169.254.169.254')); assert.throws(() => serverURL('https://x:y@example.com')); assert.throws(() => serverURL('https://example.com/path'));
+});
+test('loopback service requires a native token and rejects unrelated origins', async (t) => {
+  const { service, request } = await fixture(t), port = await service.start();
+  assert.equal((await fetch(`http://127.0.0.1:${port}/config`)).status, 401);
+  let credentials;
+  await service.proxy(new Request('https://album-circle.vercel.app/desktop-music/config'), '/config', (url, opts) => { credentials = { url, opts }; return fetch(url, opts); });
+  assert.equal((await fetch(credentials.url, { headers: { ...credentials.opts.headers, Origin: 'https://evil.test' } })).status, 403);
+  assert.equal((await request('/unknown')).status, 404);
+});
+test('music account credentials are persisted encrypted and never returned to renderer', async (t) => {
+  const { service, request, directory } = await fixture(t); await service.login('qq');
+  const raw = fs.readFileSync(path.join(directory, 'music.json'), 'utf8'); assert.ok(!raw.includes('LOGIN_SECRET')); assert.ok(!raw.includes('uin=12345'));
+  const config = await (await request('/config')).json(); assert.equal(config.qqLoggedIn, true); assert.equal(config.qq, undefined);
+  await service.logout('qq'); assert.equal((await (await request('/config')).json()).qqLoggedIn, false);
+});
+test('exact track resolution proxies audio with Range without exposing signed URL', async (t) => {
+  const { request } = await fixture(t); const result = await (await request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' })).json();
+  assert.match(result.audioPath, /^\/desktop-music\/audio\/[a-f\d]{48}$/); assert.equal(JSON.stringify(result).includes('SECRET'), false);
+  const audio = await request(result.audioPath.slice('/desktop-music'.length), undefined, { Range: 'bytes=0-10' }); assert.equal(audio.status, 206); assert.equal(await audio.text(), 'audio bytes');
+  assert.equal((await request(result.audioPath.slice('/desktop-music'.length), undefined, { Range: 'bytes=1-2,5-6' })).status, 416);
+});
+test('restricted audio and unexpected URLs cannot produce playable sources', async (t) => {
+  const { request } = await fixture(t, { handleQQSongUrl: async () => ({ url: 'http://127.0.0.1/secret', playable: true }) });
+  assert.equal((await request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' })).status, 502);
+  const restricted = await (await request('/resolve', { provider: 'netease', id: '12345' })).json(); assert.match(restricted.error, /权限/);
+});
+test('search preserves version metadata and cached results avoid repeated upstream calls', async (t) => {
+  let count = 0; const { request } = await fixture(t, { handleQQSearch: async () => { count++; return [{ mid: '001n4C3p1yv0FU', name: '以父之名', artists: [{ name: '周杰伦' }], album: { name: '叶惠美' } }]; } });
+  const result = await (await request('/search?provider=qq&query=test')).json(); await request('/search?provider=qq&query=test');
+  assert.equal(count, 1); assert.equal(result.candidates[0].album, '叶惠美'); assert.equal(result.candidates[0].artist, '周杰伦');
+});
+test('wallpaper snapshot drops credentials and fixes counts, tracks and colour bounds', () => {
+  const item = { id: 'a', title: '原专辑', artist: '歌手', tracks: ['第一首'], token: 'PRIVATE', cover: 'https://user:secret@evil.test/x' };
+  const clean = cleanSnapshot({ look: 'warm', items: Array(100).fill(item), record: item, token: 'PRIVATE', trackIndex: 500, recordStyle: { opacity: 999, splashes: ['#ffffff', '#ffffff', '#ffffff', '#ffffff'] }, statusText: '正在播放' });
+  assert.equal(clean.items.length, 12); assert.equal(clean.trackIndex, 0); assert.equal(clean.recordStyle.opacity, 100); assert.equal(clean.recordStyle.splashes.length, 3); assert.equal(clean.record.cover, ''); assert.equal(JSON.stringify(clean).includes('PRIVATE'), false);
+});
+test('shelf row navigation covers final partial row and preserves fixed geometry', async () => {
+  const { shelfWindow, roomGeometry } = await import('../../src/room-model.mjs');
+  const items = Array.from({ length: 14 }, (_, id) => ({ id })); const view = shelfWindow(items, 200);
+  assert.equal(view.startRow, 1); assert.equal(view.items.length, 10); assert.equal(view.items.at(-1).id, 13); assert.equal(shelfWindow([], -1).startRow, 0);
+  for (const [width, height] of [[960, 600], [1920, 1080], [3440, 1440], [3840, 2160]]) { const g = roomGeometry(width, height); assert.ok(g.left <= 0 && g.top <= 0 && g.left + g.width >= width && g.top + g.height >= height); }
+});
+test('audio identifiers come from original QQ track IDs, other catalogs require version selection', async () => {
+  const { exactTrack } = await import('../../src/room-playback.mjs'); const item = { tracks: ['原曲名'], trackDetails: [{ providerId: '001n4C3p1yv0FU' }] };
+  assert.equal(exactTrack(item, 0, 'qq').id, '001n4C3p1yv0FU'); assert.equal(exactTrack(item, 0, 'netease'), null); assert.equal(exactTrack({ tracks: ['原曲名'] }, 0, 'qq'), null);
+});

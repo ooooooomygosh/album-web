@@ -1,0 +1,38 @@
+'use strict';
+
+const SITE_ORIGIN = 'https://album-circle.vercel.app';
+const SHELL_ORIGIN = 'album-desktop://shell';
+const SHELL_URL = `${SHELL_ORIGIN}/index.html`;
+
+function parseUrl(value) {
+  try { return new URL(value); } catch { return null; }
+}
+
+function isSiteUrl(value) {
+  const url = parseUrl(value);
+  return Boolean(url && url.origin === SITE_ORIGIN && !url.username && !url.password);
+}
+
+function isShellUrl(value) {
+  const url = parseUrl(value);
+  return Boolean(url && url.protocol === 'album-desktop:' && url.hostname === 'shell'
+    && !url.username && !url.password && url.pathname === '/index.html');
+}
+
+function isExternalUrl(value) {
+  const url = parseUrl(value);
+  return Boolean(url && url.protocol === 'https:' && !url.username && !url.password && url.hostname);
+}
+
+function safeSavedWindow(value, workArea) {
+  const width = Math.min(workArea.width, Math.max(Math.min(900, workArea.width), Math.round(Number(value?.width) || workArea.width * 0.9)));
+  const height = Math.min(workArea.height, Math.max(Math.min(600, workArea.height), Math.round(Number(value?.height) || workArea.height * 0.9)));
+  const x = Number(value?.x);
+  const y = Number(value?.y);
+  const visible = Number.isFinite(x) && Number.isFinite(y)
+    && x + width > workArea.x && y + height > workArea.y
+    && x < workArea.x + workArea.width && y < workArea.y + workArea.height;
+  return { width, height, ...(visible ? { x: Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - width)), y: Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - height)) } : {}) };
+}
+
+module.exports = { SITE_ORIGIN, SHELL_ORIGIN, SHELL_URL, isSiteUrl, isShellUrl, isExternalUrl, safeSavedWindow };

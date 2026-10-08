@@ -1,16 +1,19 @@
 {
   "name": "album-circle",
-  "version": "0.1.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "vercel-dev": "vercel dev --listen 5173",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "desktop:dev": "npm --prefix desktop start",
+    "desktop:test": "npm --prefix desktop test",
+    "desktop:dist": "npm --prefix desktop run dist",
     "review": "node scripts/review.mjs",
     "member:smoke": "node scripts/member-profile-smoke.mjs",
     "api:smoke": "node scripts/api-smoke.mjs",
@@ -18,22 +21,18 @@
     "persona:smoke": "node scripts/persona-identity-smoke.mjs"
   },
   "dependencies": {
+    "@heroicons/react": "2.2.0",
     "@vitejs/plugin-react": "^6.0.3",
     "firebase": "^12.13.0",
     "firebase-admin": "^14.1.0",
-    "lucide-react": "^0.554.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "sonner": "^2.0.7",
     "typescript": "^5.9.3",
-    "vite": "^8.1.0",
-    "zustand": "^5.0.14"
+    "vite": "^8.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "autoprefixer": "^10.5.4",
-    "postcss": "^8.5.25",
-    "tailwindcss": "^3.4.19",
     "vercel": "^54.18.5"
   },
   "overrides": {

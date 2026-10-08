@@ -1,0 +1,87 @@
+'use strict';
+const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), http = require('node:http');
+const { safeAudioURL, serverURL, candidate } = require('./music-policy.cjs');
+function createMusicService({ directory, safeStorage, login, logout, upstream = require('./music-upstream.cjs'), fetch = globalThis.fetch }) {
+  const token = crypto.randomBytes(32).toString('hex'), streams = new Map(), cache = new Map();
+  const prefsPath = path.join(directory, 'music.json'); let preferences = { maURL: '', maToken: '', playerId: '', qq: '', netease: '' }, server, port, opening;
+  try { preferences = { ...preferences, ...JSON.parse(fs.readFileSync(prefsPath, 'utf8')) }; } catch {}
+  const decode = (value) => { try { return value ? safeStorage.decryptString(Buffer.from(value, 'base64')) : ''; } catch { return ''; } };
+  function save(next) { if (!safeStorage.isEncryptionAvailable()) throw new Error('本机登录凭据加密不可用，无法保存账号。'); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(prefsPath + '.tmp', JSON.stringify(next)); fs.renameSync(prefsPath + '.tmp', prefsPath); preferences = next; cache.clear(); streams.clear(); }
+  const encrypt = (value) => value ? safeStorage.encryptString(value).toString('base64') : '';
+  const config = () => ({ qqLoggedIn: Boolean(decode(preferences.qq)), neteaseLoggedIn: Boolean(decode(preferences.netease)), maURL: preferences.maURL, maTokenSet: Boolean(decode(preferences.maToken)), playerId: preferences.playerId });
+  async function ma(command, args = {}) {
+    if (!preferences.maURL || !decode(preferences.maToken)) throw new Error('请在音源设置中配置 Music Assistant 服务器与访问令牌。');
+    const response = await fetch(preferences.maURL + '/api', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers: { 'Authorization': 'Bearer ' + decode(preferences.maToken), 'Content-Type': 'application/json' }, body: JSON.stringify({ command, args }) });
+    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Music Assistant 令牌无效或权限不足。' : 'Music Assistant 请求失败，请检查服务器与播放器。');
+    const result = await response.json(); if (result?.error_code || result?.error) throw new Error('Music Assistant 无法执行此操作。'); return result?.result ?? result;
+  }
+  async function search(provider, query) {
+    const key = provider + ':' + query, old = cache.get(key); if (old && Date.now() - old.time < 60000) return old.items;
+    let values;
+    if (provider === 'qq') values = await upstream.handleQQSearch(decode(preferences.qq), query, 8);
+    else if (provider === 'netease') values = await upstream.handleSearch(query, 8, decode(preferences.netease));
+    else if (provider === 'ma') values = (await ma('music/search', { search_query: query, media_types: ['track'], limit: 8 })).tracks || [];
+    else throw new Error('不支持此音乐来源。');
+    const items = values.map((value) => candidate(value, provider)).filter((v) => v.id && v.title);
+    cache.set(key, { time: Date.now(), items }); if (cache.size > 64) cache.delete(cache.keys().next().value); return items;
+  }
+  async function resolve(body) {
+    const { provider } = body; const id = String(body.id || '');
+    if (provider === 'ma') {
+      if (!preferences.playerId) throw new Error('请先在音源设置中选择 Music Assistant 播放器。');
+      if (!/^\w[\w.-]*:\/\/track\/.{1,800}$/.test(String(body.uri || ''))) throw new Error('请搜索并选择 Music Assistant 的原始曲目。');
+      await ma('player_queues/play_media', { queue_id: preferences.playerId, media: body.uri, option: 'replace' }); return { remote: true, provider, playerId: preferences.playerId };
+    }
+    if (!id || id.length > 64 || (provider === 'qq' ? !/^[a-z\d]+$/i.test(id) : !/^\d+$/.test(id))) throw new Error('曲目 ID 无效，请重新搜索选择。');
+    let result;
+    if (provider === 'qq') result = await upstream.handleQQSongUrl(decode(preferences.qq), id, String(body.mediaMid || '').slice(0, 64), 'standard', body.fee);
+    else if (provider === 'netease') result = await upstream.handleSongUrl(id, upstream.normalizeLoginInfo(null, null, {}), 'standard', decode(preferences.netease));
+    else throw new Error('不支持此音乐来源。');
+    if (!result?.url || result.playable === false) throw new Error(result.message || '此歌曲暂时不可播放，请检查登录、会员权限或地区限制。');
+    if (!safeAudioURL(result.url)) throw new Error('音频地址不属于已支持的音乐平台。');
+    const streamId = crypto.randomBytes(24).toString('hex'); streams.set(streamId, { url: result.url, provider, time: Date.now() }); if (streams.size > 40) streams.delete(streams.keys().next().value);
+    return { provider, audioPath: '/desktop-music/audio/' + streamId, trial: Boolean(result.trial), quality: result.quality || '标准音质' };
+  }
+  const json = (res, value, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
+  async function body(req) { let text = ''; for await (const chunk of req) { text += chunk; if (text.length > 32768) throw new Error('请求内容过大。'); } return text ? JSON.parse(text) : {}; }
+  async function stream(req, res, id) {
+    const value = streams.get(id); if (!value || Date.now() - value.time > 2 * 60 * 60 * 1000) return json(res, { error: '播放链接已过期，请重新播放。' }, 410);
+    const range = req.headers.range || ''; if (range && !/^bytes=\d*-\d*$/.test(range)) return json(res, { error: 'Invalid range' }, 416);
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+    res.once('close', () => controller.abort());
+    try {
+      const response = await fetch(value.url, { signal: controller.signal, redirect: 'manual', headers: upstream.audioProxyHeadersFor(value.url, range) }); clearTimeout(timer);
+      if (![200, 206].includes(response.status) || !response.body) return json(res, { error: '平台音频暂时不可用。' }, 502);
+      const headers = { 'Content-Type': response.headers.get('content-type') || 'audio/mpeg', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes' };
+      for (const name of ['content-length', 'content-range']) if (response.headers.get(name)) headers[name] = response.headers.get(name);
+      res.writeHead(response.status, headers);
+      for await (const chunk of response.body) { if (res.destroyed) break; if (!res.write(chunk)) await new Promise((resolve) => { res.once('drain', resolve); res.once('close', resolve); }); } if (!res.destroyed) res.end();
+    } finally { clearTimeout(timer); controller.abort(); }
+  }
+  async function route(req, res) {
+    const supplied = Buffer.from(String(req.headers['x-album-music-token'] || '')); const expected = Buffer.from(token);
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return json(res, { error: 'Unauthorized' }, 401);
+    const origin = req.headers.origin; if (origin && origin !== 'https://album-circle.vercel.app') return json(res, { error: 'Forbidden origin' }, 403);
+    const url = new URL(req.url, 'http://127.0.0.1');
+    try {
+      if (req.method === 'GET' && url.pathname === '/config') return json(res, config());
+      if (req.method === 'POST' && url.pathname === '/config') { const value = await body(req); const maURL = value.maURL ? serverURL(String(value.maURL)) : ''; const playerId = String(value.playerId || '').slice(0, 160); const maToken = value.clearToken ? '' : value.maToken ? encrypt(String(value.maToken).slice(0, 8192)) : preferences.maToken; save({ ...preferences, maURL, maToken, playerId }); return json(res, config()); }
+      if (req.method === 'GET' && url.pathname === '/search') return json(res, { candidates: await search(url.searchParams.get('provider'), String(url.searchParams.get('query') || '').slice(0, 300)) });
+      if (req.method === 'POST' && url.pathname === '/resolve') return json(res, await resolve(await body(req)));
+      if (req.method === 'GET' && url.pathname.startsWith('/audio/')) return await stream(req, res, url.pathname.slice(7));
+      if (req.method === 'GET' && url.pathname === '/ma/players') { const players = await ma('players/all'); return json(res, { players: (Array.isArray(players) ? players : Object.values(players)).filter((p) => p.available !== false).map((p) => ({ id: p.player_id, name: p.display_name || p.name || p.player_id })) }); }
+      if (req.method === 'GET' && url.pathname === '/ma/state') { const player = await ma('players/get', { player_id: preferences.playerId }); return json(res, { state: player.playback_state || player.state, title: player.current_media?.title || '', artist: player.current_media?.artist || '', elapsed: player.corrected_elapsed_time || player.current_media?.elapsed_time || player.elapsed_time || 0, duration: player.current_media?.duration || 0 }); }
+      if (req.method === 'POST' && url.pathname === '/ma/control') { const value = await body(req), commands = { pause: 'players/cmd/pause', play: 'players/cmd/play', stop: 'players/cmd/stop' }; if (!commands[value.action]) throw new Error('不支持此播放操作。'); await ma(commands[value.action], { player_id: preferences.playerId }); return json(res, { ok: true }); }
+      return json(res, { error: 'Not found' }, 404);
+    } catch (error) { if (!res.headersSent) json(res, { error: error.message || '音源请求失败。' }, 502); else if (!res.destroyed) res.destroy(); }
+  }
+  async function start() { if (port) return port; if (opening) return opening; opening = new Promise((resolve, reject) => { server = http.createServer(route); server.on('error', reject); server.listen(0, '127.0.0.1', () => { port = server.address().port; resolve(port); }); }); return opening; }
+  async function proxy(request, pathname, netFetch) {
+    const currentPort = await start(), headers = { 'x-album-music-token': token }; if (request.headers.get('range')) headers.Range = request.headers.get('range');
+    if (!['GET', 'POST', 'HEAD'].includes(request.method)) return new Response('Method not allowed', { status: 405 });
+    if (request.method === 'POST') headers['Content-Type'] = 'application/json';
+    return netFetch('http://127.0.0.1:' + currentPort + pathname, { method: request.method, headers, ...(request.method === 'POST' ? { body: await request.text() } : {}), signal: request.signal });
+  }
+  return { start, proxy, config, async login(provider) { if (!['qq', 'netease'].includes(provider)) throw new Error('不支持此平台。'); const result = await login(provider); if (result.ok && result.cookie) save({ ...preferences, [provider]: encrypt(result.cookie) }); return { ok: Boolean(result.ok), cancelled: Boolean(result.cancelled), error: result.error || result.message || '' }; }, async logout(provider) { await logout(provider); save({ ...preferences, [provider]: '' }); }, stop() { streams.clear(); cache.clear(); server?.closeAllConnections(); server?.close(); server = null; port = null; opening = null; } };
+}
+module.exports = { createMusicService };

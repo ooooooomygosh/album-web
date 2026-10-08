@@ -1,4 +1,11 @@
-# Album Circle
+# Album Circle 1.5.0
+
+macOS / Windows 客户端以本地收藏为默认，云端账号、数据库、AI 和在线分享为可选服务。最新版安装包见 [GitHub Releases](https://github.com/ooooooomygosh/album-web/releases/latest)。
+
+无需登录即可管理专辑、唱片盒与黑胶外观。打开“收藏与分享”可离线手动添加专辑、导出或导入收藏；软件设置中切换云端账号，登录后返回本地模式即可发布只读展柜链接，或手动同步收藏到专用云端房间。访客通过浏览器查看分享，无需注册。公开分享是当次快照，后续修改需重新发布。
+
+客户端开发：先在项目根目录运行 `npm ci`，再运行 `npm --prefix desktop ci`。`npm run desktop:dev` 启动软件；`npm --prefix desktop run dist:mac` 构建 Mac 两种芯片版本；Windows 上运行 `npm --prefix desktop run dist:win`。构建输出为 `desktop/release/`。标签 `v*` 触发 GitHub 自动构建、检查和发布三个平台版本。详见 [客户端说明](desktop/README.md)。
+
 
 Album Circle is a collaborative album and song sharing web app. A room can collect music recommendations from friends, show albums in a visual cabinet, attach comments and ratings, and generate AI listening guides from catalog metadata plus web research.
 

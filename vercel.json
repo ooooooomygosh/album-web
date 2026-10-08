@@ -16,7 +16,7 @@
   },
   "rewrites": [
     {
-      "source": "/((?!api/.*|@vite/.*|@react-refresh|src/.*|node_modules/.*|assets/.*|icon.svg|manifest.webmanifest).*)",
+      "source": "/((?!api/.*|@vite/.*|@react-refresh|src/.*|node_modules/.*|assets/.*|fonts/.*|room-scenes/.*|licenses/.*|wallpaper.html|icon.svg|manifest.webmanifest).*)",
       "destination": "/index.html"
     }
   ]
