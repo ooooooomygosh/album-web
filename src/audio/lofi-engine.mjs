@@ -1,0 +1,88 @@
+// Procedural lo-fi generator. The idea of an endless, seeded Tone.js lo-fi
+// stream follows meel-hd/lofi-engine (MIT); this implementation is original.
+import { mulberry32 } from './ambience.mjs';
+
+const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+const KEYS = [0, 2, 3, 5, 7, 8, 10]; // C D Eb F G Ab Bb: warm keys for Rhodes.
+const DEGREES = { I: [0, 'maj7'], ii: [2, 'm7'], iii: [4, 'm7'], IV: [5, 'maj7'], V: [7, '7'], vi: [9, 'm7'] };
+const QUALITIES = { maj7: [0, 4, 7, 11, 14], m7: [0, 3, 7, 10, 14], 7: [0, 4, 7, 10, 14] };
+export const PROGRESSIONS = Object.freeze([
+  ['ii', 'V', 'I', 'vi'], ['I', 'vi', 'ii', 'V'], ['IV', 'iii', 'ii', 'I'], ['vi', 'IV', 'I', 'V'],
+  ['ii', 'V', 'I', 'I'], ['I', 'iii', 'IV', 'V'], ['IV', 'V', 'iii', 'vi']
+]);
+const DRUMS = [
+  { kick: 'x.........x.....', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' },
+  { kick: 'x.....x...x.....', snare: '....x.......x..x', hat: 'x.xxx.x.x.xxx.x.' },
+  { kick: 'x..x......x..x..', snare: '....x.......x...', hat: '..x...x...x...x.' },
+  { kick: 'x.......x.x.....', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.xx' }
+];
+export const midiName = (midi) => NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+
+// Deterministic: one seed always describes the same 16-bar section.
+export function composeSection(seed) {
+  const random = mulberry32(seed), pick = (list) => list[Math.floor(random() * list.length)];
+  const key = pick(KEYS), progression = pick(PROGRESSIONS), bpm = 68 + Math.floor(random() * 18);
+  const chords = progression.map((degree) => {
+    const [offset, quality] = DEGREES[degree], root = 48 + ((key + offset) % 12);
+    // Close voicing around middle C; drop the fifth or ninth for colour.
+    const tones = QUALITIES[quality].filter((interval, index) => !(index === 2 && random() < .4) && !(index === 4 && random() < .45));
+    const notes = tones.map((interval) => { let note = root + 12 + interval; while (note > 74) note -= 12; return note; }).sort((a, b) => a - b);
+    return { degree, quality, name: NOTE_NAMES[(key + offset) % 12] + (quality === 'maj7' ? 'maj7' : quality), bass: root - 12, notes };
+  });
+  const groove = pick(DRUMS), steps = (pattern) => [...pattern].map((c) => c === 'x');
+  const drums = { kick: steps(groove.kick), snare: steps(groove.snare), hat: steps(groove.hat).map((on) => on || random() < .08) };
+  const scale = [0, 2, 4, 7, 9].map((step) => 60 + ((key + step) % 12) + 12);
+  const melody = [];
+  for (let bar = 0; bar < 4; bar++) for (let eighth = 0; eighth < 8; eighth++) {
+    if (random() < .32) melody.push({ bar, step: eighth * 2, note: pick(scale) - (random() < .3 ? 12 : 0), length: random() < .4 ? '4n' : '8n' });
+  }
+  return { seed, key: NOTE_NAMES[key], bpm, chords, drums, melody, bars: 16 };
+}
+
+// Lazily loads Tone.js so the main bundle stays small until music is wanted.
+export async function createLofiPlayer({ onSection } = {}) {
+  const Tone = await import('tone');
+  await Tone.start();
+  const out = new Tone.Gain(0).toDestination();
+  const tape = new Tone.Filter(1800, 'lowpass').connect(out);
+  const space = new Tone.Reverb({ decay: 3.2, wet: .28 }).connect(tape);
+  const keys = new Tone.PolySynth(Tone.FMSynth, { harmonicity: 2, modulationIndex: 1.2, oscillator: { type: 'sine' }, modulation: { type: 'triangle' }, envelope: { attack: .02, decay: 1.2, sustain: .35, release: 1.8 }, volume: -15 }).connect(space);
+  const lead = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: .01, decay: .4, sustain: .2, release: .8 }, volume: -20 }).connect(space);
+  const bass = new Tone.MonoSynth({ oscillator: { type: 'sine' }, filter: { Q: 1, type: 'lowpass' }, envelope: { attack: .02, decay: .3, sustain: .6, release: .6 }, filterEnvelope: { baseFrequency: 120, octaves: 1.5 }, volume: -10 }).connect(tape);
+  const kick = new Tone.MembraneSynth({ pitchDecay: .04, octaves: 5, envelope: { attack: .001, decay: .35, sustain: 0 }, volume: -8 }).connect(tape);
+  const snareBand = new Tone.Filter(1800, 'bandpass').connect(space), hatHigh = new Tone.Filter(7000, 'highpass').connect(tape);
+  const crackleLevel = new Tone.Gain(.012).connect(out), crackleHigh = new Tone.Filter(2500, 'highpass').connect(crackleLevel);
+  const snare = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: .001, decay: .16, sustain: 0 }, volume: -20 }).connect(snareBand);
+  const hat = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: .001, decay: .04, sustain: 0 }, volume: -30 }).connect(hatHigh);
+  const crackle = new Tone.Noise('pink').connect(crackleHigh);
+  const transport = Tone.getTransport();
+  let section = composeSection((Math.random() * 2 ** 31) | 0), step = 0;
+  transport.bpm.value = section.bpm; transport.swing = .32; transport.swingSubdivision = '16n';
+  onSection?.(section);
+  const loop = new Tone.Loop((time) => {
+    const bar = Math.floor(step / 16), inBar = step % 16, chord = section.chords[bar % 4];
+    if (inBar === 0) { keys.triggerAttackRelease(chord.notes.map(midiName), '1m', time + Math.random() * .02, .55 + Math.random() * .2); bass.triggerAttackRelease(midiName(chord.bass), '2n', time); }
+    if (inBar === 10 && Math.random() < .5) bass.triggerAttackRelease(midiName(chord.bass + 7), '8n', time);
+    if (section.drums.kick[inBar]) kick.triggerAttackRelease('C1', '8n', time);
+    if (section.drums.snare[inBar]) snare.triggerAttackRelease('16n', time);
+    if (section.drums.hat[inBar]) hat.triggerAttackRelease('32n', time, .4 + Math.random() * .5);
+    for (const note of section.melody) if (note.bar === bar % 4 && note.step === inBar && bar >= 4) lead.triggerAttackRelease(midiName(note.note), note.length, time);
+    step++;
+    if (step >= section.bars * 16) { // A new seeded section every 16 bars.
+      step = 0; section = composeSection((Math.random() * 2 ** 31) | 0);
+      transport.bpm.rampTo(section.bpm, 2); Tone.getDraw().schedule(() => onSection?.(section), time);
+    }
+  }, '16n');
+  let volume = .55, duck = 1, disposed = false;
+  const applyVolume = () => out.gain.rampTo(volume * volume * duck, .6);
+  return {
+    get section() { return section; },
+    start() { if (disposed) return; crackle.start(); loop.start(0); transport.start(); applyVolume(); },
+    setVolume(value) { volume = value; applyVolume(); },
+    setDuck(value) { duck = value ? .25 : 1; applyVolume(); },
+    dispose() {
+      if (disposed) return; disposed = true; out.gain.rampTo(0, .3);
+      setTimeout(() => { transport.stop(); transport.cancel(); loop.dispose(); crackle.stop(); [keys, lead, bass, kick, snare, hat, crackle, snareBand, hatHigh, crackleHigh, crackleLevel, space, tape, out].forEach((node) => node.dispose()); }, 400);
+    }
+  };
+}

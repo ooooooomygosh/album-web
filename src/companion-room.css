@@ -1,0 +1,41 @@
+/* Window weather and daylight over the cabin artwork, plus the room cat. */
+.cabin-weather{position:absolute;left:13.15%;top:15.9%;width:14.7%;height:25%;pointer-events:none;opacity:0;transition:opacity 1.2s;clip-path:polygon(0 0,46% 0,46% 45%,0 45%,0 0,0 55%,46% 55%,46% 100%,0 100%,0 55%,54% 55%,100% 55%,100% 100%,54% 100%,54% 55%,54% 45%,100% 45%,100% 0,54% 0,54% 45%)}
+.cabin-scene:not([data-weather=snow]) .cabin-snow{opacity:0}
+.cabin-scene[data-weather=rain] .cabin-weather{opacity:.85;background-image:linear-gradient(#22324c88,#22324c88),repeating-linear-gradient(105deg,transparent 0 9px,#cfe3ff55 9px 10px,transparent 10px 23px),repeating-linear-gradient(100deg,transparent 0 15px,#dcecff3d 15px 16px,transparent 16px 31px);background-size:100% 100%,90px 70px,120px 95px;animation:cabin-rain .55s linear infinite}
+@keyframes cabin-rain{to{background-position:0 0,-18px 70px,-16px 95px}}
+.cabin-scene[data-weather=starry] .cabin-weather{opacity:1;background-image:radial-gradient(circle,#fff6 1px,transparent 1.6px),radial-gradient(circle,#ffe7a8aa 1.2px,transparent 2px),linear-gradient(#0b1230aa,#1a235066);background-size:23px 29px,61px 47px,100% 100%;background-position:3px 4px,11px 19px,0 0;animation:cabin-twinkle 3.2s ease-in-out infinite alternate}
+@keyframes cabin-twinkle{from{filter:brightness(.7)}to{filter:brightness(1.35)}}
+.cabin-scene[data-weather=clear] .cabin-weather{opacity:.5;background:linear-gradient(170deg,#c6dcff22,transparent 60%)}
+.cabin-daylight{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;transition:background 2s,opacity 2s;opacity:0}
+.cabin-scene[data-time-of-day=morning] .cabin-daylight{opacity:.55;background:linear-gradient(115deg,#d9ecff 0%,#fff3d6 45%,transparent 75%)}
+.cabin-scene[data-time-of-day=day] .cabin-daylight{opacity:.4;background:linear-gradient(115deg,#fffbe8,#ffe9c0 60%,transparent)}
+.cabin-scene[data-time-of-day=dusk] .cabin-daylight{opacity:.5;background:linear-gradient(115deg,#ff9b5a,#b34a6d 70%,transparent)}
+.cabin-scene[data-time-of-day=night] .cabin-daylight{opacity:.45;mix-blend-mode:multiply;background:radial-gradient(ellipse at 88% 70%,transparent 18%,#3a3f6e 85%)}
+[data-desktop-reduce-motion=true] .cabin-weather{animation:none!important}
+
+/* The cat sits on the visible floor, clear of the deck, footer and focus dock. */
+.room-cat{position:absolute;left:25%;bottom:118px;width:clamp(96px,8.5vw,168px);aspect-ratio:1;z-index:9;pointer-events:auto;cursor:pointer;background:none;border:0;padding:0;filter:drop-shadow(0 3px 0 #1a0f0866)}
+.room-cat .pixel-cat{display:block;width:100%;height:100%;image-rendering:pixelated}
+.room-cat:focus-visible{outline:2px solid #ffe2a8;outline-offset:3px}
+.room-cat-bubble{position:absolute;left:50%;bottom:100%;translate:-50% -4px;white-space:nowrap;padding:5px 9px;font-size:clamp(10px,.8vw,14px);line-height:1.2;color:#3b2a20;background:#fff7e6;border:2px solid #3b2a20;box-shadow:3px 3px 0 #3b2a2066;pointer-events:none;animation:bubble-pop .18s ease-out}
+.room-cat-bubble:after{content:'';position:absolute;left:50%;top:100%;width:8px;height:8px;translate:-50% -4px;rotate:45deg;background:#fff7e6;border-right:2px solid #3b2a20;border-bottom:2px solid #3b2a20}
+@keyframes bubble-pop{from{scale:.7;opacity:0}to{scale:1;opacity:1}}
+
+/* Zen mode keeps only the room, the cat, the timer badge and an exit. */
+.room-zen .app .topbar,.room-zen .cabin-room .room-now-playing,.room-zen .room-shelf-navigation,.room-zen .cabin-room .cabin-toolbar>span,.room-zen .cabin-toolbar-actions>:not(.zen-keep){display:none!important}
+.room-zen .cabin-room .cabin-toolbar{top:14px;left:auto;right:16px;background:#27180d99}
+.room-zen .room-cat,.wallpaper-room .room-cat{bottom:28px}
+.room-zen .room-turntable{opacity:.25;transition:opacity .3s}.room-zen .room-turntable:hover,.room-zen .room-turntable:focus-within{opacity:1}
+.room-focus-open .room-shelf-navigation{right:calc(min(360px,100% - 32px) + 30px)}
+.cabin-toolbar-group{display:flex;gap:8px;align-items:center}
+.music-local{display:grid;gap:8px;margin-top:14px}.music-local h3{margin:0}.music-local p{margin:0}
+.music-local-folders{list-style:none;margin:0;padding:0;display:grid;gap:5px}.music-local-folders li{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #ad80534d;border-radius:8px}.music-local-folders span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.music-local-actions{display:flex;gap:8px;flex-wrap:wrap}.music-local-actions button{display:inline-flex;align-items:center;gap:6px}
+.music-local-status{font-size:12px;opacity:.8}
+.local-music-import{display:grid;gap:8px}.local-music-import h3{display:flex;align-items:center;gap:8px}
+.local-album-list{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-height:260px;overflow:auto}
+.local-album-list li{display:flex;align-items:center;gap:10px;padding:6px;border:1px solid #ad80534d;border-radius:8px}
+.local-album-list img,.local-album-placeholder{width:40px;height:40px;flex:none;object-fit:cover;border-radius:4px;display:grid;place-items:center;background:#0002}
+.local-album-list li>span:not(.local-album-placeholder){flex:1;min-width:0;display:grid}.local-album-list strong,.local-album-list small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-button{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer}
+.turntable-collect{display:inline-flex!important;gap:5px;align-items:center;font-size:12px}

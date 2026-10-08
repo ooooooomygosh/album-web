@@ -46,7 +46,7 @@ test('malformed rooms, duplicate boxes and script names never become executable 
   const { normalizeLibrary, genreList } = await model;
   const data = normalizeLibrary(JSON.parse('{"rooms":{"__proto__":{"look":"pixel"},"a":null,"b":{"look":"bad","boxes":[{"id":"x","name":"  Jazz  ","keys":["qq:a","qq:a","bogus"]},{"id":"y","name":"jazz","keys":[]}]}}}'));
   assert.deepEqual(Object.keys(data.rooms), ['b']);
-  assert.equal(data.rooms.b.look, 'warm');
+  assert.equal(data.rooms.b.look, 'pixel'); // The pixel cabin is the default look.
   assert.equal(data.rooms.b.boxes.length, 1);
   assert.deepEqual(data.rooms.b.boxes[0].keys, ['qq:a']);
   assert.equal(genreList('摇滚，摇滚,爵士').length, 2);

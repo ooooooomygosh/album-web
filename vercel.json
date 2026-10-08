@@ -14,8 +14,23 @@
       "destination": "/api/ai?task=:task"
     },
     {
-      "source": "/((?!api/.*|@vite/.*|@react-refresh|src/.*|node_modules/.*|assets/.*|fonts/.*|room-scenes/.*|licenses/.*|wallpaper.html|icon.svg|manifest.webmanifest).*)",
+      "source": "/((?!api/.*|@vite/.*|@react-refresh|src/.*|node_modules/.*|assets/.*|fonts/.*|room-scenes/.*|licenses/.*|wallpaper.html|pet.html|sw.js|icons/.*|icon.svg|manifest.webmanifest).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,16 @@
+Album Circle · 心流小屋 — third-party notes
+
+Bundled libraries
+- Tone.js (MIT) — Web Audio framework used by the generated lo-fi radio. See Tone.js-LICENSE.txt.
+- music-metadata (MIT) — reads tags from local music files in the desktop client. See music-metadata-LICENSE.txt.
+- Heroicons (MIT) — interface icons. See Heroicons-LICENSE.txt.
+- Simple Music modules (GPL-3.0-only) — QQ / NetEase playback in the desktop client; see desktop/vendor/simple-music.
+
+Design references (ideas only, no code copied)
+- meel-hd/lofi-engine (MIT): endless seeded lo-fi generation with Tone.js, Pomodoro, focus statistics and Zen mode.
+- btahir/next-beats (MIT): an ambience mixer with independent volumes.
+- Study Saga: experience, levels and focus streaks.
+- Chill Pulse (Catos Game): cosy pixel room with tasks, timer and unlockable extras.
+- music-assistant/server (Apache-2.0): remote player control, already used through its HTTP API.
+
+The pixel cat, cabin overlays, ambience synthesis and lo-fi composer are original to this project.

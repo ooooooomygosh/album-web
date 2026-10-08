@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, Tray, dialog, ipcMain, clipboard, shell, protocol, screen, net, safeStorage } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, Tray, dialog, ipcMain, clipboard, shell, protocol, screen, net, safeStorage, nativeImage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE_ORIGIN, SHELL_URL, isSiteUrl, isShellUrl, isExternalUrl, safeSavedWindow } = require('./policy.cjs');
@@ -11,6 +11,10 @@ const { createWallpaper } = require('./wallpaper.cjs');
 const { createLocalAPI } = require('./local-api.cjs');
 const { createMusicService } = require('./music-service.cjs');
 const { openQQLogin, openNeteaseLogin, clearQQLogin, clearNeteaseLogin } = require('./music-login.cjs');
+const { createPet } = require('./pet.cjs');
+const { createNowPlaying } = require('./now-playing.cjs');
+const { createLocalMusic } = require('./local-music.cjs');
+const { sendCompanionCommand } = require('./companion-sync.cjs');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'album-desktop', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 app.setName('Album Circle');
@@ -39,7 +43,10 @@ let systemFonts = [];
 let wallpaper;
 let music;
 let localAPI;
-let wallpaperTray;
+let companionTray;
+let pet;
+let localMusic;
+let petState = { active: false };
 let quitting = false;
 let wallpaperState = { active: false, busy: false, error: '' };
 
@@ -48,21 +55,33 @@ function restoreMainWindow() {
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show(); mainWindow.focus();
 }
-function wallpaperStatus(state) {
-  wallpaperState = state;
-  if (state.active && !wallpaperTray) {
-    wallpaperTray = new Tray(icon);
-    wallpaperTray.setToolTip('Album Circle · 桌面动态背景');
-    wallpaperTray.setContextMenu(Menu.buildFromTemplate([
-      { label: '打开 Album Circle', click: restoreMainWindow },
-      { label: '停止桌面动态背景', click: () => { wallpaper.stop(); restoreMainWindow(); } },
+// One tray icon while the wallpaper or the desktop pet keeps running.
+function companionsActive() { return Boolean(wallpaperState.active || wallpaperState.busy || petState.active); }
+function refreshTray() {
+  if (companionsActive()) {
+    if (!companionTray) { companionTray = new Tray(icon); companionTray.on('double-click', restoreMainWindow); }
+    companionTray.setToolTip('Album Circle · 心流小屋');
+    companionTray.setContextMenu(Menu.buildFromTemplate([
+      { label: '打开小屋', click: restoreMainWindow },
+      { label: '开始 / 暂停专注', click: () => sendCompanionCommand(siteView?.webContents, 'focus-toggle') },
+      { label: '开关小屋声音', click: () => sendCompanionCommand(siteView?.webContents, 'sound-toggle') },
+      { type: 'separator' },
+      petState.active ? { label: '让小猫回家', click: () => pet.stop() } : { label: '小猫出门（桌宠）', click: () => pet.start() },
+      ...(wallpaperState.active ? [{ label: '停止桌面动态背景', click: () => wallpaper.stop() }] : []),
       { type: 'separator' }, { label: '退出应用', click: () => app.quit() }
     ]));
-    wallpaperTray.on('double-click', restoreMainWindow);
-  } else if (!state.active && !state.busy && wallpaperTray) {
-    wallpaperTray.destroy(); wallpaperTray = null;
+  } else if (companionTray) {
+    companionTray.destroy(); companionTray = null;
     if (!quitting && mainWindow && !mainWindow.isVisible()) restoreMainWindow();
   }
+}
+function petStatus(state) {
+  petState = state; refreshTray();
+  if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.albumPetState = ${JSON.stringify(state)}; window.dispatchEvent(new CustomEvent('album-pet-state', {detail: window.albumPetState}));`).catch(() => {});
+}
+function wallpaperStatus(state) {
+  wallpaperState = state;
+  refreshTray();
   if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.albumRoomWallpaperState = ${JSON.stringify(state)}; window.dispatchEvent(new CustomEvent('album-room-wallpaper', {detail: window.albumRoomWallpaperState}));`).catch(() => {});
 }
 
@@ -209,7 +228,7 @@ async function wireRemoteView() {
     currentError = '';
     if (isSiteUrl(contents.getURL())) lastGoodUrl = contents.getURL();
     await applyAppearance();
-    wallpaperStatus(wallpaperState);
+    wallpaperStatus(wallpaperState); petStatus(petState);
     siteView.setVisible(!settingsOpen);
     sendState();
     writeLog('page-ready');
@@ -244,10 +263,11 @@ async function wireRemoteView() {
     music: (request, pathname) => music.proxy(request, pathname, (url, options) => net.fetch(url, options))
   }));
   session.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(isSiteUrl(webContents.getURL()) && permission === 'clipboard-sanitized-write');
+    // Notifications announce the end of a focus round.
+    callback(isSiteUrl(webContents.getURL()) && ['clipboard-sanitized-write', 'notifications'].includes(permission));
   });
   session.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
-    return isSiteUrl(requestingOrigin) && permission === 'clipboard-sanitized-write';
+    return isSiteUrl(requestingOrigin) && ['clipboard-sanitized-write', 'notifications'].includes(permission);
   });
   session.on('will-download', (event, item, source) => {
     // Only locally generated wall PNG/JSON downloads are permitted.
@@ -280,12 +300,25 @@ function handleSiteCommand(value) {
     case '/close': mainWindow.close(); break;
     case '/wallpaper-start': wallpaper.start(); break;
     case '/wallpaper-stop': wallpaper.stop(); break;
+    case '/pet-start': pet.start().catch((error) => writeLog('pet-error', error.message)); break;
+    case '/pet-stop': pet.stop(); break;
+    case '/local-music-folder': chooseMusicFolder(); break;
     case '/music-login': if (['qq', 'netease'].includes(url.searchParams.get('provider'))) music.login(url.searchParams.get('provider')).then((result) => notifyMusic(result)).catch((error) => notifyMusic({ error: error.message })); break;
     case '/music-logout': if (['qq', 'netease'].includes(url.searchParams.get('provider'))) music.logout(url.searchParams.get('provider')).then(() => notifyMusic({ ok: true })).catch((error) => notifyMusic({ error: error.message })); break;
     case '/appearance': if (['true', 'false'].includes(url.searchParams.get('reduceMotion'))) saveAppearance({ ...appearance, reduceMotion: url.searchParams.get('reduceMotion') === 'true', ...(['cover', 'simple'].includes(url.searchParams.get('theme')) ? { theme: url.searchParams.get('theme') } : {}) }).catch(() => {}); break;
     default: return false;
   }
   return true;
+}
+async function chooseMusicFolder() {
+  const result = await dialog.showOpenDialog(mainWindow, { title: '选择本地音乐文件夹', properties: ['openDirectory'] });
+  if (result.canceled || !result.filePaths[0]) { notifyLocalMusic({ cancelled: true }); return; }
+  notifyLocalMusic({ scanning: true });
+  try { notifyLocalMusic({ ok: true, ...(await localMusic.addFolder(result.filePaths[0])) }); }
+  catch (error) { notifyLocalMusic({ error: error.message || '无法读取这个文件夹。' }); }
+}
+function notifyLocalMusic(detail) {
+  if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent('album-local-music', {detail: ${JSON.stringify(detail)}}));`).catch(() => {});
 }
 function notifyMusic(result) {
   if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent('album-music-account', {detail: ${JSON.stringify(result)}}));`).catch(() => {});
@@ -378,12 +411,14 @@ function registerShellProtocol(targetProtocol = protocol) {
   for (const name of fs.readdirSync(path.join(__dirname, 'renderer', 'icons'))) assets[`/icons/${name}`] = [`renderer/icons/${name}`, name.endsWith('.svg') ? 'image/svg+xml' : 'text/plain'];
   const wallpaperAssets = new Map();
   const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
-  const list = (directory, prefix = '') => { for (const file of fs.readdirSync(directory, { withFileTypes: true })) { if (file.isSymbolicLink()) continue; const relative = `${prefix}/${file.name}`; if (file.isDirectory()) list(path.join(directory, file.name), relative); else if (mime[path.extname(file.name)] && (relative === '/wallpaper.html' || relative.startsWith('/assets/') || relative.startsWith('/room-scenes/') || relative.startsWith('/fonts/'))) wallpaperAssets.set(relative, path.join(directory, file.name)); } };
+  const list = (directory, prefix = '') => { for (const file of fs.readdirSync(directory, { withFileTypes: true })) { if (file.isSymbolicLink()) continue; const relative = `${prefix}/${file.name}`; if (file.isDirectory()) list(path.join(directory, file.name), relative); else if (mime[path.extname(file.name)] && (relative === '/wallpaper.html' || relative === '/pet.html' || relative.startsWith('/assets/') || relative.startsWith('/room-scenes/') || relative.startsWith('/fonts/'))) wallpaperAssets.set(relative, path.join(directory, file.name)); } };
   list(path.join(__dirname, 'web'));
   targetProtocol.handle('album-desktop', (request) => {
     const url = new URL(request.url);
-    if (url.hostname === 'wallpaper' && !url.username && !url.password && !url.port && ['GET', 'HEAD'].includes(request.method)) {
-      const file = wallpaperAssets.get(url.pathname);
+    // The wallpaper and pet windows each load only their own page and shared assets.
+    if (['wallpaper', 'pet'].includes(url.hostname) && !url.username && !url.password && !url.port && ['GET', 'HEAD'].includes(request.method)) {
+      const page = url.pathname.endsWith('.html') ? `/${url.hostname}.html` : null;
+      const file = page && url.pathname !== page ? null : wallpaperAssets.get(url.pathname);
       if (!file) return new Response('Not found', { status: 404 });
       return new Response(request.method === 'HEAD' ? null : fs.readFileSync(file), { headers: { 'Content-Type': mime[path.extname(file)], 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https:; font-src 'self'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'" } });
     }
@@ -444,7 +479,8 @@ async function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true }
   });
   siteView = new WebContentsView({
-    webPreferences: { partition: 'persist:album-circle-v1', nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, allowRunningInsecureContent: false, spellcheck: false }
+    // Not throttled: the focus timer, ambience and companion state keep running while hidden in the tray.
+    webPreferences: { partition: 'persist:album-circle-v1', nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, allowRunningInsecureContent: false, spellcheck: false, backgroundThrottling: false }
   });
   siteView.setBackgroundColor('#111317');
   mainWindow.contentView.addChildView(siteView);
@@ -460,7 +496,7 @@ async function createWindow() {
   mainWindow.on('unmaximize', () => setImmediate(resizeView));
   mainWindow.on('move', () => { if (settingsOpen) sendState(); });
   mainWindow.on('close', (event) => {
-    if ((wallpaper?.active || wallpaper?.busy) && !quitting) { event.preventDefault(); mainWindow.hide(); return; }
+    if ((wallpaper?.active || wallpaper?.busy || pet?.active) && !quitting) { event.preventDefault(); mainWindow.hide(); return; }
     try {
       fs.mkdirSync(app.getPath('userData'), { recursive: true });
       fs.writeFileSync(preferencesPath(), JSON.stringify({ ...mainWindow.getNormalBounds(), maximized: mainWindow.isMaximized(), displayAdapted: true }));
@@ -485,7 +521,7 @@ else {
     restoreMainWindow();
   });
   app.whenReady().then(async () => {
-    screen.on('display-metrics-changed', () => { sendState(); wallpaper?.reposition(); });
+    screen.on('display-metrics-changed', () => { sendState(); wallpaper?.reposition(); pet?.reposition(); });
     screen.on('display-removed', () => {
       if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized() && !mainWindow.isFullScreen()) mainWindow.setBounds(safeSavedWindow(mainWindow.getBounds(), screen.getDisplayMatching(mainWindow.getBounds()).workArea));
       sendState();
@@ -493,8 +529,11 @@ else {
     });
     registerShellProtocol(); registerIpc();
     wallpaper = createWallpaper({ app, getMain: () => mainWindow, getSite: () => siteView?.webContents, status: wallpaperStatus, appearanceScript, getAppearance: () => appearance, log: writeLog, registerProtocol: registerShellProtocol });
+    pet = createPet({ directory: app.getPath('userData'), getSite: () => siteView?.webContents, status: petStatus, registerProtocol: registerShellProtocol, restoreMain: restoreMainWindow, log: writeLog });
     localAPI = createLocalAPI(path.join(app.getPath('userData'), 'local'));
-    music = createMusicService({ directory: app.getPath('userData'), safeStorage, login: (provider) => provider === 'qq' ? openQQLogin(mainWindow) : openNeteaseLogin(mainWindow), logout: (provider) => provider === 'qq' ? clearQQLogin() : clearNeteaseLogin() });
+    localMusic = createLocalMusic({ directory: app.getPath('userData'), resizeCover: (buffer) => { const image = nativeImage.createFromBuffer(buffer); return image.isEmpty() ? null : image.resize({ width: Math.min(600, image.getSize().width), quality: 'good' }).toJPEG(86); } });
+    const nowPlaying = createNowPlaying({ helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'NowPlaying.exe') : path.join(__dirname, 'native', 'bin', 'NowPlaying.exe') });
+    music = createMusicService({ directory: app.getPath('userData'), safeStorage, nowPlaying, localMusic, login: (provider) => provider === 'qq' ? openQQLogin(mainWindow) : openNeteaseLogin(mainWindow), logout: (provider) => provider === 'qq' ? clearQQLogin() : clearNeteaseLogin() });
     writeLog('started', app.getVersion()); await createWindow();
   }).catch((error) => {
     writeLog('startup-error', error.message);
@@ -503,5 +542,5 @@ else {
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
   app.on('activate', () => { if (mainWindow) restoreMainWindow(); else createWindow().catch((error) => writeLog('startup-error', error.message)); });
-  app.on('before-quit', () => { quitting = true; wallpaper?.stop(); music?.stop(); wallpaperTray?.destroy(); wallpaperTray = null; if (startupComplete) writeLog('closed'); });
+  app.on('before-quit', () => { quitting = true; wallpaper?.stop(); pet?.stop(); music?.stop(); companionTray?.destroy(); companionTray = null; if (startupComplete) writeLog('closed'); });
 }

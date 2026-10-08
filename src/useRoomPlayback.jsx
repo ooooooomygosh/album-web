@@ -29,11 +29,11 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     resolveRef.current = resolve;
     (async () => {
       if (remote.current) { remote.current = false; await musicRequest('/ma/control', { action: 'stop' }).catch(() => {}); }
-      if (!record || provider === 'visual' || !active()) return;
+      if (!record || provider === 'visual' || provider === 'system' || !active()) return;
       const name = trackNames(record)[trackIndex]; if (!name) { update({ status: 'error', error: '原始资料没有曲目，无法定位音频。' }); return; }
       const exact = exactTrack(record, trackIndex, provider); if (exact) { await resolve(exact); return; }
       update({ status: 'searching' });
-      try { const result = await musicRequest(`/search?provider=${provider}&query=${encodeURIComponent(`${record.artist} ${name}`)}`, undefined, controller.signal); if (active()) update({ status: result.candidates.length ? 'choose' : 'error', candidates: result.candidates, error: result.candidates.length ? '' : '未找到可匹配音源，请切换平台或使用动画展示。' }); }
+      try { const result = await musicRequest(`/search?provider=${provider}&query=${encodeURIComponent(`${record.artist} ${name}`)}`, undefined, controller.signal); if (active()) update({ status: result.candidates.length ? 'choose' : 'error', candidates: result.candidates, error: result.candidates.length ? '' : provider === 'local' ? '本地音乐里没有找到这首歌，请先在音源设置中添加文件夹。' : '未找到可匹配音源，请切换平台或使用动画展示。' }); }
       catch (error) { if (active()) update({ status: 'error', error: error.message }); }
     })();
     return () => { controller.abort(); sequence.current++; resetAudio(element); };
@@ -65,6 +65,6 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     onEnded: () => { update({ playing: false, status: 'ended' }); next.current?.(); },
     onError: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'error', error: '音频加载失败。请重新播放，或检查平台权限与网络。' }); }
   };
-  const statusText = state.error || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器' }[state.status] || '待播放');
+  const statusText = state.error || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器' }[state.status] || '待播放');
   return { ...state, statusText, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek: (value) => { if (audio.current && !remote.current) audio.current.currentTime = value; }, volume, setVolume };
 }

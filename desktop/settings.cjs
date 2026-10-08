@@ -1,6 +1,6 @@
 'use strict';
 const { execFile } = require('node:child_process');
-const DEFAULT_SETTINGS = Object.freeze({ theme: 'cover', font: 'bundled', weight: 400, zoom: 100, reduceMotion: false, showroom: 'original', showPurchases: false, connectionMode: 'local' });
+const DEFAULT_SETTINGS = Object.freeze({ theme: 'cover', font: 'bundled', weight: 400, zoom: 100, reduceMotion: false, showroom: 'room', showPurchases: false, connectionMode: 'local' });
 const WEIGHTS = [250, 300, 400, 500, 700, 900];
 function normalizeSettings(value = {}) {
   const font = typeof value.font === 'string' && value.font.length <= 160 && !/[\x00-\x1f\x7f"'\\;{}<>]/.test(value.font) ? value.font : 'bundled';
@@ -8,7 +8,7 @@ function normalizeSettings(value = {}) {
     theme: value.theme === 'simple' ? 'simple' : 'cover', font, connectionMode: value.connectionMode === 'cloud' ? 'cloud' : 'local',
     weight: WEIGHTS.includes(Number(value.weight)) ? Number(value.weight) : 400,
     zoom: Number.isFinite(Number(value.zoom)) ? Math.max(75, Math.min(150, Math.round(Number(value.zoom) / 5) * 5)) : 100,
-    reduceMotion: value.reduceMotion === true, showroom: ['room', 'coverflow'].includes(value.showroom) ? value.showroom : 'original', showPurchases: value.showPurchases === true
+    reduceMotion: value.reduceMotion === true, showroom: ['original', 'coverflow'].includes(value.showroom) ? value.showroom : 'room', showPurchases: value.showPurchases === true
   };
 }
 function appearanceScript(value, extra = {}) {

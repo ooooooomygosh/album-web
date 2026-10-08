@@ -18,7 +18,15 @@ async function mountFixture(application, site, options = {}) {
       globalThis.__qaMusicResolves = []; globalThis.__qaMusicSearches = 0; globalThis.__qaMACommands = [];
       const fake = { handleQQSearch: async () => [], handleSearch: async () => { globalThis.__qaMusicSearches++; return [{ id: '12345', name: items[0].tracks[0], artist: items[0].artist, album: { name: items[0].title } }, { id: '67890', name: items[0].tracks[0] + '（现场版）', artist: items[0].artist, album: { name: '现场演出' } }]; }, handleQQSongUrl: async (_cookie, id) => { globalThis.__qaMusicResolves.push(id); if (id === items[0].trackDetails[2].providerId) return { playable: false, message: '本机测试：此曲需要平台会员权限。' }; return { playable: true, url: 'https://ws.stream.qqmusic.qq.com/qa.wav' }; }, normalizeLoginInfo: () => ({}), handleSongUrl: async (id) => { globalThis.__qaMusicResolves.push(id); return { playable: true, url: 'https://m7.music.126.net/qa.wav', trial: false }; }, audioProxyHeadersFor: (_url, range) => ({ Range: range }) };
       let maState = 'idle';
-      musicService = createMusicService({ directory: app.getPath('userData'), safeStorage, login: async () => ({ ok: false }), logout: async () => {}, upstream: fake, fetch: async (_url, options) => {
+      // Local folder with two silent WAV files, and a fake system player.
+      const { createLocalMusic } = require(path.join(app.getAppPath(), 'local-music.cjs'));
+      const fsModule = require('node:fs'), folder = path.join(app.getPath('userData'), 'qa-music', 'QA 本地专辑');
+      fsModule.mkdirSync(folder, { recursive: true }); for (const name of ['01 晨光.wav', '02 夜雨.wav']) fsModule.writeFileSync(path.join(folder, name), wav);
+      const localMusic = createLocalMusic({ directory: app.getPath('userData') });
+      globalThis.__qaLocalReady = localMusic.addFolder(path.dirname(folder));
+      globalThis.__qaSystemCommands = []; let systemPlaying = true;
+      const nowPlaying = { async get() { return { available: true, active: true, app: 'Spotify', title: '晴天', artist: '周杰伦', album: '叶惠美', albumArtist: '周杰伦', playing: systemPlaying, position: 12, duration: 269, artwork: '' }; }, async control(action) { globalThis.__qaSystemCommands.push(action); if (action === 'toggle') systemPlaying = !systemPlaying; return { ok: true }; }, stop() {} };
+      musicService = createMusicService({ directory: app.getPath('userData'), safeStorage, localMusic, nowPlaying, login: async () => ({ ok: false }), logout: async () => {}, upstream: fake, fetch: async (_url, options) => {
         if (_url === 'http://127.0.0.1:8095/api') {
           if (options.headers.Authorization !== 'Bearer QA_MA_TOKEN') return Response.json({}, { status: 401 });
           const command = JSON.parse(options.body); globalThis.__qaMACommands.push(command);
@@ -52,8 +60,16 @@ async function mountFixture(application, site, options = {}) {
       return router(request);
     });
   }, { user, room, items, gateAI: options.gateAI === true, slowCover: options.slowCover === true, music: options.music === true });
+  // The client now opens in the cabin; fixtures start from the original showroom unless asked.
+  const host = application.context().pages().find((p) => p.url() === 'album-desktop://shell/index.html');
+  if (host) await host.evaluate((showroom) => window.albumDesktop.settings('apply', { showroom }), options.showroom || 'original');
   await site.evaluate(({ user, room }) => { localStorage.setItem('album-circle-session', JSON.stringify({ token: 'desktop-qa-invalid-token', user })); history.replaceState(null, '', '/?room=' + room.id); }, { user, room });
   await site.reload(); await site.getByRole('searchbox', { name: '快速搜索专辑或歌曲' }).waitFor({ state: 'visible' });
   return { user, room, items };
 }
-module.exports = { mountFixture, albums };
+// The cabin now opens in the pixel look; older checks start from the warm one.
+async function useWarmCabin(site) {
+  const toggle = site.getByRole('button', { name: '切换写实风格', exact: true });
+  if (await toggle.count()) { await toggle.click(); await site.locator('.cabin-warm').waitFor(); }
+}
+module.exports = { mountFixture, albums, useWarmCabin };

@@ -16,3 +16,6 @@ export const Pause = icon('PauseIcon'), Play = icon('PlayIcon'), Shuffle = icon(
 export const Settings = icon('Cog6ToothIcon'), Minus = icon('MinusIcon'), Maximize = icon('StopIcon'), External = icon('ArrowTopRightOnSquareIcon');
 export const Download = icon('ArrowDownTrayIcon'), Check = icon('CheckIcon'), Up = icon('ChevronUpIcon'), Down = icon('ChevronDownIcon');
 export const Info = icon('InformationCircleIcon'), ErrorIcon = icon('ExclamationCircleIcon'), Loading = icon('ArrowPathIcon');
+export const Clock = icon('ClockIcon'), CheckCircle = icon('CheckCircleIcon'), ChartBar = icon('ChartBarIcon'), SpeakerWave = icon('SpeakerWaveIcon'), SpeakerOff = icon('SpeakerXMarkIcon');
+export const Forward = icon('ForwardIcon'), Backward = icon('BackwardIcon'), Gift = icon('GiftIcon'), Bars3 = icon('Bars3Icon'), EyeSlash = icon('EyeSlashIcon'), Eye = icon('EyeIcon');
+export const ListBullet = icon('ListBulletIcon'), Moon = icon('MoonIcon'), Heart = icon('HeartIcon'), FolderOpen = icon('FolderOpenIcon'), Computer = icon('ComputerDesktopIcon');

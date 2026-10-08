@@ -1,4 +1,13 @@
-# Album Circle 1.5.1
+# Album Circle 1.6.0 · 心流小屋
+
+一个像素风 Lo-fi 温馨小屋：把喜欢的专辑放上唱片架，连接常用的播放来源听歌，用番茄钟、待办和环境音专注工作，还能把小屋设为动态桌面，或让小猫出门成为桌宠。macOS / Windows 客户端见 [GitHub Releases](https://github.com/ooooooomygosh/album-web/releases/latest)；网页版可安装为 PWA。
+
+- **小屋**：像素 / 写实木屋，十二格唱片架和唱机。窗外天气与室内光线随时间变化，屋里住着一只像素小猫。
+- **专注**：番茄钟、待办、7 天统计和连续天数，完成专注可以得小鱼干、升级、解锁配饰和天气；按 Z 进入沉浸模式。
+- **声音**：程序合成的雨声、壁炉、风声、白噪声和黑胶底噪，加上离线生成的 Lofi 电台；唱机播放时 Lofi 自动调低。
+- **音源**：QQ 音乐、网易云（Simple Music 模块）、Music Assistant、本地音乐文件夹，以及「系统正在播放」（Windows 系统媒体控制；macOS 上的 Music / Spotify）。
+- **桌面**：动态桌面背景（Windows / macOS），以及透明、置顶、可拖动的桌宠小猫，两者共用一个托盘入口。
+- **账号与同步**：默认使用本地模式；可选云端账号用于在线房间、只读分享和 AI 导览。专注数据的云端同步计划在下一阶段实现。
 
 macOS / Windows 客户端以本地收藏为默认，云端账号、数据库、AI 和在线分享为可选服务。最新版安装包见 [GitHub Releases](https://github.com/ooooooomygosh/album-web/releases/latest)。
 
@@ -6,6 +15,22 @@ macOS / Windows 客户端以本地收藏为默认，云端账号、数据库、A
 
 客户端开发：先在项目根目录运行 `npm ci`，再运行 `npm --prefix desktop ci`。`npm run desktop:dev` 启动软件；`npm --prefix desktop run dist:mac` 构建 Mac 两种芯片版本；Windows 上运行 `npm --prefix desktop run dist:win`。构建输出为 `desktop/release/`。标签 `v*` 触发 GitHub 自动构建、检查和发布三个平台版本。详见 [客户端说明](desktop/README.md)。
 
+
+### 心流小屋代码位置
+
+| 位置 | 职责 |
+| --- | --- |
+| `src/focus/` | 番茄钟状态机、待办、统计与奖励（`focus-model.mjs` 为纯函数），专注面板 UI |
+| `src/audio/` | 程序合成环境音（`ambience.mjs`）、Tone.js Lofi 生成器（`lofi-engine.mjs`）、混音状态 |
+| `src/pet/` | 像素小猫精灵（`cat-sprites.mjs`）、行为模型、屋内小猫与桌宠窗口页面 |
+| `src/room-ambience.mjs`、`src/companion-room.css` | 窗外天气、昼夜光线、沉浸模式 |
+| `src/CompanionBridge.jsx` | 向动态桌面和桌宠提供只读的展示快照（不含登录信息） |
+| `desktop/pet.cjs`、`companion-sync.cjs` | 桌宠窗口、点击穿透、拖动、右键菜单与白名单命令 |
+| `desktop/now-playing.cjs`、`native/NowPlaying.cs` | 系统正在播放（Windows SMTC / macOS JXA） |
+| `desktop/local-music.cjs` | 本地音乐扫描、按专辑分组、带 Range 的原位播放 |
+| `public/sw.js`、`manifest.webmanifest` | 可安装网页版与离线外壳 |
+
+验证：`npm run desktop:test`（单元测试）；界面测试 `npm --prefix desktop run test:focus`、`test:pet`、`test:sources`；PWA 检查在 `npm run build` 后运行 `node scripts/pwa-smoke.mjs`。
 
 Album Circle is a collaborative album and song sharing web app. A room can collect music recommendations from friends, show albums in a visual cabinet, attach comments and ratings, and generate AI listening guides from catalog metadata plus web research.
 

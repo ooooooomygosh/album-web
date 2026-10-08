@@ -1,9 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Music2 } from './icons';
+import { X, Music2, FolderOpen, Trash2, Loading } from './icons';
 import { desktopCommand } from './desktop-client';
 import { musicRequest } from './room-playback.mjs';
 
+// Local folders are scanned in place; files are never copied or uploaded.
+function LocalMusicSettings() {
+  const [summary, setSummary] = useState(null), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
+  const load = async () => { try { setSummary(await musicRequest('/local/summary')); } catch (error) { setMessage(error.message); } };
+  useEffect(() => {
+    load();
+    const receive = (event) => { const detail = event.detail || {}; if (detail.scanning) { setBusy(true); setMessage('正在扫描音乐文件…'); return; } setBusy(false); if (detail.error) setMessage(detail.error); else if (detail.ok) { setSummary(detail); setMessage(`扫描完成：${detail.albumCount} 张专辑，${detail.trackCount} 首歌曲。`); } else if (detail.cancelled) setMessage(''); };
+    window.addEventListener('album-local-music', receive); return () => window.removeEventListener('album-local-music', receive);
+  }, []);
+  const act = async (path, value) => { setBusy(true); setMessage(''); try { const next = await musicRequest(path, value); setSummary(next); setMessage(`扫描完成：${next.albumCount} 张专辑，${next.trackCount} 首歌曲。`); } catch (error) { setMessage(error.message); } finally { setBusy(false); } };
+  return <section className="music-local"><h3>本地音乐</h3>
+    <p>选择电脑里的音乐文件夹，按标签整理成专辑。音乐留在原位置播放，不会复制或上传。在“收藏与分享”里可把本地专辑放上唱片架。</p>
+    {summary?.folders?.length > 0 && <ul className="music-local-folders">{summary.folders.map((folder) => <li key={folder.path} title={folder.path}><FolderOpen size={16}/><span>{folder.name}</span><button type="button" aria-label={`移除文件夹 ${folder.name}`} disabled={busy} onClick={() => act('/local/remove-folder', { path: folder.path })}><Trash2 size={15}/></button></li>)}</ul>}
+    <div className="music-local-actions"><button type="button" disabled={busy} onClick={() => { setBusy(true); setMessage(''); desktopCommand('local-music-folder'); }}><FolderOpen size={16}/>添加音乐文件夹</button>{summary?.folders?.length > 0 && <button type="button" disabled={busy} onClick={() => act('/local/rescan', {})}><Loading size={16}/>重新扫描</button>}</div>
+    <p role="status" className="music-local-status">{message || (summary ? `${summary.albumCount} 张专辑 · ${summary.trackCount} 首歌曲` : '')}</p>
+  </section>;
+}
 export default function MusicSettings({ close }) {
   const dialog = useRef(null), [config, setConfig] = useState({}), [url, setURL] = useState(''), [token, setToken] = useState(''), [players, setPlayers] = useState([]), [playerId, setPlayerId] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const refresh = async () => { try { const next = await musicRequest('/config'); setConfig(next); setURL(next.maURL || ''); setPlayerId(next.playerId || ''); } catch (error) { setError(error.message); } };
@@ -28,7 +45,7 @@ export default function MusicSettings({ close }) {
       <label>访问令牌<input type="password" aria-label="Music Assistant 访问令牌" value={token} onChange={(event) => setToken(event.target.value)} placeholder={config.maTokenSet ? '令牌已加密保存，留空可沿用' : '从服务器的用户资料中创建访问令牌'} autoComplete="off"/></label>
       <button type="submit" disabled={busy}>{busy ? '正在连接…' : '连接并读取播放器'}</button>
       {(players.length > 0 || playerId) && <><label>服务器播放器<select aria-label="Music Assistant 播放器" value={playerId} onChange={(event) => setPlayerId(event.target.value)}><option value="">请选择播放器</option>{playerId && !players.some((p) => p.id === playerId) && <option value={playerId}>{playerId}（已保存）</option>}{players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label><button type="button" disabled={busy || !playerId} onClick={async () => { try { await musicRequest('/config', { maURL: url, playerId }); window.dispatchEvent(new Event('album-music-settings')); setNotice('播放器已保存。'); } catch (error) { setError(error.message); } }}>保存播放器</button></>}
-    </form><p className="music-platform-note">在唱机上选择音源后，双击或拖拽放盘即可播放。音频受版权、地区和会员权限限制；仅有名称时需手动选择版本，不会自动替换收藏中的封面或曲目。</p>
+    </form><LocalMusicSettings/><section className="music-local"><h3>系统正在播放</h3><p>在唱机选择“系统正在播放”，Spotify、网易云音乐、QQ 音乐、Apple Music 等播放器正在放的歌会显示在小屋里，并可暂停和切歌。Windows 读取系统媒体控制；macOS 支持 Music 与 Spotify，首次使用需在“自动化”中允许。</p></section><p className="music-platform-note">在唱机上选择音源后，双击或拖拽放盘即可播放。音频受版权、地区和会员权限限制；仅有名称时需手动选择版本，不会自动替换收藏中的封面或曲目。</p>
     {error && <p className="record-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}<footer><button type="button" className="record-primary" onClick={close}>完成音源设置</button></footer>
   </dialog>, document.body);
 }
