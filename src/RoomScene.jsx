@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { VinylDisc } from './RecordLibrary';
 import { Disc3 } from './icons';
 import { roomGeometry, SHELF } from './room-model.mjs';
 import { ShowroomArtwork } from './RoomArtwork';
@@ -32,7 +33,7 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
         {Array.from({ length: 12 }, (_, index) => {
           const item = items[index], [x, width] = columns[index % 4], [y, height] = rows[Math.floor(index / 4)];
           return <div className={`room-record-slot ${item ? '' : 'room-record-empty'}`} style={{ left: `${x / 1448 * 100}%`, top: `${y / 1086 * 100}%`, width: `${width / 1448 * 100}%`, height: `${height / 1086 * 100}%` }} role={item ? 'listitem' : undefined} key={index} aria-hidden={item ? undefined : 'true'}>
-            {item ? <button type="button" key={item.id} className={`room-record ${selectedId === item.id ? 'is-selected' : ''}`} aria-label={`选择 ${item.artist} 的 ${item.title}`} aria-pressed={selectedId === item.id} title={`${item.title} · ${item.artist}；双击或拖到唱机放盘`} draggable={Boolean(load)} onDragStart={(event) => { event.dataTransfer.setData(ROOM_DRAG_TYPE, item.id); event.dataTransfer.effectAllowed = 'copy'; }} onClick={() => select?.(item.id)} onDoubleClick={() => load?.(item)}><ShowroomArtwork item={item} pixel={look === 'pixel'}/></button> : <span className="cabin-empty-slot"><Disc3/><span>待收藏</span></span>}
+            {item ? <button type="button" key={item.id} className={`room-record ${selectedId === item.id ? 'is-selected' : ''}`} aria-label={`选择 ${item.artist} 的 ${item.title}`} aria-pressed={selectedId === item.id} title={`${item.title} · ${item.artist}；双击或拖到唱机放盘`} draggable={Boolean(load)} onDragStart={(event) => { event.dataTransfer.setData(ROOM_DRAG_TYPE, item.id); event.dataTransfer.effectAllowed = 'copy'; const ghost = event.currentTarget.querySelector('.room-drag-record'); if (ghost) event.dataTransfer.setDragImage(ghost, 48, 48); }} onClick={() => select?.(item.id)} onDoubleClick={() => load?.(item)}><ShowroomArtwork item={item} pixel={look === 'pixel'}/>{load && <span className="room-drag-record" aria-hidden="true"><VinylDisc item={item}/><ShowroomArtwork item={item} className="room-drag-label"/></span>}</button> : <span className="cabin-empty-slot"><Disc3/><span>待收藏</span></span>}
           </div>;
         })}
       </div></div>

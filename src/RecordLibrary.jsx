@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useId, useRef, useState } 
 import { createPortal } from 'react-dom';
 import { Album, X, Plus, Trash2, Wand2, Library } from './icons';
 import { albumKey, DEFAULT_RECORD_STYLE, genresFor, genreList, LIBRARY_PREFIX, MAX_LIBRARY_BYTES, normalizeLibrary, normalizeStyle, readLibrary } from './record-library.mjs';
+import useCoverColour from './useCoverColour';
 import { radialSplatterLayers } from './vinyl-splatter.mjs';
 
 const LibraryContext = createContext(null);
@@ -33,10 +34,16 @@ export function RecordLibraryProvider({ userId, roomId, children, initialData, r
 }
 export function useRecordLibrary() { return useContext(LibraryContext); }
 
+export function useRecordStyle(item, value) {
+  const library = useRecordLibrary();
+  const saved = value || (item && library?.data.styles[albumKey(item)]);
+  const base = useCoverColour(saved ? null : item?.cover);
+  return normalizeStyle(saved || { base });
+}
+
 // A single deterministic radial splatter stencil, recoloured per album.
 export function VinylDisc({ item, value, className = '' }) {
-  const library = useRecordLibrary();
-  const style = normalizeStyle(value || library?.data.styles[albumKey(item)] || DEFAULT_RECORD_STYLE);
+  const style = useRecordStyle(item, value);
   return <span className={`custom-vinyl ${className}`} data-record-key={albumKey(item)} data-splatter={String(style.splatter)} style={{ '--vinyl-base': style.base, '--vinyl-alpha': style.opacity / 100 }} aria-hidden="true">
     {style.splatter && <svg className="vinyl-splatter" viewBox="0 0 200 200" data-template="radial-v2" data-colour-count={style.splashes.length}>
       {radialSplatterLayers(style.splashes.length).map((layer, index) => <g key={index} data-splash-colour={style.splashes[index]} fill={style.splashes[index]} stroke={style.splashes[index]}><path d={layer.paint} stroke="none"/><path d={layer.fine} fill="none" strokeWidth=".35" opacity=".84"/><path d={layer.drops} stroke="none"/><path d={layer.glints} fill="none" stroke="#fff5d3" strokeWidth=".32" opacity=".3"/></g>)}
@@ -66,7 +73,10 @@ export function RecordTools({ item }) {
 
 function RecordEditor({ item, close }) {
   const { data, update, error, boxes, roomId } = useRecordLibrary(), key = albumKey(item);
-  const [style, setStyle] = useState(() => normalizeStyle(data.styles[key]));
+  const base = useCoverColour(item.cover), edited = useRef(false);
+  const [style, setStyleState] = useState(() => normalizeStyle(data.styles[key] || { base }));
+  const setStyle = (next) => { edited.current = true; setStyleState(next); };
+  useEffect(() => { if (!edited.current && !data.styles[key]) setStyleState((old) => ({ ...old, base })); }, [base, key, data.styles]);
   const [colourCount, setColourCount] = useState(style.splashes.length);
   const [fullDisc, setFullDisc] = useState(false);
   const palette = Array.from({ length: 3 }, (_, index) => style.splashes[index] || DEFAULT_RECORD_STYLE.splashes[index]);
@@ -90,7 +100,7 @@ function RecordEditor({ item, close }) {
           {palette.slice(0, colourCount).map((colour, index) => <label key={index} htmlFor={id + '-splash-' + index}>泼溅颜色 {index + 1}<input id={id + '-splash-' + index} type="color" value={colour} disabled={!style.splatter} onChange={(event) => setStyle({ ...style, splashes: palette.map((value, position) => position === index ? event.target.value : value) })}/></label>)}
           <small className="record-mix-description">{colourCount === 1 ? '单色放射 · 保留黑胶底色' : colourCount === 2 ? '双色交织 · 主色 65% / 辅色 35%' : '三色交织 · 主色 55% / 辅色 30% / 点缀 15%'}<br/>固定色纹自动混合，选好颜色即可套用。</small>
           <div className="record-palette-presets">{[{ name: '复古金彩', colours: ['#dba746', '#efe3c1', '#9f3d2e'] }, { name: '海盐蓝', colours: ['#45a8be', '#ede3c7', '#687bc5'] }, { name: '浆果粉', colours: ['#c8496d', '#f1c6d2', '#725499'] }].map((preset) => <button type="button" key={preset.name} onClick={() => { setColourCount(3); setStyle({ ...style, splatter: true, splashes: preset.colours }); }}><span aria-hidden="true">{preset.colours.map((colour) => <i key={colour} style={{ background: colour }}/>)}</span>{preset.name}</button>)}</div>
-          <button type="button" onClick={() => { setStyle({ ...DEFAULT_RECORD_STYLE, splashes: [...DEFAULT_RECORD_STYLE.splashes] }); setColourCount(3); }}>恢复默认黑胶</button>
+          <button type="button" onClick={() => { setStyle({ ...DEFAULT_RECORD_STYLE, base, splashes: [...DEFAULT_RECORD_STYLE.splashes] }); setColourCount(3); }}>恢复默认黑胶</button>
         </div>
       </div>
       <label htmlFor={id + '-genres'}>流派标签<input id={id + '-genres'} type="text" value={genres} maxLength="400" aria-describedby={id + '-genre-help'} placeholder="例如：摇滚，爵士，电子；逗号分隔" onChange={(event) => setGenres(event.target.value)}/></label><small id={id + '-genre-help'}>沿用条目已有标签，可手动修改；最多 12 个标签。</small>

@@ -4,7 +4,7 @@ const path = require('node:path');
 const albums = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/albums.json')));
 async function mountFixture(application, site, options = {}) {
   const items = options.items || albums;
-  await application.evaluate(({ app, webContents, safeStorage, net }, { items, results, slowCover, music }) => {
+  await application.evaluate(({ app, webContents, safeStorage, net }, { items, results, slowCover, music, coverResponse }) => {
     const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs');
     const path = require('node:path');
     const { createSiteRouter } = require(path.join(app.getAppPath(), 'site-router.cjs'));
@@ -57,9 +57,10 @@ async function mountFixture(application, site, options = {}) {
       const url = new URL(request.url);
       if (url.searchParams.has('qa-broken-cover')) return new Response('', { status: 404 });
       if (slowCover && url.searchParams.has('qa-slow-cover')) await imageWait;
+      if (coverResponse && url.pathname === '/qa-colour.png') return new Response(Buffer.from(coverResponse.split(',')[1], 'base64'), { headers: { 'Content-Type': 'image/png' } });
       return router(request);
     });
-  }, { items, results: options.searchResults || [items[0]], slowCover: options.slowCover === true, music: options.music === true });
+  }, { items, results: options.searchResults || [items[0]], slowCover: options.slowCover === true, music: options.music === true, coverResponse: options.coverResponse });
   await site.reload(); await site.locator('.app-titlebar').waitFor(); await site.locator('.cabin-room').waitFor();
   return { items };
 }

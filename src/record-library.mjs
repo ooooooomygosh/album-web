@@ -51,6 +51,7 @@ export function normalizeLibrary(value = {}) {
       return [{ id: box.id, name, keys: [...new Set((Array.isArray(box.keys) ? box.keys : []).filter((key) => typeof key === 'string' && /^(qq|itunes|item|name):/.test(key) && key.length <= 260))].slice(0, 2000) }];
     });
     out.rooms[roomId] = { boxes, look: raw.look === 'warm' ? 'warm' : 'pixel' };
+    if (Number.isFinite(raw.turntable?.x) && Number.isFinite(raw.turntable?.y)) out.rooms[roomId].turntable = { x: Math.max(0, Math.min(1, raw.turntable.x)), y: Math.max(0, Math.min(1, raw.turntable.y)) };
   }
   return out;
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Up, Down, ArrowUpRight, Grid3X3, Settings, External, Music2, Eye, EyeSlash, Heart, Plus } from './icons';
 import DiscogsLink from './DiscogsLink';
-import { RecordBoxControls, RecordTools, useRecordLibrary } from './RecordLibrary';
-import { albumKey, matchesLibraryFilters, normalizeStyle } from './record-library.mjs';
+import { RecordBoxControls, RecordTools, useRecordLibrary, useRecordStyle } from './RecordLibrary';
+import { matchesLibraryFilters } from './record-library.mjs';
 import { desktopCommand, useDesktopAppearance } from './desktop-client';
 import RoomScene from './RoomScene';
 import RoomTurntable from './RoomTurntable';
@@ -50,6 +50,13 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
   const deckItem = provider === 'system' ? system.item : record;
   const effectiveSpin = provider === 'visual' ? spinning : provider === 'system' ? Boolean(system.active && system.playing) : playback.playing;
   const [wallpaper, setWallpaper] = useState(() => window.albumRoomWallpaperState || {});
+  const [wallpaperError, setWallpaperError] = useState('');
+  useEffect(() => {
+    setWallpaperError(wallpaper.error || '');
+    if (!wallpaper.error) return;
+    const timer = setTimeout(() => setWallpaperError(''), 5000);
+    return () => clearTimeout(timer);
+  }, [wallpaper]);
   const stage = useRef(null), wheel = useRef({ amount: 0, time: 0 }), snapshot = useRef(null);
   const focus = useFocus(), sound = useSoundscape();
   const [dock, setDock] = useState(() => readJSON('album-circle-focus-dock-v1', { open: false, tab: 'timer' }));
@@ -97,7 +104,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
     const element = stage.current;
     return () => { document.removeEventListener('keydown', keydown); element.removeEventListener('wheel', onWheel); };
   }, [view.startRow, view.maxRow, signature]);
-  const recordStyle = record ? normalizeStyle(library?.data.styles[albumKey(record)]) : undefined;
+  const recordStyle = useRecordStyle(deckItem);
   const catFocus = focus ? focusSnapshot(focus.state, focus.now) : {}, weather = catFocus.weather || 'snow';
   const nowTrack = provider === 'visual' ? '' : provider === 'system' ? (system.active ? system.title : '') : playback.actualTrack || (record && playback.playing ? record.tracks?.[trackIndex] || record.title : '');
   const grooving = effectiveSpin || sound?.lofiState === 'playing';
@@ -120,7 +127,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
       </span>
       <span className="cabin-toolbar-group">
         <button type="button" aria-pressed={Boolean(pet.active)} onClick={() => desktopCommand(pet.active ? 'pet-stop' : 'pet-start')}><Heart size={17}/><span>{pet.active ? '让小猫回家' : '小猫出门'}</span></button>
-        <button type="button" disabled={wallpaper.busy} onClick={() => desktopCommand(wallpaper.active ? 'wallpaper-stop' : 'wallpaper-start')}><External size={17}/><span>{wallpaper.busy ? '正在应用桌面…' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'}</span></button>
+        <button type="button" onClick={() => desktopCommand(wallpaper.active || wallpaper.busy ? 'wallpaper-stop' : 'wallpaper-start')}><External size={17}/><span>{wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'}</span></button>
       </span>
     </nav>
     {filtersOpen && <section className="shelf-filters" aria-label="筛选与唱片盒">
@@ -130,7 +137,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
       </div>
       <RecordBoxControls items={items} filters={filters} setFilters={(change) => setFilters((old) => ({ ...old, ...(typeof change === 'function' ? change(old) : change) }))} count={visible.length}/>
     </section>}
-    {wallpaper.error && <p className="wallpaper-error" role="alert">{wallpaper.error}</p>}
+    {wallpaperError && <p className="wallpaper-error" role="alert">{wallpaperError}<button type="button" aria-label="关闭动态背景提示" onClick={() => setWallpaperError('')}>×</button></p>}
     <div ref={stage} className="cabin-stage-wrap"><RoomScene look={look} items={view.items} selectedId={selected?.id} select={setSelectedId} load={load} startRow={view.startRow} weather={weather} cat={<RoomCat focus={catFocus} playing={grooving} track={snapshot.current.track} reduceMotion={appearance.reduceMotion} hidden={Boolean(pet.active)}/>}>
       <RoomTurntable item={deckItem} spinning={effectiveSpin} system={system} trackIndex={provider === 'system' ? 0 : trackIndex} style={recordStyle} items={items} load={load} toggle={() => setSpinning(!spinning)} track={setTrackIndex} eject={() => { setRecord(null); setSpinning(false); }} provider={provider} setProvider={(value) => { setProvider(value); try { localStorage.setItem('album-circle-room-player-v1', value); } catch {} }} playback={playback} desktopClient/>
       {!visible.length && <div className="room-empty"><p>{loading ? '正在整理唱片…' : items.length ? '没有符合筛选的唱片。' : '木屋的唱片架，等你放上第一张。'}</p>{!loading && (items.length ? <button type="button" onClick={() => setFilters({ ...filters, type: 'all', box: 'all', genre: 'all', decade: 'all', provider: 'all' })}>清除筛选</button> : <button type="button" onClick={() => openAdd()}><Plus size={16}/>添加第一张专辑</button>)}</div>}

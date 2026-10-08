@@ -29,7 +29,7 @@ flowchart LR
 | 数据 | 位置 |
 | --- | --- |
 | 唱片（专辑、曲目、笔记） | 用户数据目录下的 `collection.json`，旧版的 `local/collection.json` 会在首次启动时迁移 |
-| 黑胶外观、流派、唱片盒、小屋风格 | 页面 localStorage `album-circle-library-v1-local-owner` |
+| 黑胶外观、流派、唱片盒、小屋风格与唱机位置 | 页面 localStorage `album-circle-library-v1-local-owner` |
 | 专注、待办、奖励 | localStorage `album-circle-focus-v1:local-owner` |
 | 声音混音 | localStorage `album-circle-sound-v1` |
 | 平台登录、Music Assistant 令牌 | `music.json`，用 Electron safeStorage 加密 |

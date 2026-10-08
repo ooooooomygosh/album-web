@@ -7,6 +7,7 @@ const { SITE_ORIGIN, SHELL_URL, isSiteUrl, isShellUrl, isExternalUrl, safeSavedW
 const { createQQMusic } = require('./qq-music.cjs');
 const { createSiteRouter } = require('./site-router.cjs');
 const { DEFAULT_SETTINGS, normalizeSettings, appearanceScript, listSystemFonts } = require('./settings.cjs');
+const { registerShellProtocol } = require('./shell-protocol.cjs');
 const { createWallpaper } = require('./wallpaper.cjs');
 const { createCollectionStore } = require('./collection-store.cjs');
 const { createMusicService } = require('./music-service.cjs');
@@ -371,41 +372,6 @@ function createMenus() {
   ]));
 }
 
-function registerShellProtocol(targetProtocol = protocol) {
-  const assets = {
-    '/index.html': ['renderer/index.html', 'text/html; charset=utf-8'],
-    '/app.css': ['renderer/app.css', 'text/css; charset=utf-8'],
-    '/app.js': ['renderer/app.js', 'text/javascript; charset=utf-8'],
-    '/fonts.css': ['renderer/fonts.css', 'text/css; charset=utf-8'],
-    '/fonts/LICENSE.txt': ['web/fonts/LICENSE.txt', 'text/plain; charset=utf-8'],
-    '/icon.png': ['assets/icon.png', 'image/png'],
-    '/cabin.png': ['web/room-scenes/pixel-cabin.png', 'image/png']
-  };
-  for (const weight of ['Thin', 'Light', 'Regular', 'Medium', 'Bold', 'Black']) assets[`/fonts/HarmonyOS_Sans_SC_${weight}.ttf`] = [`web/fonts/HarmonyOS_Sans_SC_${weight}.ttf`, 'font/ttf'];
-  for (const name of fs.readdirSync(path.join(__dirname, 'renderer', 'icons'))) assets[`/icons/${name}`] = [`renderer/icons/${name}`, name.endsWith('.svg') ? 'image/svg+xml' : 'text/plain'];
-  const wallpaperAssets = new Map();
-  const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
-  const list = (directory, prefix = '') => { for (const file of fs.readdirSync(directory, { withFileTypes: true })) { if (file.isSymbolicLink()) continue; const relative = `${prefix}/${file.name}`; if (file.isDirectory()) list(path.join(directory, file.name), relative); else if (mime[path.extname(file.name)] && (relative === '/wallpaper.html' || relative === '/pet.html' || relative.startsWith('/assets/') || relative.startsWith('/room-scenes/') || relative.startsWith('/fonts/'))) wallpaperAssets.set(relative, path.join(directory, file.name)); } };
-  list(path.join(__dirname, 'web'));
-  targetProtocol.handle('album-desktop', (request) => {
-    const url = new URL(request.url);
-    // The wallpaper and pet windows each load only their own page and shared assets.
-    if (['wallpaper', 'pet'].includes(url.hostname) && !url.username && !url.password && !url.port && ['GET', 'HEAD'].includes(request.method)) {
-      const page = url.pathname.endsWith('.html') ? `/${url.hostname}.html` : null;
-      const file = page && url.pathname !== page ? null : wallpaperAssets.get(url.pathname);
-      if (!file) return new Response('Not found', { status: 404 });
-      return new Response(request.method === 'HEAD' ? null : fs.readFileSync(file), { headers: { 'Content-Type': mime[path.extname(file)], 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https:; font-src 'self'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'" } });
-    }
-    const entry = url.hostname === 'shell' && !url.username && !url.password ? assets[url.pathname] : null;
-    if (!entry) return new Response('Not found', { status: 404 });
-    return new Response(fs.readFileSync(path.join(__dirname, entry[0])), {
-      headers: {
-        'Content-Type': entry[1],
-        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'"
-      }
-    });
-  });
-}
 
 function registerIpc() {
   ipcMain.handle('desktop:command', async (event, command) => {

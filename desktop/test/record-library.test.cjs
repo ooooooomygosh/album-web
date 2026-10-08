@@ -51,3 +51,17 @@ test('malformed rooms, duplicate boxes and script names never become executable 
   assert.deepEqual(data.rooms.b.boxes[0].keys, ['qq:a']);
   assert.equal(genreList('摇滚，摇滚,爵士').length, 2);
 });
+test('cover colour uses the dominant opaque cluster, not a blended average', async () => {
+  const { dominantColour } = await import('../../src/cover-colour.mjs');
+  assert.equal(dominantColour(Uint8ClampedArray.from([240, 20, 30, 255, 241, 21, 31, 255, 10, 30, 240, 255, 0, 255, 0, 0])), '#f1151f');
+  assert.equal(dominantColour([]), '#16191d');
+  assert.equal(dominantColour([255, 255, 255, 0]), '#16191d');
+  assert.equal(dominantColour([0, 0, 0, 255]), '#000000');
+});
+test('turntable position survives normalization and invalid positions cannot escape the screen', async () => {
+  const { normalizeLibrary } = await model;
+  const data = normalizeLibrary({ rooms: { home: { look: 'warm', turntable: { x: -100, y: 9, injected: 'bad' } }, bad: { turntable: { x: '0.2', y: NaN } }, old: { look: 'pixel', boxes: [] } } });
+  assert.deepEqual(data.rooms.home.turntable, { x: 0, y: 1 }); assert.equal(data.rooms.home.look, 'warm');
+  assert.equal(data.rooms.bad.turntable, undefined); assert.equal(data.rooms.old.turntable, undefined);
+  assert.deepEqual(normalizeLibrary({ rooms: { home: { turntable: { x: .25, y: .4 } } } }).rooms.home.turntable, { x: .25, y: .4 });
+});
