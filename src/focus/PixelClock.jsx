@@ -9,11 +9,12 @@ const GLYPHS = {
 export default function PixelClock({ text, className = '', label }) {
   const chars = [...text].filter((char) => GLYPHS[char]);
   const widths = chars.map((char) => char === ':' ? 2 : 4), width = widths.reduce((a, b) => a + b, 0) - 1;
-  let x = 0;
-  return <svg className={`pixel-clock ${className}`} viewBox={`0 0 ${width} 5`} role="img" aria-label={label || text} shapeRendering="crispEdges">
+  const viewWidth = Math.max(17, width);
+  let x = (viewWidth - width) / 2;
+  return <><svg className={`pixel-clock ${className}`} viewBox={`0 0 ${viewWidth} 5`} role="img" aria-label={label || text} shapeRendering="crispEdges">
     {chars.map((char, index) => {
       const left = x; x += widths[index];
       return [...GLYPHS[char]].map((bit, cell) => bit === '1' ? <rect key={`${index}-${cell}`} x={left + (cell % 3) - (char === ':' ? 1 : 0)} y={Math.floor(cell / 3)} width="1" height="1"/> : null);
     })}
-  </svg>;
+  </svg>{text.endsWith(' 分钟') && <small className="focus-clock-unit">剩余分钟</small>}</>;
 }

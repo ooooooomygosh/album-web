@@ -33,3 +33,13 @@ export function bubbleText({ phase = 'idle', paused = false, remaining = 0, trac
   if (isNight(hour)) return '';
   return '';
 }
+
+// Brief out-and-back walks with at least 90 seconds of rest. No native window
+// movement: callers apply this bounded offset inside their existing layout.
+export function catStroll(elapsed, restMs = 120000, enabled = true) {
+  const rest = Math.max(90000, Math.min(150000, restMs));
+  const time = Math.max(0, elapsed) % (rest + 8000);
+  if (!enabled || time < rest) return { walking: false, x: 0 };
+  const progress = (time - rest) / 8000;
+  return { walking: true, x: Math.round(16 * (progress < .5 ? progress * 2 : (1 - progress) * 2)) };
+}

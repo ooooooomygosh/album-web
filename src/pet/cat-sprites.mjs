@@ -17,6 +17,10 @@ export const PALETTE = Object.freeze([
   '#efe6cf', // 12 pages
   '#ffe08a' // 13 sparkle / notes / zzz
 ]);
+export const CAT_PALETTES = Object.freeze({
+  orange: Object.freeze(PALETTE.map((color, i) => ({ 2: '#b77d48', 3: '#ccb18a', 4: '#88522f', 5: '#bd7e86', 7: '#dfceb0', 12: '#cabea2', 13: '#d0b370' }[i] || color))),
+  black: Object.freeze(PALETTE.map((color, i) => ({ 1: '#292932', 2: '#55545e', 3: '#85808a', 4: '#3c3b46', 5: '#ad7f88', 6: '#24232c', 7: '#c9bd96', 12: '#cabea2', 13: '#d0b370' }[i] || color)))
+});
 const EFFECT = 13;
 
 function grid() { return Array.from({ length: SIZE }, () => new Array(SIZE).fill(0)); }
@@ -127,10 +131,10 @@ export function catFrame(pose, index = 0, acc = '') {
 }
 
 // Draws one frame onto a 2D canvas context at integer scale.
-export function drawFrame(context, pixels, scale = 1) {
+export function drawFrame(context, pixels, scale = 1, skin = 'orange') {
   context.clearRect(0, 0, SIZE * scale, SIZE * scale);
   for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
-    const colour = PALETTE[pixels[y][x]]; if (!colour) continue;
+    const colour = (CAT_PALETTES[skin] || CAT_PALETTES.orange)[pixels[y][x]]; if (!colour) continue;
     context.fillStyle = colour; context.fillRect(x * scale, y * scale, scale, scale);
   }
 }

@@ -26,6 +26,7 @@ npm run dist:win   # 在 Windows 上打包安装版与便携版
 | `npm run test:shelf` | 唱片架、两种画风、筛选、唱片卡片（笔记、从某首开始播放、移除）、添加专辑、多种窗口宽度 |
 | `npm run test:library` | 唱片盒、黑胶外观、流派、重启后保留 |
 | `npm run test:focus` | 番茄钟（模拟时钟）、待办、统计、奖励、混音、沉浸模式 |
+| `npm run test:cat-focus` | 猫咪短途散步、夜景毛色、隐藏秒数、分钟边界、持久化与 reduced-motion |
 | `npm run test:pet` | 桌宠窗口、命令白名单、拖动与位置记忆 |
 | `npm run test:sources` | 本地音乐与系统正在播放 |
 | `npm run test:music` | QQ / 网易云 / Music Assistant 播放链路（静音 WAV 与模拟服务器） |
