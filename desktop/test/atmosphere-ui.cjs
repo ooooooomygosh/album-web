@@ -17,6 +17,8 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
   for (const look of ['warm', 'pixel']) {
     const toggle = site.getByRole('button', { name: look === 'warm' ? '切换写实风格' : '切换像素风格', exact: true }); if (await toggle.count()) await toggle.click();
     await site.locator(`.atmosphere-${look}[data-motion=running]`).waitFor();
+    const floorSize = await site.evaluate(async (look) => { const img = new Image(); img.src = `/room-scenes/${look}-cabin-floor.png`; await img.decode(); return [img.naturalWidth, img.naturalHeight]; }, look);
+    assert.deepEqual(floorSize, [1448, 1086]);
     await pause(250);
     const a = await sample(site); await site.screenshot({ path: path.join(output, `${look}-a.png`) });
     await pause(850); const b = await sample(site); await site.screenshot({ path: path.join(output, `${look}-b.png`) });
@@ -34,15 +36,24 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
     assert.equal(masks.crossbar, 0); assert.equal(masks.horizontal, 0); assert.equal(masks.rim, 0); assert.equal(masks.interior, 255);
     check(`${look}-two-distinct-frames-aligned-and-clipped`, { ...geometry, masks, snowHashes: [hash(a.snow), hash(b.snow)], fireHashes: [hash(a.fire), hash(b.fire)] });
   }
+  const floorClip = await site.evaluate(async () => {
+    const svg = document.querySelector('.cabin-floor-base').cloneNode(true); svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', '1448'); svg.setAttribute('height', '1086');
+    const imageNode = svg.querySelector('image'), rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    for (const name of ['width', 'height', 'clip-path', 'mask']) rect.setAttribute(name, imageNode.getAttribute(name)); rect.setAttribute('fill', 'white'); imageNode.replaceWith(rect);
+    const image = new Image(); image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg)); await image.decode();
+    const canvas = document.createElement('canvas'); canvas.width = 1448; canvas.height = 1086; const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+    const points = { floor: [1000, 875], shelf: [800, 700], sofa: [180, 700], rug: [1100, 1000], hearth: [1370, 800], window: [250, 250] };
+    return Object.fromEntries(Object.entries(points).map(([name, [x, y]]) => [name, ctx.getImageData(x, y, 1, 1).data[3]]));
+  }); assert.equal(floorClip.floor, 255); for (const key of ['shelf', 'sofa', 'rug', 'hearth', 'window']) assert.equal(floorClip[key], 0); check('static-floor-correction-is-clipped-away-from-furniture-rug-and-hearth', floorClip);
   // Rasterize only the SVG material pass to verify window, couch, albums and
   // distant wall receive no fire-light pixels. This does not edit any asset.
   const maskPixels = await site.evaluate(async () => {
     const svg = document.querySelector('.cabin-hearth-light').cloneNode(true); svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', '1448'); svg.setAttribute('height', '1086');
     const image = new Image(); image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg)); await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = 1448; canvas.height = 1086; const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
-    const points = { window: [245, 230], wall: [600, 80], couch: [125, 680], album: [700, 450], floor: [1395, 1000], stone: [1323, 640], mantel: [1350, 440], pillarFront: [1250, 620], shelfWood: [1123, 610], hearthFront: [1360, 838], hearthShadow: [1410, 944], rug: [1250, 990], hearthTop: [1390, 778] };
+    const points = { window: [245, 230], wall: [600, 80], couch: [125, 680], album: [700, 450], floor: [1190, 894], distantFloor: [810, 925], stone: [1323, 640], mantel: [1350, 440], pillarFront: [1250, 620], shelfWood: [1123, 610], hearthFront: [1360, 838], hearthShadow: [1300, 863], rug: [1250, 990], hearthTop: [1390, 778] };
     return Object.fromEntries(Object.entries(points).map(([name, [x, y]]) => [name, [...ctx.getImageData(x, y, 1, 1).data]]));
-  }); for (const name of ['window', 'wall', 'couch', 'album', 'mantel', 'pillarFront', 'shelfWood', 'hearthFront', 'hearthShadow', 'rug']) assert.equal(maskPixels[name][3], 0); assert.ok(maskPixels.stone[3] > maskPixels.floor[3]); assert.ok(maskPixels.hearthTop[3] > 0); check('material-pass-leaves-unmasked-surfaces-untouched', maskPixels);
+  }); for (const name of ['window', 'wall', 'couch', 'album', 'mantel', 'pillarFront', 'shelfWood', 'hearthFront', 'hearthShadow']) assert.equal(maskPixels[name][3], 0); assert.ok(maskPixels.floor[3] > maskPixels.distantFloor[3]); assert.ok(maskPixels.rug[3] > 0); assert.ok(maskPixels.hearthTop[3] > 0); check('material-pass-leaves-unmasked-surfaces-untouched', maskPixels);
   await site.emulateMedia({ reducedMotion: 'reduce' }); await site.locator('.cabin-atmosphere[data-motion=reduced]').waitFor();
   const reduced = await sample(site); await pause(500); assert.deepEqual(await sample(site), reduced); await site.screenshot({ path: path.join(output, 'reduced-motion.png') }); check('system-reduced-motion-freezes-snow-flames-and-light');
   await site.emulateMedia({ reducedMotion: 'no-preference' }); await site.locator('.cabin-atmosphere[data-motion=running]').waitFor();

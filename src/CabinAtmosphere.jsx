@@ -70,20 +70,34 @@ export default function CabinAtmosphere({ look, weather }) {
     return () => { disposed = true; clean.onload = clean.onerror = null; loop.dispose(); observer.disconnect(); media.removeEventListener('change', update); document.removeEventListener('visibilitychange', update); window.removeEventListener('focus', update); window.removeEventListener('blur', update); };
   }, [look, weather, geometry]);
   return <div ref={root} className={`cabin-atmosphere atmosphere-${look}`} aria-hidden="true">
+    {/* Edited illumination is sampled only on bare floor; all other original
+        pixels (including furniture, rug, window and fire) remain untouched. */}
+    <svg className="cabin-floor-base" viewBox="0 0 1448 1086" preserveAspectRatio="none">
+      <defs>
+        <path id={`${gradient}-floor-shape`} d="M278 776H428V779H1143L1179 833L1448 918V1086H1428L1318 938H287L282 908Z"/>
+        <clipPath id={`${gradient}-floor-base`}><use href={`#${gradient}-floor-shape`}/></clipPath>
+        <filter id={`${gradient}-floor-feather`}><feGaussianBlur stdDeviation={look === 'pixel' ? 1 : 3}/></filter>
+        <mask id={`${gradient}-floor-mask`}><use href={`#${gradient}-floor-shape`} fill="white" filter={`url(#${gradient}-floor-feather)`}/></mask>
+      </defs>
+      <image href={`/room-scenes/${look}-cabin-floor.png`} width="1448" height="1086" clipPath={`url(#${gradient}-floor-base)`} mask={`url(#${gradient}-floor-mask)`}/>
+    </svg>
     <canvas ref={snow} className="cabin-window-snow" style={placement(geometry.window)}/>
     <canvas ref={fire} className="cabin-hearth-fire" style={placement(geometry.fire)}/>
     <svg ref={light} className="cabin-hearth-light" viewBox="0 0 1448 1086" preserveAspectRatio="none">
       <defs>
         {/* One scene-coordinate light origin; never object-bounding-box centres. */}
         <radialGradient id={`${gradient}-near`} gradientUnits="userSpaceOnUse" cx="1409" cy={look === 'pixel' ? 674 : 661} r="240"><stop stopColor="#ffd69b"/><stop offset=".45" stopColor="#ffb56b" stopOpacity=".65"/><stop offset="1" stopColor="#ffb56b" stopOpacity="0"/></radialGradient>
-        <radialGradient id={`${gradient}-floor`} gradientUnits="userSpaceOnUse" cx="1440" cy="988" r="160" gradientTransform="translate(1440 988) scale(1 .62) translate(-1440 -988)"><stop stopColor="#ffbd79" stopOpacity=".65"/><stop offset="1" stopColor="#ffbd79" stopOpacity="0"/></radialGradient>
+        <radialGradient id={`${gradient}-floor`} gradientUnits="userSpaceOnUse" cx="1210" cy="868" r="470" gradientTransform="translate(1210 868) rotate(-12) scale(1 .55) translate(-1210 -868)"><stop stopColor="#ffcf91"/><stop offset=".25" stopColor="#ffc17a" stopOpacity=".82"/><stop offset=".65" stopColor="#ffb065" stopOpacity=".28"/><stop offset="1" stopColor="#ffb065" stopOpacity="0"/></radialGradient>
       </defs>
       {/* Only the inward-facing narrow reveal, not the front pillar or mantel. */}
       <path data-surface="stone" d="M1311 548L1330 543V744L1310 739Z" fill={`url(#${gradient}-near)`}/>
       {/* Top of the hearth receives downward light; its vertical fascia stays dark. */}
       <path data-surface="hearth" d={look === 'pixel' ? 'M1330 753L1448 784V808L1244 772Z' : 'M1330 743L1448 775V799L1244 764Z'} fill={`url(#${gradient}-near)`}/>
-      {/* Conservative spill beyond the raised-hearth shadow, outside the rug. */}
-      <path data-surface="floor" d="M1341 957L1448 986V1086H1429Z" fill={`url(#${gradient}-floor)`}/>
+      {/* Opening projects forward/down-left in this camera. The near boundary
+          follows the hearth foot; no light is painted across its fascia. */}
+      <path data-surface="floor" d="M760 844L1140 827L1180 850L1448 936V1086H1428L1318 938H760Z" fill={`url(#${gradient}-floor)`}/>
+      <path data-surface="rug" d="M875 941L1318 938L1428 1086H875Z" fill={`url(#${gradient}-floor)`}/>
+
       <path data-surface="metal" d={look === 'pixel' ? 'M1356 551V722L1448 747' : 'M1356 545V691L1448 716'} fill="none" stroke={`url(#${gradient}-near)`} strokeWidth="1.5"/>
     </svg>
   </div>;

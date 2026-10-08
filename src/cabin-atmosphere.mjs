@@ -49,7 +49,8 @@ export const FIRE_LIGHT_SOURCE = { warm: [1409, 661, -30], pixel: [1409, 674, -3
 export const MATERIAL_SURFACES = {
   stone: { position: [1325, 655, 0], normal: [1, 0, -.15], albedo: .72, roughness: .95, specular: .02, visibility: .8 },
   hearth: { position: [1375, 774, 65], normal: [0, -1, 0], albedo: .72, roughness: .95, specular: .02, visibility: .75 },
-  floor: { position: [1410, 1000, 260], normal: [0, -1, 0], albedo: .55, roughness: .8, specular: .025, visibility: .22 },
+  floor: { position: [1220, 888, 150], normal: [0, -1, 0], albedo: .75, roughness: .8, specular: .025, visibility: .9, exposure: 6.5 },
+  rug: { position: [1140, 988, 270], normal: [0, -1, 0], albedo: .3, roughness: 1, specular: 0, visibility: .85, exposure: 3.2 },
   wood: { position: [1118, 609, 0], normal: [0, 0, 1], albedo: .42, roughness: .78, specular: .025, visibility: 0 },
   metal: { position: [1358, 655, 0], normal: [1, 0, -.15], albedo: .18, roughness: .24, specular: .4, visibility: .7 },
   glass: { position: [1364, 584, 0], normal: [0, 0, 1], albedo: .035, roughness: .12, specular: .8, visibility: 0 }
@@ -63,7 +64,7 @@ export function materialResponse(surface, source, energy) {
   const view = unit([724 - surface.position[0], 543 - surface.position[1], 1600 - surface.position[2]]);
   const half = unit(light.map((value, i) => value + view[i]));
   const specular = Math.pow(Math.max(0, dot(normal, half)), 8 + (1 - surface.roughness) * 72) * surface.specular;
-  return Math.min(.18, energy * (surface.visibility ?? 1) / (1 + (distance / 240) ** 2) * (surface.albedo * incidence + specular));
+  return Math.min(.18, energy * (surface.visibility ?? 1) * (surface.exposure ?? 1) / (1 + (distance / 240) ** 2) * (surface.albedo * incidence + specular));
 }
 export function surfaceLighting(seconds, look = 'warm') {
   const heat = gentleNoise(seconds * .23, 87) * .7 + gentleNoise(seconds * .51, 92) * .3;

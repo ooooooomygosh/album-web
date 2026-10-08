@@ -1,0 +1,197 @@
+{
+  "platform": "linux",
+  "nativeWallpaperVerified": false,
+  "checks": [
+    {
+      "name": "warm-two-distinct-frames-aligned-and-clipped",
+      "art": {
+        "x": 0,
+        "y": 0,
+        "width": 1448,
+        "height": 1086,
+        "top": 0,
+        "right": 1448,
+        "bottom": 1086,
+        "left": 0
+      },
+      "effects": {
+        "x": 0,
+        "y": 0,
+        "width": 1448,
+        "height": 1086,
+        "top": 0,
+        "right": 1448,
+        "bottom": 1086,
+        "left": 0
+      },
+      "src": "/room-scenes/warm-cabin.png",
+      "canvasPixels": 79268,
+      "masks": {
+        "crossbar": 0,
+        "horizontal": 0,
+        "rim": 0,
+        "interior": 255
+      },
+      "snowHashes": [
+        "d14c698c60a556e6d6c3bd04bdd990c157bf3231c7aacc748d4d0f7679a09d09",
+        "14d29bf335ae2f94b5d9931c21b14ebe2d667ec2f32f2158ed4b4346b535c9a2"
+      ],
+      "fireHashes": [
+        "a13afd95b197b7e956196430779646191f48766a57decb2d9dea869a307f578b",
+        "2c05fc46693594b33a965f41cea61da60a892d1731b9b4d89e1804b09bdf2ec8"
+      ]
+    },
+    {
+      "name": "pixel-two-distinct-frames-aligned-and-clipped",
+      "art": {
+        "x": 0,
+        "y": 0,
+        "width": 1448,
+        "height": 1086,
+        "top": 0,
+        "right": 1448,
+        "bottom": 1086,
+        "left": 0
+      },
+      "effects": {
+        "x": 0,
+        "y": 0,
+        "width": 1448,
+        "height": 1086,
+        "top": 0,
+        "right": 1448,
+        "bottom": 1086,
+        "left": 0
+      },
+      "src": "/room-scenes/pixel-cabin.png",
+      "canvasPixels": 5112,
+      "masks": {
+        "crossbar": 0,
+        "horizontal": 0,
+        "rim": 0,
+        "interior": 255
+      },
+      "snowHashes": [
+        "f43c903c993b238c910ac71339046c41d79e269f8abac7805ec37f433589d0fb",
+        "00915d3b77f34efeadea13d226e8510752f17b009765c33bc34fcb3e705dca04"
+      ],
+      "fireHashes": [
+        "76076d3792caea1e5e80ac4c8bed67f7030d0ee6255c157766ae356b2632967c",
+        "2ce6ae041900cae64e78970c054317075085a7a06f401ca5dbd0eff2a427971c"
+      ]
+    },
+    {
+      "name": "static-floor-correction-is-clipped-away-from-furniture-rug-and-hearth",
+      "floor": 255,
+      "shelf": 0,
+      "sofa": 0,
+      "rug": 0,
+      "hearth": 0,
+      "window": 0
+    },
+    {
+      "name": "material-pass-leaves-unmasked-surfaces-untouched",
+      "window": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "wall": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "couch": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "album": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "floor": [
+        247,
+        193,
+        131,
+        33
+      ],
+      "distantFloor": [
+        255,
+        191,
+        128,
+        4
+      ],
+      "stone": [
+        255,
+        196,
+        118,
+        13
+      ],
+      "mantel": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pillarFront": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "shelfWood": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "hearthFront": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "hearthShadow": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rug": [
+        128,
+        128,
+        0,
+        2
+      ],
+      "hearthTop": [
+        255,
+        182,
+        109,
+        7
+      ]
+    },
+    {
+      "name": "system-reduced-motion-freezes-snow-flames-and-light"
+    },
+    {
+      "name": "existing-app-reduce-motion-setting-freezes-and-resumes"
+    },
+    {
+      "name": "real-window-hide-pauses-and-show-resumes"
+    },
+    {
+      "name": "repeated-look-switches-and-multiple-aspect-ratios-stay-aligned"
+    },
+    {
+      "name": "isolated-wallpaper-animates-and-honours-reduced-motion"
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}
