@@ -7,16 +7,25 @@ const framework = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET'
 const compiler = path.join(framework, 'csc.exe');
 execFileSync(compiler, ['/nologo', '/target:exe', '/platform:x64', '/optimize+', '/reference:System.Web.Extensions.dll', '/out:' + path.join(directory, 'DesktopHost.exe'), path.join(__dirname, 'native', 'DesktopHost.cs')], { stdio: 'inherit', windowsHide: true });
 
-// The system now-playing helper uses WinRT metadata. It is optional: if this
-// Windows build cannot compile it, the client reports the source unavailable.
-const metadata = path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'WinMetadata');
-const references = [
-  'System.Web.Extensions.dll',
-  ...['Windows.Media.winmd', 'Windows.Foundation.winmd', 'Windows.Storage.winmd'].map((name) => path.join(metadata, name)),
-  ...['System.Runtime.WindowsRuntime.dll', 'System.Runtime.dll', 'System.Threading.Tasks.dll', 'System.Runtime.InteropServices.WindowsRuntime.dll'].map((name) => path.join(framework, name)).filter((file) => fs.existsSync(file))
-];
+// The system now-playing helper needs the WinRT union metadata (Windows.winmd)
+// from the Windows SDK: System.Runtime.WindowsRuntime.dll binds its AsTask()
+// helpers to that single "Windows" assembly. Without the SDK the helper is
+// skipped and the client reports the source unavailable, unless the build
+// sets REQUIRE_NOWPLAYING=1 (release builds do).
+function unionMetadata() {
+  const kits = path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Windows Kits', '10', 'UnionMetadata');
+  let versions = [];
+  try { versions = fs.readdirSync(kits).filter((name) => /^10\.\d+\.\d+\.\d+$/.test(name)).sort((a, b) => b.localeCompare(a, 'en', { numeric: true })); } catch {}
+  for (const candidate of [...versions.map((version) => path.join(kits, version, 'Windows.winmd')), path.join(kits, 'Windows.winmd')]) if (fs.existsSync(candidate)) return candidate;
+  return null;
+}
+const winmd = unionMetadata();
 try {
+  if (!winmd) throw new Error('Windows SDK UnionMetadata\\Windows.winmd was not found.');
+  console.log('Building NowPlaying.exe with ' + winmd);
+  const references = ['System.Web.Extensions.dll', winmd, ...['System.Runtime.WindowsRuntime.dll', 'System.Runtime.dll', 'System.Threading.Tasks.dll', 'System.Runtime.InteropServices.WindowsRuntime.dll'].map((name) => path.join(framework, name)).filter((file) => fs.existsSync(file))];
   execFileSync(compiler, ['/nologo', '/target:exe', '/platform:x64', '/optimize+', ...references.map((file) => '/reference:' + file), '/out:' + path.join(directory, 'NowPlaying.exe'), path.join(__dirname, 'native', 'NowPlaying.cs')], { stdio: 'inherit', windowsHide: true });
 } catch (error) {
+  if (process.env.REQUIRE_NOWPLAYING === '1') { console.error('NowPlaying.exe is required for this build. ' + error.message); process.exit(1); }
   console.warn('NowPlaying.exe was not built; the system now-playing source will be unavailable. ' + error.message);
 }
