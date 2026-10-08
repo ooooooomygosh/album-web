@@ -1,5 +1,5 @@
 import http from 'node:http';
-import aiHandler from '../api/ai/recommend.js';
+import aiHandler from '../api/_ai/recommend.js';
 import commentsHandler from '../api/comments.js';
 import resolveLinkHandler from '../api/resolve-link.js';
 import searchHandler from '../api/search.js';

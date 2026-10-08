@@ -5,9 +5,9 @@ import comments from '../api/comments.js';
 import ratings from '../api/ratings.js';
 import search from '../api/search.js';
 import resolveLink from '../api/resolve-link.js';
-import background from '../api/ai/background.js';
-import recommend from '../api/ai/recommend.js';
-import comment from '../api/ai/comment.js';
+import background from '../api/_ai/background.js';
+import recommend from '../api/_ai/recommend.js';
+import comment from '../api/_ai/comment.js';
 import { db, hashSecret } from '../api/_firebase.js';
 
 export const handlers = { '/api/auth': auth, '/api/rooms': rooms, '/api/items': items, '/api/comments': comments, '/api/ratings': ratings, '/api/search': search, '/api/resolve-link': resolveLink, '/api/ai/background': background, '/api/ai/recommend': recommend, '/api/ai/comment': comment };

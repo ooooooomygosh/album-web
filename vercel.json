@@ -4,17 +4,15 @@
   "framework": "vite",
   "fluid": true,
   "functions": {
-    "api/ai/background.js": {
-      "maxDuration": 300
-    },
-    "api/ai/comment.js": {
-      "maxDuration": 30
-    },
-    "api/ai/recommend.js": {
+    "api/ai.js": {
       "maxDuration": 300
     }
   },
   "rewrites": [
+    {
+      "source": "/api/ai/:task",
+      "destination": "/api/ai?task=:task"
+    },
     {
       "source": "/((?!api/.*|@vite/.*|@react-refresh|src/.*|node_modules/.*|assets/.*|fonts/.*|room-scenes/.*|licenses/.*|wallpaper.html|icon.svg|manifest.webmanifest).*)",
       "destination": "/index.html"
