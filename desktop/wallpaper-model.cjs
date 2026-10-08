@@ -7,6 +7,19 @@ function item(value) {
   if (!value || typeof value !== 'object' || !string(value.id)) return null;
   return { id: string(value.id), title: string(value.title), artist: string(value.artist), type: value.type === 'song' ? 'song' : 'album', cover: safeCover(value.cover), tracks: Array.isArray(value.tracks) ? value.tracks.slice(0, 500).map((track) => string(typeof track === 'string' ? track : track?.title)).filter(Boolean) : [] };
 }
+const PHASES = ['idle', 'focus', 'shortBreak', 'longBreak'], WEATHERS = ['snow', 'clear', 'rain', 'starry'], ACCESSORIES = ['', 'headphones', 'scarf', 'beanie'];
+const bounded = (value, max) => Number.isFinite(value) ? Math.max(0, Math.min(max, Math.round(value))) : 0;
+// Focus state shown by the wallpaper and the desktop pet: no task history.
+function cleanFocus(value) {
+  if (!value || typeof value !== 'object') return null;
+  return { phase: PHASES.includes(value.phase) ? value.phase : 'idle', paused: value.paused === true, remaining: bounded(value.remaining, 4 * 3600000), endsAt: bounded(value.endsAt, 9e15),
+    round: bounded(value.round, 1e6), task: string(value.task, 120), fish: bounded(value.fish, 1e9), level: bounded(value.level, 1e4),
+    accessory: ACCESSORIES.includes(value.accessory) ? value.accessory : '', weather: WEATHERS.includes(value.weather) ? value.weather : 'snow' };
+}
+function cleanCompanion(value) {
+  if (!value || typeof value !== 'object') return null;
+  return { focus: cleanFocus(value.focus), playing: value.playing === true, track: string(value.track, 200), reduceMotion: value.reduceMotion === true };
+}
 const colour = (value, fallback) => /^#[\da-f]{6}$/i.test(value || '') ? value : fallback;
 function cleanSnapshot(value) {
   if (!value || typeof value !== 'object' || !['warm', 'pixel'].includes(value.look)) return null;
@@ -15,6 +28,7 @@ function cleanSnapshot(value) {
     items: Array.isArray(value.items) ? value.items.slice(0, 12).map(item).filter(Boolean) : [], selectedId: string(value.selectedId), record,
     recordStyle: { base: colour(style.base, '#16191d'), opacity: Number.isFinite(style.opacity) ? Math.max(0, Math.min(100, style.opacity)) : 100, splatter: style.splatter === true, splashes: (Array.isArray(style.splashes) && style.splashes.length ? style.splashes : ['#dba746']).slice(0, 3).map((v) => colour(v, '#dba746')) },
     spinning: Boolean(record && value.spinning === true), trackIndex: Math.max(0, Math.min(tracks - 1, Number.isSafeInteger(value.trackIndex) ? value.trackIndex : 0)), reduceMotion: value.reduceMotion === true,
-    statusText: string(value.statusText, 200), actualTrack: string(value.actualTrack), provider: ['qq', 'netease', 'ma'].includes(value.provider) ? value.provider : 'visual' };
+    statusText: string(value.statusText, 200), actualTrack: string(value.actualTrack), provider: ['qq', 'netease', 'ma', 'local', 'system'].includes(value.provider) ? value.provider : 'visual',
+    weather: WEATHERS.includes(value.weather) ? value.weather : 'snow', accessory: ACCESSORIES.includes(value.accessory) ? value.accessory : '', grooving: value.grooving === true, track: string(value.track, 200), focus: cleanFocus(value.focus) };
 }
-module.exports = { cleanSnapshot };
+module.exports = { cleanSnapshot, cleanFocus, cleanCompanion };

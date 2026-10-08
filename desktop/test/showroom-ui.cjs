@@ -3,7 +3,7 @@ const { _electron } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { mountFixture, albums } = require('./ui-fixture.cjs');
+const { mountFixture, albums, useWarmCabin } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results');
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `showroom-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -16,7 +16,7 @@ async function setStyle(showroom) { await host.evaluate((showroom) => window.alb
   site.on('pageerror', (e) => report.pageErrors.push(e.message));
   const items = Array.from({ length: 14 }, (_, i) => ({ ...albums[i % albums.length], id: `room-fixture-${i}`, addedAt: `2026-10-${String(20 - i).padStart(2, '0')}` }));
   await mountFixture(app, site, { items }); await setStyle('room');
-  await site.getByRole('list', { name: '木质唱片架' }).waitFor();
+  await site.getByRole('list', { name: '木质唱片架' }).waitFor(); await useWarmCabin(site);
   assert.equal(await site.locator('.room-record').count(), 12);
   assert.equal(await site.getByRole('img', { name: '温馨木屋 雪窗与壁炉', exact: true }).count(), 1);
   assert.equal(await site.locator('.cabin-scene-art').getAttribute('src'), '/room-scenes/warm-cabin.png');

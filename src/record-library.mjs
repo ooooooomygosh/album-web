@@ -50,7 +50,7 @@ export function normalizeLibrary(value = {}) {
       ids.add(box.id); names.add(name.toLowerCase());
       return [{ id: box.id, name, keys: [...new Set((Array.isArray(box.keys) ? box.keys : []).filter((key) => typeof key === 'string' && /^(qq|itunes|item|name):/.test(key) && key.length <= 260))].slice(0, 2000) }];
     });
-    out.rooms[roomId] = { boxes, look: raw.look === 'pixel' ? 'pixel' : 'warm' };
+    out.rooms[roomId] = { boxes, look: raw.look === 'warm' ? 'warm' : 'pixel' };
   }
   return out;
 }

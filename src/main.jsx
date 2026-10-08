@@ -31,6 +31,9 @@ import { initAnalytics } from './firebaseClient';
 import ExperimentalCorridorCarousel from './ExperimentalCorridorCarousel';
 import SharedRoom from './SharedRoom';
 import CollectionTools from './CollectionTools';
+import { FocusProvider } from './focus/useFocus';
+import { SoundscapeProvider } from './audio/useSoundscape';
+import CompanionBridge from './CompanionBridge';
 import ListeningRoom from './CabinRoom';
 import CoverflowShowroom from './CoverflowShowroom';
 import PurchaseRecord from './PurchaseRecord';
@@ -111,7 +114,7 @@ const defaultUserSettings = {
     customTheme: '#7ed7c9'
   },
   showroom: {
-    style: 'original',
+    style: 'room',
     coverSize: 'comfortable',
     wallLayout: '4x3',
     hoverPreview: 'flip',
@@ -1925,7 +1928,7 @@ function App() {
   const showInspector = mode === 'room';
 
   return (
-    <RecordLibraryProvider key={session.user.id} userId={session.user.id} roomId={room.id}><main className={`${(desktopAppearance.client ? desktopReduceMotion : reduceMotion) ? 'app reduce-motion' : 'app'} ${isWorking && userSettings.appearance.rainbowStatus ? 'app-breathing' : ''}`} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': userSettings.appearance.themeStrategy === 'cover' ? cssImageUrl(activeItem?.cover || '') : 'none', '--glass-alpha': glass / 100 }}>
+    <RecordLibraryProvider key={session.user.id} userId={session.user.id} roomId={room.id}><FocusProvider key={'focus-' + session.user.id} userId={session.user.id}><SoundscapeProvider><CompanionBridge/><main className={`${(desktopAppearance.client ? desktopReduceMotion : reduceMotion) ? 'app reduce-motion' : 'app'} ${isWorking && userSettings.appearance.rainbowStatus ? 'app-breathing' : ''}`} style={{ '--cover-a': palette[0], '--cover-b': palette[1], '--cover-c': palette[2], '--cover-image': userSettings.appearance.themeStrategy === 'cover' ? cssImageUrl(activeItem?.cover || '') : 'none', '--glass-alpha': glass / 100 }}>
       <div className="aurora" aria-hidden="true" />
       <Toaster position="bottom-right" theme="dark" duration={4000} closeButton offset={20} gap={12} icons={{ success: <Check/>, info: <Info/>, warning: <ErrorIcon/>, error: <ErrorIcon/>, loading: <Loading/>, close: <X size={14}/> }} />
       {isWorking && userSettings.appearance.rainbowStatus && <div className="rainbow-status-frame" aria-hidden="true" />}
@@ -2115,7 +2118,7 @@ function App() {
         />
         {confirmAction && <ConfirmDialog config={confirmAction} close={closeConfirm} />}
       </section>
-    </main></RecordLibraryProvider>
+    </main></SoundscapeProvider></FocusProvider></RecordLibraryProvider>
   );
 }
 
@@ -2186,6 +2189,14 @@ function GlobalMusicSearch({ searchProvider, setSearchProvider, searchType, setS
       suppressFocusOpenRef.current = false;
     }, 180);
   };
+
+  // Other surfaces (system now-playing, local music) can ask to find an album.
+  const quickSearch = useRef(null);
+  quickSearch.current = (value) => { setLocalQuery(value); setQuery(value); setArtistQuery(''); setSearchType?.('album'); setOpen(true); runSearch({ query: value, artistQuery: '', link: '' }); };
+  useEffect(() => {
+    const receive = (event) => { const value = String(event.detail?.query || '').trim().slice(0, 200); if (value) quickSearch.current(value); };
+    window.addEventListener('album-quick-search', receive); return () => window.removeEventListener('album-quick-search', receive);
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -3733,3 +3744,7 @@ function UserSettingsCard({ userSettings, saveUserSettings }) {
 
 const sharedId = new URLSearchParams(window.location.search).get('share');
 createRoot(document.getElementById('root')).render(sharedId ? <SharedRoom id={sharedId}/> : <App />);
+// Installable web app: the desktop client serves its own files, so only browsers register.
+if ('serviceWorker' in navigator && import.meta.env.PROD && !/Electron/i.test(navigator.userAgent)) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}

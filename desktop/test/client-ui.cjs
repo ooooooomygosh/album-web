@@ -1,6 +1,7 @@
 'use strict';
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { useWarmCabin } = require('./ui-fixture.cjs');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'album-client-ui-'));
 const output = path.join(__dirname, '../test-results/client'); fs.mkdirSync(output, { recursive: true });
 const report = { checks: [], pageErrors: [] }; let application, site;
@@ -19,6 +20,11 @@ const check = (value) => report.checks.push(value);
 (async () => {
   await launch();
   assert.equal(await site.locator('input[type=email]').count(), 0); check('offline-start-without-account');
+  // A fresh install opens in the cabin; this flow starts from the original showroom.
+  await site.getByRole('button', { name: '软件设置', exact: true }).first().click();
+  const settingsShell = application.windows().find((page) => page.url().startsWith('album-desktop://shell'));
+  assert.equal(await settingsShell.locator('#showroom').inputValue(), 'room'); check('cabin-is-the-default-showroom');
+  await settingsShell.locator('#showroom').selectOption('original'); await settingsShell.getByRole('button', { name: '完成', exact: true }).click();
   await site.getByRole('button', { name: '收藏与分享', exact: true }).click();
   await site.getByRole('textbox', { name: '本地专辑名', exact: true }).fill('本地验证专辑');
   await site.getByRole('textbox', { name: '本地歌手', exact: true }).fill('离线歌手');
@@ -33,7 +39,7 @@ const check = (value) => report.checks.push(value);
   await site.getByRole('button', { name: '软件设置', exact: true }).first().click();
   const shell = application.windows().find((page) => page.url().startsWith('album-desktop://shell'));
   await shell.locator('#showroom').selectOption('room'); await shell.getByRole('button', { name: '完成', exact: true }).click();
-  await site.locator('.cabin-warm').waitFor();
+  await useWarmCabin(site); await site.locator('.cabin-warm').waitFor();
   await site.getByRole('button', { name: '切换像素风格', exact: true }).click();
   await site.locator('.cabin-pixel').waitFor();
   await site.locator('.room-record').first().dblclick();

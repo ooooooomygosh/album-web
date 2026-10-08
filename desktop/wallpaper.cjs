@@ -3,6 +3,7 @@ const { BrowserWindow, ipcMain, screen } = require('electron');
 const { execFile } = require('node:child_process');
 const path = require('node:path');
 const { cleanSnapshot } = require('./wallpaper-model.cjs');
+const { readCompanion } = require('./companion-sync.cjs');
 const URL = 'album-desktop://wallpaper/wallpaper.html';
 function createWallpaper({ app, getMain, getSite, status, appearanceScript, getAppearance, log, registerProtocol }) {
   let window, snapshot, timer, healthTimer, polling = false, active = false, busy = false, generation = 0, lastJSON = '', handle;
@@ -21,10 +22,7 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
     const old = window; window = null; handle = null; snapshot = null; lastJSON = '';
     if (old && !old.isDestroyed()) old.destroy(); announce(error); log('wallpaper-stopped');
   }
-  async function readRoom() {
-    const site = getSite(); if (!site || site.isDestroyed()) return null;
-    return site.executeJavaScript(`(() => { let session; try { session = JSON.parse(localStorage.getItem('album-circle-session')); } catch {} return { authenticated: Boolean(session?.token), room: window.albumRoomSnapshot?.() || null }; })()`);
-  }
+  const readRoom = () => readCompanion(getSite());
   async function sync() {
     if (!active || polling) return; polling = true; const token = generation;
     try {

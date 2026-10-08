@@ -68,3 +68,24 @@
 - 对 Spotify / Apple / 网易云 / QQ 音乐链接增加更多平台 ID 回填。
 - 增加 OpenAI-compatible JSON schema，生成相似推荐和评论回应。
 - 扩展 Playwright 回归：权限边界、成员退出、房间列表、图片代理、无障碍键盘路径。
+
+## 心流小屋（1.6.0 起）
+
+目标：做成类似 Chill Pulse 的软件，在像素 Lo-fi 小屋里一边听喜欢的歌一边专注，平时也能把小屋当作桌面背景和桌宠。
+
+第一阶段（1.6.0，已完成）：
+- 像素小屋作为默认主界面，带天气、昼夜光线和小猫。
+- 番茄钟、待办、统计和奖励，以及沉浸模式。
+- 程序合成的环境音和离线 Lofi 电台。
+- 桌宠窗口，动态桌面复用小屋。
+- 本地音乐和系统正在播放两个新音源。
+- 可安装的 PWA。
+
+参考项目：meel-hd/lofi-engine（Tone.js 生成、番茄钟、Zen 模式）、btahir/next-beats（混音器）、Study Saga（经验值与连续天数）、music-assistant/server、Yyyangshenghao/simple-music。只借鉴思路，不复制代码。
+
+第二阶段：
+- 专注、待办和奖励的云端同步：作为 `api/auth.js` 的 action 加入，不新增 Vercel 函数，因为现在已有 11 个，接近免费额度上限 12 个。
+- Spotify OAuth：同步歌单和收藏专辑。
+- 用 Capacitor 打包 Android。
+- 更多房间场景，以及可替换的桌宠素材包。
+- 手机竖屏下压缩顶栏。

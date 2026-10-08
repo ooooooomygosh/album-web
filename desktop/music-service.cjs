@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), http = require('node:http');
 const { safeAudioURL, serverURL, candidate } = require('./music-policy.cjs');
-function createMusicService({ directory, safeStorage, login, logout, upstream = require('./music-upstream.cjs'), fetch = globalThis.fetch }) {
+function createMusicService({ directory, safeStorage, login, logout, upstream = require('./music-upstream.cjs'), fetch = globalThis.fetch, nowPlaying = null, localMusic = null }) {
   const token = crypto.randomBytes(32).toString('hex'), streams = new Map(), cache = new Map();
   const prefsPath = path.join(directory, 'music.json'); let preferences = { maURL: '', maToken: '', playerId: '', qq: '', netease: '' }, server, port, opening;
   try { preferences = { ...preferences, ...JSON.parse(fs.readFileSync(prefsPath, 'utf8')) }; } catch {}
@@ -21,6 +21,7 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     if (provider === 'qq') values = await upstream.handleQQSearch(decode(preferences.qq), query, 8);
     else if (provider === 'netease') values = await upstream.handleSearch(query, 8, decode(preferences.netease));
     else if (provider === 'ma') values = (await ma('music/search', { search_query: query, media_types: ['track'], limit: 8 })).tracks || [];
+    else if (provider === 'local') { if (!localMusic) throw new Error('本地音乐不可用。'); return localMusic.search(query).map((value) => candidate(value, 'local')); }
     else throw new Error('不支持此音乐来源。');
     const items = values.map((value) => candidate(value, provider)).filter((v) => v.id && v.title);
     cache.set(key, { time: Date.now(), items }); if (cache.size > 64) cache.delete(cache.keys().next().value); return items;
@@ -32,6 +33,10 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
       if (!/^\w[\w.-]*:\/\/track\/.{1,800}$/.test(String(body.uri || ''))) throw new Error('请搜索并选择 Music Assistant 的原始曲目。');
       await ma('player_queues/play_media', { queue_id: preferences.playerId, media: body.uri, option: 'replace' }); return { remote: true, provider, playerId: preferences.playerId };
     }
+    if (provider === 'local') {
+      if (!localMusic?.track(id)) throw new Error('找不到这首本地歌曲，请在音源设置中重新扫描文件夹。');
+      return { provider, audioPath: '/desktop-music/local/audio/' + id, trial: false, quality: '本地文件' };
+    }
     if (!id || id.length > 64 || (provider === 'qq' ? !/^[a-z\d]+$/i.test(id) : !/^\d+$/.test(id))) throw new Error('曲目 ID 无效，请重新搜索选择。');
     let result;
     if (provider === 'qq') result = await upstream.handleQQSongUrl(decode(preferences.qq), id, String(body.mediaMid || '').slice(0, 64), 'standard', body.fee);
@@ -41,6 +46,20 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     if (!safeAudioURL(result.url)) throw new Error('音频地址不属于已支持的音乐平台。');
     const streamId = crypto.randomBytes(24).toString('hex'); streams.set(streamId, { url: result.url, provider, time: Date.now() }); if (streams.size > 40) streams.delete(streams.keys().next().value);
     return { provider, audioPath: '/desktop-music/audio/' + streamId, trial: Boolean(result.trial), quality: result.quality || '标准音质' };
+  }
+  // Local files: byte ranges are served only for tracks in the scanned index.
+  function localFile(req, res, file, type) {
+    let size; try { size = fs.statSync(file).size; } catch { return json(res, { error: '文件已移动或删除，请重新扫描。' }, 404); }
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    let start = 0, end = size - 1;
+    if (req.headers.range) {
+      if (!range || (!range[1] && !range[2])) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); return res.end(); }
+      if (range[1]) { start = Number(range[1]); if (range[2]) end = Math.min(size - 1, Number(range[2])); } else start = Math.max(0, size - Number(range[2]));
+      if (start > end || start >= size) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); return res.end(); }
+    }
+    res.writeHead(req.headers.range ? 206 : 200, { 'Content-Type': type, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store', ...(req.headers.range ? { 'Content-Range': `bytes ${start}-${end}/${size}` } : {}) });
+    if (req.method === 'HEAD') return res.end();
+    const stream = fs.createReadStream(file, { start, end }); stream.on('error', () => res.destroy()); res.once('close', () => stream.destroy()); stream.pipe(res);
   }
   const json = (res, value, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
   async function body(req) { let text = ''; for await (const chunk of req) { text += chunk; if (text.length > 32768) throw new Error('请求内容过大。'); } return text ? JSON.parse(text) : {}; }
@@ -69,6 +88,14 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
       if (req.method === 'GET' && url.pathname === '/search') return json(res, { candidates: await search(url.searchParams.get('provider'), String(url.searchParams.get('query') || '').slice(0, 300)) });
       if (req.method === 'POST' && url.pathname === '/resolve') return json(res, await resolve(await body(req)));
       if (req.method === 'GET' && url.pathname.startsWith('/audio/')) return await stream(req, res, url.pathname.slice(7));
+      if (req.method === 'GET' && url.pathname === '/now-playing') return json(res, nowPlaying ? await nowPlaying.get() : { available: false, active: false });
+      if (req.method === 'POST' && url.pathname === '/now-playing/control') { if (!nowPlaying) throw new Error('系统正在播放不可用。'); return json(res, await nowPlaying.control(String((await body(req)).action || ''))); }
+      if (localMusic && req.method === 'GET' && url.pathname === '/local/summary') return json(res, localMusic.summary());
+      if (localMusic && req.method === 'GET' && url.pathname === '/local/albums') return json(res, { albums: localMusic.albums(), ...localMusic.summary() });
+      if (localMusic && req.method === 'POST' && url.pathname === '/local/rescan') return json(res, await localMusic.rescan());
+      if (localMusic && req.method === 'POST' && url.pathname === '/local/remove-folder') return json(res, await localMusic.removeFolder(String((await body(req)).path || '')));
+      if (localMusic && ['GET', 'HEAD'].includes(req.method) && url.pathname.startsWith('/local/audio/')) { const track = localMusic.track(url.pathname.slice(13)); return track ? localFile(req, res, track.file, track.type) : json(res, { error: '找不到这首本地歌曲。' }, 404); }
+      if (localMusic && req.method === 'GET' && url.pathname.startsWith('/local/cover/')) { const file = localMusic.coverPath(url.pathname.slice(13)); return file && fs.existsSync(file) ? localFile(req, res, file, 'image/jpeg') : json(res, { error: 'Not found' }, 404); }
       if (req.method === 'GET' && url.pathname === '/ma/players') { const players = await ma('players/all'); return json(res, { players: (Array.isArray(players) ? players : Object.values(players)).filter((p) => p.available !== false).map((p) => ({ id: p.player_id, name: p.display_name || p.name || p.player_id })) }); }
       if (req.method === 'GET' && url.pathname === '/ma/state') { const player = await ma('players/get', { player_id: preferences.playerId }); return json(res, { state: player.playback_state || player.state, title: player.current_media?.title || '', artist: player.current_media?.artist || '', elapsed: player.corrected_elapsed_time || player.current_media?.elapsed_time || player.elapsed_time || 0, duration: player.current_media?.duration || 0 }); }
       if (req.method === 'POST' && url.pathname === '/ma/control') { const value = await body(req), commands = { pause: 'players/cmd/pause', play: 'players/cmd/play', stop: 'players/cmd/stop' }; if (!commands[value.action]) throw new Error('不支持此播放操作。'); await ma(commands[value.action], { player_id: preferences.playerId }); return json(res, { ok: true }); }
@@ -82,6 +109,6 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     if (request.method === 'POST') headers['Content-Type'] = 'application/json';
     return netFetch('http://127.0.0.1:' + currentPort + pathname, { method: request.method, headers, ...(request.method === 'POST' ? { body: await request.text() } : {}), signal: request.signal });
   }
-  return { start, proxy, config, async login(provider) { if (!['qq', 'netease'].includes(provider)) throw new Error('不支持此平台。'); const result = await login(provider); if (result.ok && result.cookie) save({ ...preferences, [provider]: encrypt(result.cookie) }); return { ok: Boolean(result.ok), cancelled: Boolean(result.cancelled), error: result.error || result.message || '' }; }, async logout(provider) { await logout(provider); save({ ...preferences, [provider]: '' }); }, stop() { streams.clear(); cache.clear(); server?.closeAllConnections(); server?.close(); server = null; port = null; opening = null; } };
+  return { start, proxy, config, async login(provider) { if (!['qq', 'netease'].includes(provider)) throw new Error('不支持此平台。'); const result = await login(provider); if (result.ok && result.cookie) save({ ...preferences, [provider]: encrypt(result.cookie) }); return { ok: Boolean(result.ok), cancelled: Boolean(result.cancelled), error: result.error || result.message || '' }; }, async logout(provider) { await logout(provider); save({ ...preferences, [provider]: '' }); }, stop() { nowPlaying?.stop(); streams.clear(); cache.clear(); server?.closeAllConnections(); server?.close(); server = null; port = null; opening = null; } };
 }
 module.exports = { createMusicService };

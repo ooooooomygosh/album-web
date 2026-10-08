@@ -1,6 +1,6 @@
 'use strict';
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const { mountFixture, albums } = require('./ui-fixture.cjs');
+const { mountFixture, albums, useWarmCabin } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results');
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `library-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -73,7 +73,7 @@ const setStyle = async (showroom) => { await host.evaluate((showroom) => window.
   await site.locator('.room-scene').screenshot({ path: path.join(output, 'warm-cabin-empty-slots.png') });
   await site.getByRole('button', { name: '上一排唱片' }).click();
   check('reference-one-room-twelve-live-covers-pagination-and-masked-empty-slots');
-  await site.getByRole('button', { name: '切换像素风格', exact: true }).click();
+  await useWarmCabin(site); await site.getByRole('button', { name: '切换像素风格', exact: true }).click();
   await site.waitForFunction(() => document.querySelectorAll('.pixel-artwork canvas.is-painted').length === 12);
   await site.locator('.room-scene').screenshot({ path: path.join(output, 'pixel-cabin.png') });
   assert.equal(await site.locator('.cabin-scene-art').getAttribute('src'), '/room-scenes/pixel-cabin.png');

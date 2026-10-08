@@ -1,6 +1,6 @@
 {
   "name": "album-circle-desktop",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Album Circle offline-first macOS and Windows desktop client",
   "productName": "Album Circle",
   "author": "Album Circle",
@@ -31,7 +31,10 @@
     "dist:mac": "npm run build:native && npm run build:music && npm run build:local && npm run build:web && electron-builder --mac dmg zip --arm64 --x64 --publish never",
     "dist:win": "npm run dist -- --publish never",
     "pack:mac": "npm run build:music && npm run build:local && npm run build:web && electron-builder --mac --arm64 --dir --publish never",
-    "test:client": "node test/client-ui.cjs"
+    "test:client": "node test/client-ui.cjs",
+    "test:focus": "node test/focus-ui.cjs",
+    "test:pet": "node test/pet-ui.cjs",
+    "test:sources": "node test/sources-ui.cjs"
   },
   "devDependencies": {
     "electron": "44.6.0",
@@ -55,6 +58,11 @@
       "wallpaper.cjs",
       "wallpaper-model.cjs",
       "wallpaper-preload.cjs",
+      "pet.cjs",
+      "pet-preload.cjs",
+      "companion-sync.cjs",
+      "now-playing.cjs",
+      "local-music.cjs",
       "music-service.cjs",
       "music-policy.cjs",
       "music-upstream.cjs",
@@ -87,8 +95,12 @@
       "artifactName": "Album-Circle-${version}-${arch}-setup.${ext}",
       "extraResources": [
         {
-          "from": "native/bin/DesktopHost.exe",
-          "to": "native/DesktopHost.exe"
+          "from": "native/bin",
+          "to": "native",
+          "filter": [
+            "DesktopHost.exe",
+            "NowPlaying.exe"
+          ]
         }
       ]
     },
@@ -119,12 +131,16 @@
       "icon": "assets/icon.png",
       "identity": "-",
       "hardenedRuntime": false,
-      "artifactName": "Album-Circle-${version}-mac-${arch}.${ext}"
+      "artifactName": "Album-Circle-${version}-mac-${arch}.${ext}",
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "Album Circle 读取并控制 Music 或 Spotify 正在播放的歌曲，用于在小屋唱机上显示。"
+      }
     },
     "publish": null
   },
   "dependencies": {
-    "NeteaseCloudMusicApi": "4.32.0",
-    "firebase-admin": "^14.1.0"
+    "firebase-admin": "^14.1.0",
+    "music-metadata": "11.15.0",
+    "NeteaseCloudMusicApi": "4.32.0"
   }
 }
