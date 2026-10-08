@@ -41,7 +41,7 @@ let app, site, host;
   await site.waitForFunction(async () => true); assert.deepEqual(await app.evaluate(() => globalThis.__qaSystemCommands), ['toggle', 'next']); check('system-transport-controls-reach-the-player');
   await site.screenshot({ path: path.join(output, 'sources-system.png') });
   await site.getByRole('button', { name: /收藏这张/ }).click();
-  await site.waitForFunction(() => document.querySelector('input[name="global-music-search"]')?.value === '周杰伦 叶惠美'); check('collect-searches-the-catalog-for-this-album');
+  await site.waitForFunction(() => document.querySelector('input[name="cabin-album-search"]')?.value === '周杰伦 叶惠美'); await site.locator('.add-results li').first().waitFor(); check('collect-searches-the-catalog-for-this-album');
   assert.equal(report.pageErrors.length, 0, JSON.stringify(report.pageErrors)); assert.equal(await app.evaluate(() => globalThis.__qaBlockedWrites), 0);
   report.passed = true;
 })().catch((error) => { report.error = error.stack || error.message; report.passed = false; process.exitCode = 1; }).finally(async () => {

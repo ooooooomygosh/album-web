@@ -10,7 +10,7 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
   useLayoutEffect(() => {
     const room = viewport.current.closest('.cabin-room');
     const toolbar = room?.querySelector('.cabin-toolbar'), footer = room?.querySelector('.room-now-playing');
-    const header = room ? document.querySelector('.app .topbar') : null;
+    const header = room ? document.querySelector('.app-titlebar') : null;
     const update = () => {
       const rect = viewport.current.getBoundingClientRect();
       // Hidden bars (Zen mode) report empty boxes and must not shrink the room.

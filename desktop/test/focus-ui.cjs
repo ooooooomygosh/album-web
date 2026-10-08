@@ -57,16 +57,9 @@ let app, site, host;
   await site.locator('.focus-dock-close').click(); await site.keyboard.press('z');
   assert.equal(await site.evaluate(() => document.documentElement.classList.contains('room-zen')), true);
   assert.equal(await site.locator('.app .topbar').isVisible(), false);
+  assert.equal(await site.locator('.focus-badge').isVisible(), true); assert.equal(await site.getByRole('button', { name: /退出沉浸/ }).isVisible(), true); assert.equal(await site.locator('.app-titlebar').isVisible(), false);
   await site.screenshot({ path: path.join(output, 'focus-zen.png') });
   await site.keyboard.press('Escape'); assert.equal(await site.evaluate(() => document.documentElement.classList.contains('room-zen')), false); check('zen-mode-toggles');
-  const cdp = await site.context().newCDPSession(site);
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  await site.waitForFunction(() => innerWidth === 390);
-  await site.locator('.focus-badge').click(); await site.locator('.focus-dock').waitFor();
-  const dock = await site.evaluate(() => { const r = document.querySelector('.focus-dock').getBoundingClientRect(); return { left: r.left, right: r.right, bottom: r.bottom, width: innerWidth, height: innerHeight }; });
-  assert.ok(dock.left <= 1 && dock.right >= dock.width - 1 && Math.abs(dock.bottom - dock.height) <= 2, JSON.stringify(dock));
-  await site.screenshot({ path: path.join(output, 'focus-phone.png') }); check('phone-portrait-dock-is-a-bottom-drawer', dock);
-  await cdp.send('Emulation.clearDeviceMetricsOverride'); await cdp.detach();
   assert.deepEqual(report.pageErrors, []);
   report.passed = true;
 })().catch((error) => { report.error = error.stack || error.message; report.passed = false; process.exitCode = 1; }).finally(async () => {

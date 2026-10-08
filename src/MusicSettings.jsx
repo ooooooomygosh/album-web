@@ -15,7 +15,7 @@ function LocalMusicSettings() {
   }, []);
   const act = async (path, value) => { setBusy(true); setMessage(''); try { const next = await musicRequest(path, value); setSummary(next); setMessage(`扫描完成：${next.albumCount} 张专辑，${next.trackCount} 首歌曲。`); } catch (error) { setMessage(error.message); } finally { setBusy(false); } };
   return <section className="music-local"><h3>本地音乐</h3>
-    <p>选择电脑里的音乐文件夹，按标签整理成专辑。音乐留在原位置播放，不会复制或上传。在“收藏与分享”里可把本地专辑放上唱片架。</p>
+    <p>选择电脑里的音乐文件夹，按标签整理成专辑。音乐留在原位置播放，不会复制或上传。在「添加专辑 › 本地音乐」里把本地专辑放上唱片架。</p>
     {summary?.folders?.length > 0 && <ul className="music-local-folders">{summary.folders.map((folder) => <li key={folder.path} title={folder.path}><FolderOpen size={16}/><span>{folder.name}</span><button type="button" aria-label={`移除文件夹 ${folder.name}`} disabled={busy} onClick={() => act('/local/remove-folder', { path: folder.path })}><Trash2 size={15}/></button></li>)}</ul>}
     <div className="music-local-actions"><button type="button" disabled={busy} onClick={() => { setBusy(true); setMessage(''); desktopCommand('local-music-folder'); }}><FolderOpen size={16}/>添加音乐文件夹</button>{summary?.folders?.length > 0 && <button type="button" disabled={busy} onClick={() => act('/local/rescan', {})}><Loading size={16}/>重新扫描</button>}</div>
     <p role="status" className="music-local-status">{message || (summary ? `${summary.albumCount} 张专辑 · ${summary.trackCount} 首歌曲` : '')}</p>

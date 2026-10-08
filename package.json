@@ -1,43 +1,30 @@
 {
-  "name": "album-circle",
-  "version": "1.6.0",
+  "name": "flow-cabin",
+  "version": "1.7.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "vercel-dev": "vercel dev --listen 5173",
+    "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
     "desktop:dev": "npm --prefix desktop start",
     "desktop:test": "npm --prefix desktop test",
     "desktop:dist": "npm --prefix desktop run dist",
-    "review": "node scripts/review.mjs",
-    "member:smoke": "node scripts/member-profile-smoke.mjs",
-    "api:smoke": "node scripts/api-smoke.mjs",
-    "hero:smoke": "node scripts/hero-config-smoke.mjs",
-    "persona:smoke": "node scripts/persona-identity-smoke.mjs"
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",
     "@vitejs/plugin-react": "^6.0.3",
-    "firebase": "^12.13.0",
-    "firebase-admin": "^14.1.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "sonner": "^2.0.7",
     "tone": "^15.1.22",
     "typescript": "^5.9.3",
     "vite": "^8.1.0"
   },
-  "devDependencies": {
-    "@playwright/test": "^1.60.0",
-    "vercel": "^54.18.5"
-  },
   "overrides": {
-    "esbuild": "0.28.1",
-    "uuid": "11.1.1"
-  }
+    "esbuild": "0.28.1"
+  },
+  "description": "心流小屋 · Flow Cabin — a pixel lo-fi cabin desktop app: favourite albums, a turntable, focus timer, ambience and a desktop cat"
 }

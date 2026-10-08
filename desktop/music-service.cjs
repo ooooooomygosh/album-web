@@ -6,7 +6,7 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
   const prefsPath = path.join(directory, 'music.json'); let preferences = { maURL: '', maToken: '', playerId: '', qq: '', netease: '' }, server, port, opening;
   try { preferences = { ...preferences, ...JSON.parse(fs.readFileSync(prefsPath, 'utf8')) }; } catch {}
   const decode = (value) => { try { return value ? safeStorage.decryptString(Buffer.from(value, 'base64')) : ''; } catch { return ''; } };
-  function save(next) { if (!safeStorage.isEncryptionAvailable()) throw new Error('本机登录凭据加密不可用，无法保存账号。'); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(prefsPath + '.tmp', JSON.stringify(next)); fs.renameSync(prefsPath + '.tmp', prefsPath); preferences = next; cache.clear(); streams.clear(); }
+  function save(next) { if (!safeStorage.isEncryptionAvailable()) throw new Error('本机登录凭据加密不可用，无法保存平台登录。'); fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(prefsPath + '.tmp', JSON.stringify(next)); fs.renameSync(prefsPath + '.tmp', prefsPath); preferences = next; cache.clear(); streams.clear(); }
   const encrypt = (value) => value ? safeStorage.encryptString(value).toString('base64') : '';
   const config = () => ({ qqLoggedIn: Boolean(decode(preferences.qq)), neteaseLoggedIn: Boolean(decode(preferences.netease)), maURL: preferences.maURL, maTokenSet: Boolean(decode(preferences.maToken)), playerId: preferences.playerId });
   async function ma(command, args = {}) {

@@ -1,40 +1,34 @@
 {
   "name": "album-circle-desktop",
-  "version": "1.6.0",
-  "description": "Album Circle offline-first macOS and Windows desktop client",
-  "productName": "Album Circle",
-  "author": "Album Circle",
+  "version": "1.7.0",
+  "description": "心流小屋 · Flow Cabin — a pixel lo-fi cabin for your favourite albums, focus timer and desktop cat",
+  "productName": "心流小屋",
+  "author": "Flow Cabin",
   "private": true,
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "prestart": "npm run build:native && npm run build:music && npm run build:web && npm run build:local",
+    "prestart": "npm run build:native && npm run build:music && npm run build:web",
     "build:web": "npm --prefix .. run build -- --outDir desktop/web",
-    "predist": "npm run build:native && npm run build:music && npm run build:web && npm run build:local",
-    "prepack": "npm run build:native && npm run build:music && npm run build:web && npm run build:local",
+    "predist": "npm run build:native && npm run build:music && npm run build:web",
+    "prepack": "npm run build:native && npm run build:music && npm run build:web",
     "build:native": "node build-native.cjs",
     "build:music": "node build-music.cjs",
     "test": "node --test test/*.test.cjs",
-    "test:integration": "node test/integration.cjs",
-    "test:search": "node test/search-ui.cjs",
-    "test:motion": "node test/motion-ui.cjs",
-    "test:settings": "node test/settings-ui.cjs",
-    "test:showroom": "node test/showroom-ui.cjs",
-    "test:purchases": "node test/purchase-ui.cjs",
-    "test:delivery": "node test/delivery-ui.cjs",
     "dist": "electron-builder --win nsis portable --x64",
     "pack": "electron-builder --win --x64 --dir",
     "test:library": "node test/library-ui.cjs",
     "test:room": "node test/room-ui.cjs",
     "test:music": "node test/music-ui.cjs",
-    "build:local": "node build-local.cjs",
-    "dist:mac": "npm run build:native && npm run build:music && npm run build:local && npm run build:web && electron-builder --mac dmg zip --arm64 --x64 --publish never",
+    "dist:mac": "npm run build:native && npm run build:music && npm run build:web && electron-builder --mac dmg zip --arm64 --x64 --publish never",
     "dist:win": "npm run dist -- --publish never",
-    "pack:mac": "npm run build:music && npm run build:local && npm run build:web && electron-builder --mac --arm64 --dir --publish never",
+    "pack:mac": "npm run build:music && npm run build:web && electron-builder --mac --arm64 --dir --publish never",
     "test:client": "node test/client-ui.cjs",
     "test:focus": "node test/focus-ui.cjs",
     "test:pet": "node test/pet-ui.cjs",
-    "test:sources": "node test/sources-ui.cjs"
+    "test:sources": "node test/sources-ui.cjs",
+    "test:shelf": "node test/shelf-ui.cjs",
+    "screenshots": "node test/screenshots.cjs"
   },
   "devDependencies": {
     "electron": "44.6.0",
@@ -43,7 +37,7 @@
   },
   "build": {
     "appId": "com.albumcircle.desktop",
-    "productName": "Album Circle",
+    "productName": "心流小屋",
     "asar": true,
     "directories": {
       "output": "release"
@@ -63,6 +57,8 @@
       "companion-sync.cjs",
       "now-playing.cjs",
       "local-music.cjs",
+      "collection-store.cjs",
+      "catalog-search.mjs",
       "music-service.cjs",
       "music-policy.cjs",
       "music-upstream.cjs",
@@ -72,9 +68,7 @@
       "web/**/*",
       "renderer/**/*",
       "assets/**/*",
-      "package.json",
-      "local-api.cjs",
-      "local-runtime.cjs"
+      "package.json"
     ],
     "win": {
       "target": [
@@ -92,7 +86,7 @@
         }
       ],
       "icon": "assets/icon.ico",
-      "artifactName": "Album-Circle-${version}-${arch}-setup.${ext}",
+      "artifactName": "FlowCabin-${version}-${arch}-setup.${ext}",
       "extraResources": [
         {
           "from": "native/bin",
@@ -110,7 +104,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Album Circle",
+      "shortcutName": "心流小屋",
       "deleteAppDataOnUninstall": false,
       "installerLanguages": [
         "zh_CN",
@@ -120,7 +114,7 @@
       "runAfterFinish": false
     },
     "portable": {
-      "artifactName": "Album-Circle-${version}-${arch}-portable.exe"
+      "artifactName": "FlowCabin-${version}-${arch}-portable.exe"
     },
     "mac": {
       "target": [
@@ -131,15 +125,14 @@
       "icon": "assets/icon.png",
       "identity": "-",
       "hardenedRuntime": false,
-      "artifactName": "Album-Circle-${version}-mac-${arch}.${ext}",
+      "artifactName": "FlowCabin-${version}-mac-${arch}.${ext}",
       "extendInfo": {
-        "NSAppleEventsUsageDescription": "Album Circle 读取并控制 Music 或 Spotify 正在播放的歌曲，用于在小屋唱机上显示。"
+        "NSAppleEventsUsageDescription": "心流小屋读取并控制 Music 或 Spotify 正在播放的歌曲，用于在小屋唱机上显示。"
       }
     },
     "publish": null
   },
   "dependencies": {
-    "firebase-admin": "^14.1.0",
     "music-metadata": "11.15.0",
     "NeteaseCloudMusicApi": "4.32.0"
   }

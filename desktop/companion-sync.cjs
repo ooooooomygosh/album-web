@@ -1,12 +1,10 @@
 'use strict';
-// Reads the display-only room and focus state that the business page exposes,
-// for the wallpaper and the desktop pet. Session tokens are never returned:
-// only a boolean says whether someone is signed in.
+// Reads the display-only room and focus state that the cabin page exposes,
+// for the wallpaper and the desktop pet.
 const READ_SCRIPT = `(() => {
-  let session; try { session = JSON.parse(localStorage.getItem('album-circle-session')); } catch {}
   const companion = window.albumCompanionSnapshot?.() || null;
   const room = window.albumRoomSnapshot?.() || null;
-  return { authenticated: Boolean(session?.token), room: room ? { ...room, focus: companion?.focus || null } : null,
+  return { room: room ? { ...room, focus: companion?.focus || null } : null,
     companion: companion ? { focus: companion.focus, playing: companion.playing, track: companion.track, reduceMotion: document.documentElement.dataset.desktopReduceMotion === 'true' } : null };
 })()`;
 

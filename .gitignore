@@ -23,4 +23,3 @@ desktop/native/bin/
 .workbuddy/
 work/
 desktop/release/
-desktop/local-runtime.cjs

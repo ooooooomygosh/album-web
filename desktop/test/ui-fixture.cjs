@@ -1,12 +1,10 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const albums = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/motion-albums.json')));
+const albums = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/albums.json')));
 async function mountFixture(application, site, options = {}) {
-  const user = { id: 'desktop-qa-only', name: '本机界面测试', avatar: '♪', settings: {} };
-  const room = { id: 'desktop-qa-room', name: '界面验证房间', ownerId: user.id, members: { [user.id]: true }, memberProfiles: { [user.id]: user } };
   const items = options.items || albums;
-  await application.evaluate(({ app, webContents, safeStorage, net }, { user, room, items, gateAI, slowCover, music }) => {
+  await application.evaluate(({ app, webContents, safeStorage, net }, { items, results, slowCover, music }) => {
     const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs');
     const path = require('node:path');
     const { createSiteRouter } = require(path.join(app.getAppPath(), 'site-router.cjs'));
@@ -42,30 +40,28 @@ async function mountFixture(application, site, options = {}) {
       } });
       app.once('before-quit', () => musicService.stop());
     }
-    const router = createSiteRouter({ webRoot: path.join(app.getAppPath(), 'web'), qq: { search: async () => ({ candidates: [items[0]] }) }, forward: (request) => session.fetch(request, { bypassCustomProtocolHandlers: true }), ...(musicService ? { music: (request, pathname) => musicService.proxy(request, pathname, (url, options) => net.fetch(url, options)) } : {}) });
-    globalThis.__qaBlockedWrites = 0; globalThis.__qaMockAI = 0;
-    const aiWait = new Promise((resolve) => { globalThis.__qaReleaseAI = resolve; });
+    // An in-memory collection stands in for collection.json so tests never touch real data.
+    const store = { items: items.map((item, index) => ({ addedAt: new Date(Date.UTC(2026, 8, 30) - index * 86400000).toISOString(), ...item })) };
+    globalThis.__qaBlockedWrites = 0; globalThis.__qaCollectionWrites = [];
+    const collection = {
+      list: () => store.items,
+      add(body) { const item = { ...body, id: 'qa-added-' + store.items.length, addedAt: new Date().toISOString() }; store.items = [item, ...store.items]; globalThis.__qaCollectionWrites.push(['add', item.title]); return { item }; },
+      update(id, patch) { const index = store.items.findIndex((item) => item.id === id); if (index < 0) throw new Error('这张专辑已经不在唱片架上了。'); store.items[index] = { ...store.items[index], ...patch }; globalThis.__qaCollectionWrites.push(['update', id]); return { item: store.items[index] }; },
+      remove(id) { store.items = store.items.filter((item) => item.id !== id); globalThis.__qaCollectionWrites.push(['remove', id]); return { ok: true }; },
+      importItems: () => ({ added: 0, total: store.items.length })
+    };
     const imageWait = new Promise((resolve) => { globalThis.__qaReleaseImage = resolve; });
+    const router = createSiteRouter({ webRoot: path.join(app.getAppPath(), 'web'), qq: { search: async () => ({ candidates: results }) }, collection, catalog: async () => Response.json({ candidates: results }), forward: (request) => session.fetch(request, { bypassCustomProtocolHandlers: true }), ...(musicService ? { music: (request, pathname) => musicService.proxy(request, pathname, (target, init) => net.fetch(target, init)) } : {}) });
     session.protocol.unhandle('https');
     session.protocol.handle('https', async (request) => {
       const url = new URL(request.url);
       if (url.searchParams.has('qa-broken-cover')) return new Response('', { status: 404 });
       if (slowCover && url.searchParams.has('qa-slow-cover')) await imageWait;
-      if (url.origin === 'https://album-circle.vercel.app' && url.pathname.startsWith('/api/')) {
-        if (url.pathname === '/api/ai/background' && gateAI) { globalThis.__qaMockAI++; await aiWait; return Response.json({ error: '本机动效测试：不调用付费 AI。' }, { status: 503 }); }
-        if (request.method !== 'GET') { globalThis.__qaBlockedWrites++; return Response.json({ error: 'Test disallows writes' }, { status: 405 }); }
-        if (url.pathname === '/api/search') return Response.json({ candidates: [items[0]] });
-        return Response.json(url.pathname === '/api/auth' ? { user } : { room, rooms: [room], items, comments: [], ratings: [] });
-      }
       return router(request);
     });
-  }, { user, room, items, gateAI: options.gateAI === true, slowCover: options.slowCover === true, music: options.music === true });
-  // The client now opens in the cabin; fixtures start from the original showroom unless asked.
-  const host = application.context().pages().find((p) => p.url() === 'album-desktop://shell/index.html');
-  if (host) await host.evaluate((showroom) => window.albumDesktop.settings('apply', { showroom }), options.showroom || 'original');
-  await site.evaluate(({ user, room }) => { localStorage.setItem('album-circle-session', JSON.stringify({ token: 'desktop-qa-invalid-token', user })); history.replaceState(null, '', '/?room=' + room.id); }, { user, room });
-  await site.reload(); await site.getByRole('searchbox', { name: '快速搜索专辑或歌曲' }).waitFor({ state: 'visible' });
-  return { user, room, items };
+  }, { items, results: options.searchResults || [items[0]], slowCover: options.slowCover === true, music: options.music === true });
+  await site.reload(); await site.locator('.app-titlebar').waitFor(); await site.locator('.cabin-room').waitFor();
+  return { items };
 }
 // The cabin now opens in the pixel look; older checks start from the warm one.
 async function useWarmCabin(site) {

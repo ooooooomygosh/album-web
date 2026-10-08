@@ -7,7 +7,7 @@ import { downloadBlob, loadWallCover, paintWall } from './album-wall-canvas.mjs'
 import { buildSearchInput } from './music-search.mjs';
 
 function lightweight(item) { return { type: 'album', id: item.id || albumKey(item), title: item.title, artist: item.artist || '未知艺人', cover: item.cover || '', year: item.year || '', externalIds: item.externalIds || {} }; }
-export default function AlbumWall({ items, session, onClose }) {
+export default function AlbumWall({ items, onClose }) {
   const saved = useRef(readWall(localStorage)), appearance = useDesktopAppearance();
   const [options, setOptions] = useState(saved.current.options), [selected, setSelected] = useState(saved.current.selected);
   const [source, setSource] = useState('library'), [query, setQuery] = useState(''), [provider, setProvider] = useState('qq'), [results, setResults] = useState([]), [searching, setSearching] = useState(false);
@@ -64,7 +64,7 @@ export default function AlbumWall({ items, session, onClose }) {
     try {
       const input = buildSearchInput({ query, provider, type: 'album' });
       const params = new URLSearchParams(input);
-      const response = await fetch(`/api/search?${params}`, { headers: session?.token ? { Authorization: `Bearer ${session.token}` } : {}, signal: controller.signal });
+      const response = await fetch(`/api/search?${params}`, { signal: controller.signal });
       const data = await response.json(); if (!response.ok) throw new Error(data.error || '搜索暂时不可用。');
       const albums = (data.candidates || []).filter((item) => item.type === 'album'); setResults(albums);
       if (!albums.length) setNotice('没有找到专辑，试试“歌手 + 专辑名”或 QQ 专辑链接。');
@@ -84,7 +84,7 @@ export default function AlbumWall({ items, session, onClose }) {
   };
   const importFile = async (event) => {
     const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
-    try { if (file.size > 512000) throw new Error('工程文件过大。'); const data = JSON.parse(await file.text()); if (data.version !== 1 || !Array.isArray(data.selected)) throw new Error('请选择 Album Circle 专辑墙工程。'); const restored = readWall({ getItem: () => JSON.stringify(data) }); setSelected(restored.selected); setOptions(restored.options); setNotice('已打开专辑墙工程。'); }
+    try { if (file.size > 512000) throw new Error('工程文件过大。'); const data = JSON.parse(await file.text()); if (data.version !== 1 || !Array.isArray(data.selected)) throw new Error('请选择心流小屋导出的专辑墙工程。'); const restored = readWall({ getItem: () => JSON.stringify(data) }); setSelected(restored.selected); setOptions(restored.options); setNotice('已打开专辑墙工程。'); }
     catch (error) { setNotice(error.message || '工程文件无法读取。'); }
   };
   return createPortal(<section className="album-wall-overlay" role="dialog" aria-modal="true" aria-label="专辑墙编辑器" ref={overlay}>

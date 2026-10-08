@@ -1,6 +1,6 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
-const commands = new Set(['ready', 'retry', 'home', 'back', 'forward', 'copy', 'browser', 'clear', 'menu', 'network-restored', 'settings', 'settings-close', 'fit-display', 'minimize', 'maximize', 'close']);
+const commands = new Set(['ready', 'retry', 'home', 'menu', 'settings', 'settings-close', 'fit-display', 'minimize', 'maximize', 'close']);
 contextBridge.exposeInMainWorld('albumDesktop', Object.freeze({
   command(value) {
     if (!commands.has(value)) return Promise.reject(new Error('Unknown command'));

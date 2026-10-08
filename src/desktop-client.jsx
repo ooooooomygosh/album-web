@@ -9,13 +9,13 @@ export function desktopCommand(command, params = {}) {
   window.open(url.href, '_blank');
 }
 export function useDesktopAppearance() {
-  const read = () => ({ ...(window.albumDesktopAppearance || {}), showroom: document.documentElement.dataset.desktopShowroom || 'original', reduceMotion: document.documentElement.dataset.desktopReduceMotion === 'true', showPurchases: document.documentElement.dataset.desktopPurchases === 'true', client: document.documentElement.dataset.desktopClient === 'true' });
+  const read = () => ({ ...(window.albumDesktopAppearance || {}), reduceMotion: document.documentElement.dataset.desktopReduceMotion === 'true', client: document.documentElement.dataset.desktopClient === 'true' });
   const [appearance, setAppearance] = useState(read);
   useEffect(() => {
     const update = () => setAppearance(read());
     window.addEventListener('album-desktop-settings', update);
     const observer = new MutationObserver(update);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-desktop-showroom', 'data-desktop-reduce-motion', 'data-desktop-purchases', 'data-desktop-client'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-desktop-reduce-motion', 'data-desktop-client'] });
     update();
     return () => { observer.disconnect(); window.removeEventListener('album-desktop-settings', update); };
   }, []);

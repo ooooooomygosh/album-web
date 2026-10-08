@@ -1,4 +1,4 @@
-Album Circle · 心流小屋 — third-party notes
+心流小屋 · Flow Cabin — third-party notes
 
 Bundled libraries
 - Tone.js (MIT) — Web Audio framework used by the generated lo-fi radio. See Tone.js-LICENSE.txt.
