@@ -69,8 +69,9 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
   const wallpaper = app.context().pages().find((p) => p.url() === 'album-desktop://wallpaper/wallpaper.html'); wallpaper.on('pageerror', (error) => report.pageErrors.push(error.message));
   await wallpaper.locator('.atmosphere-warm[data-motion=running]').waitFor(); const wa = await sample(wallpaper); await pause(650); assert.notEqual((await sample(wallpaper)).fire, wa.fire); await wallpaper.screenshot({ path: path.join(output, 'wallpaper-warm.png') });
   if (process.env.ALBUM_QA_RECORD === '1') {
-    const frames = path.join(output, 'frames'); fs.mkdirSync(frames, { recursive: true });
-    for (let i = 0; i < 60; i++) { await wallpaper.screenshot({ path: path.join(frames, `${String(i).padStart(3, '0')}.png`) }); await pause(100); }
+    const windowId = await app.evaluate(() => globalThis.__qaAtmosphereWallpaper.getNativeWindowHandle().readUInt32LE(0));
+    const result = require('node:child_process').spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'x11grab', '-window_id', String(windowId), '-framerate', '24', '-draw_mouse', '0', '-i', process.env.DISPLAY, '-t', '8', '-vf', 'scale=960:-2', '-c:v', 'libx264', '-crf', '24', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', path.join(output, 'warm-preview.mp4')], { timeout: 20000 });
+    assert.equal(result.status, 0, result.stderr?.toString());
   }
   await wallpaper.emulateMedia({ reducedMotion: 'reduce' }); await wallpaper.locator('.cabin-atmosphere[data-motion=reduced]').waitFor(); const wr = await sample(wallpaper); await pause(450); assert.deepEqual(await sample(wallpaper), wr);
   assert.equal(await wallpaper.evaluate(() => typeof window.require), 'undefined'); check('isolated-wallpaper-animates-and-honours-reduced-motion');

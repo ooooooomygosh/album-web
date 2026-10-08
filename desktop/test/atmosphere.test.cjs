@@ -47,6 +47,10 @@ test('material incidence, distance and roughness produce bounded separate surfac
   const sample = { ...MATERIAL_SURFACES.stone, position: [0, 0, 0], normal: [1, 0, 0] };
   assert.ok(materialResponse(sample, [100, 0, 0], .15) > materialResponse(sample, [900, 0, 0], .15));
   assert.equal(materialResponse(sample, [-100, 0, 0], .15), 0);
+  assert.equal(materialResponse({ ...sample, normal: [0, 1, 0] }, [100, 0, 0], .15), 0);
+  const polished = { ...sample, normal: [0, 0, 1], albedo: .02, specular: .8, roughness: .1 };
+  const broad = { ...polished, roughness: .9 };
+  assert.ok(materialResponse(broad, [120, 0, 160], .15) > materialResponse(polished, [120, 0, 160], .15));
   let previous = surfaceLighting(0);
   for (let i = 1; i < 1000; i++) {
     const next = surfaceLighting(i / 24);

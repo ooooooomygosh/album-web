@@ -234,6 +234,7 @@ async function wireRemoteView() {
     await applyAppearance();
     wallpaperStatus(wallpaperState); petStatus(petState);
     siteView.setVisible(!settingsOpen);
+    if (!mainWindow.isVisible() || mainWindow.isMinimized()) await contents.executeJavaScript("window.dispatchEvent(new Event('blur'));").catch(() => {});
     sendState();
     writeLog('page-ready');
   });

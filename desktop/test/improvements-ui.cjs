@@ -28,7 +28,10 @@ let app, site;
     node.dispatchEvent(event); return preview;
   }); assert.equal(dragImage, '#d23c1e');
   await site.getByRole('button', { name: '自定义唱片', exact: true }).click();
-  const editor = site.getByRole('dialog', { name: '自定义唱片' }); assert.equal(await editor.getByLabel('黑胶底色', { exact: true }).inputValue(), '#d23c1e');
+  const editor = site.getByRole('dialog', { name: '自定义唱片' });
+  // The editor starts its own asynchronous cover sample after mounting.
+  await site.waitForFunction((input) => input.value === '#d23c1e', await editor.getByLabel('黑胶底色', { exact: true }).elementHandle());
+  assert.equal(await editor.getByLabel('黑胶底色', { exact: true }).inputValue(), '#d23c1e');
   await editor.getByLabel('黑胶底色', { exact: true }).fill('#2255aa'); await editor.getByRole('button', { name: '保存唱片设置', exact: true }).click();
   await site.waitForFunction(() => document.querySelector('.room-turntable .custom-vinyl')?.style.getPropertyValue('--vinyl-base') === '#2255aa');
   assert.equal(await site.locator('.room-drag-record .custom-vinyl').first().evaluate((node) => node.style.getPropertyValue('--vinyl-base')), '#2255aa'); check('manual-colour-wins-in-editor-turntable-and-drag-preview');
@@ -53,12 +56,14 @@ let app, site;
   check('mouse-drag-moves-turntable-without-breaking-playback-or-album-drop');
   await site.reload(); await handle.waitFor(); await site.waitForFunction((x) => Math.abs(document.querySelector('.room-turntable').getBoundingClientRect().x - x) < 2, moved.x);
   await site.locator('.room-record').first().dblclick(); await site.waitForFunction(() => document.querySelector('.room-turntable .custom-vinyl')?.style.getPropertyValue('--vinyl-base') === '#2255aa');
+  await site.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const touchStart = await handle.boundingBox();
   const naturalSize = await site.evaluate(() => [innerWidth, innerHeight]);
   const cdp = await site.context().newCDPSession(site);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: touchStart.x + 20, y: touchStart.y + 10 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: touchStart.x + 90, y: touchStart.y + 40 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await site.waitForFunction((x) => document.querySelector('.room-turntable').getBoundingClientRect().x > x + 50, moved.x);
   const touched = await deck.boundingBox(); assert.ok(touched.x > moved.x + 50);
   // A cancelled touch reverts to the previous saved placement.
   const cancelStart = await handle.boundingBox();
