@@ -17,15 +17,8 @@ export function atmosphereFrame(seconds, look = 'warm', weather = 'snow') {
     return { x: fract(hash(i + 21) + Math.sin(seconds * .21 + i) * .035 + seconds * (.003 + depth * .002)) * width,
       y: (hash(i + 61) * height + seconds * speed) % height, radius: .6 + depth * 1.25, alpha: .28 + depth * .48 };
   }) : [];
-  const flames = Array.from({ length: 8 }, (_, i) => ({
-    x: 7 + i * 13, base: geometry.fire.height - 16 + hash(i + 40) * 4,
-    height: 54 + gentleNoise(seconds * .72, i + 1) * 85,
-    width: 10 + hash(i + 20) * 13,
-    sway: (gentleNoise(seconds * 1.1, i + 30) - .5) * 19,
-    bend: (gentleNoise(seconds * .83, i + 51) - .5) * 18
-  }));
   const heat = gentleNoise(seconds * .23, 87) * .7 + gentleNoise(seconds * .51, 92) * .3;
-  return { snow, flames, light: .065 + heat * .045, surfaces: surfaceLighting(seconds) };
+  return { snow, light: .065 + heat * .045, surfaces: surfaceLighting(seconds) };
 }
 // A single bounded loop for both canvases and the composited light. Hidden windows
 // retain their last frame; reduced motion draws a steady representative frame.

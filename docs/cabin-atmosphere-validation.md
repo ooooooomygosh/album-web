@@ -4,7 +4,7 @@ The warm and pixel cabins retain their original artwork. Four window panes and t
 
 ## Rendering and limits
 
-64 depth-weighted snow particles and eight double-layer flame tongues share one RAF scheduler with at most 24 paints/second. Flame shapes and light energy use continuous low-frequency value noise. Warm canvas DPR is capped at 2; pixel canvas is quarter resolution with nearest-neighbour rendering. The two canvas backing stores total under 330,000 pixels at the cap. No frame-by-frame React updates, network requests or new dependencies.
+64 depth-weighted snow particles and an advected, domain-warped fire texture share one RAF scheduler with at most 24 paints/second. Flame texture uses layered flowing noise with height-dependent breakup; light energy independently uses continuous low-frequency value noise. See the [fire revision and actual before/after frames](qa/fire-naturalism/README.md). Warm canvas DPR is capped at 2; pixel canvas is quarter resolution with nearest-neighbour rendering. The two canvas backing stores total under 330,000 pixels at the cap. No frame-by-frame React updates, network requests or new dependencies.
 
 Separate stone, floor, wood, metal and glass masks have manually assigned 2.5D positions, normals, albedo, roughness and specular weights. Response combines distance attenuation, positive normal/light incidence and a half-vector specular term. Gentle source displacement and shared energy affect these surfaces differently. Window light, distant walls, sofa and album faces receive no added firelight. This is an art-directed approximation for a fixed camera, not inferred geometry, PBR, ray-traced shadows, reflection or refraction. Existing baked lighting remains; the new pass adds only restrained variation.
 

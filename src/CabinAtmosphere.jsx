@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { ATMOSPHERE, atmosphereFrame, createAtmosphereLoop } from './cabin-atmosphere.mjs';
 import './cabin-atmosphere.css';
+import { createFirePainter } from './cabin-fire.mjs';
 
 const placement = ({ x, y, width, height }) => ({ left: `${x / 1448 * 100}%`, top: `${y / 1086 * 100}%`, width: `${width / 1448 * 100}%`, height: `${height / 1086 * 100}%` });
 function prepare(canvas, box, pixel) {
@@ -20,21 +21,11 @@ function paintSnow(ctx, geometry, flakes, pixel, clean) {
   }
   ctx.restore();
 }
-function paintFire(ctx, geometry, flames, clean) {
+function paintFire(ctx, geometry, seconds, clean, renderFire) {
   const { width, height } = geometry.fire; ctx.clearRect(0, 0, width, height); ctx.save(); ctx.beginPath();
   geometry.opening.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.clip();
   ctx.drawImage(clean, geometry.fire.x, geometry.fire.y, width, height, 0, 0, width, height);
-  for (const flame of flames) {
-    for (const core of [false, true]) {
-      const { x, base, sway, bend } = flame, h = flame.height * (core ? .58 : 1), w = flame.width * (core ? .43 : 1);
-      const colour = ctx.createLinearGradient(x, base - h, x, base);
-      colour.addColorStop(0, core ? '#fff7cb00' : '#ffce6800'); colour.addColorStop(.23, core ? '#fff3bdcc' : '#ffc65ab3'); colour.addColorStop(.6, core ? '#ffe09ddd' : '#ff982dc0'); colour.addColorStop(1, core ? '#ffb54b88' : '#dc461766');
-      ctx.fillStyle = colour; ctx.beginPath(); ctx.moveTo(x - w, base);
-      ctx.bezierCurveTo(x - w * 1.2, base - h * .36, x + bend - w * .2, base - h * .73, x + sway, base - h);
-      ctx.bezierCurveTo(x + sway + w * .25, base - h * .7, x + w + bend, base - h * .3, x + w, base);
-      ctx.closePath(); ctx.fill();
-    }
-  }
+  renderFire(ctx, width, height, seconds);
   ctx.restore();
 }
 export default function CabinAtmosphere({ look, weather }) {
@@ -45,12 +36,13 @@ export default function CabinAtmosphere({ look, weather }) {
     const element = root.current, pixel = look === 'pixel';
     const snowContext = prepare(snow.current, geometry.window, pixel), fireContext = prepare(fire.current, geometry.fire, pixel);
     if (!snowContext || !fireContext) return;
+    const renderFire = createFirePainter(pixel);
     const surfaces = [...light.current.querySelectorAll('[data-surface]')];
     const clean = new Image(); let ready = false, disposed = false;
     const draw = (seconds) => {
       if (!ready || disposed) return;
       const frame = atmosphereFrame(seconds, look, weather);
-      paintSnow(snowContext, geometry, frame.snow, pixel, clean); paintFire(fireContext, geometry, frame.flames, clean);
+      paintSnow(snowContext, geometry, frame.snow, pixel, clean); paintFire(fireContext, geometry, seconds, clean, renderFire);
       for (const surface of surfaces) surface.style.opacity = frame.surfaces[surface.dataset.surface];
     };
     draw(0);

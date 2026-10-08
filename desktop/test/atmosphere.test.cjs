@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test'), assert = require('node:assert/strict');
 const model = import('../../src/cabin-atmosphere.mjs');
-test('scene-specific particles/flames are deterministic, bounded and weather-aware', async () => {
+test('scene-specific particles are deterministic, bounded and weather-aware', async () => {
   const { ATMOSPHERE, atmosphereFrame } = await model;
   for (const look of ['warm', 'pixel']) {
     const g = ATMOSPHERE[look];
@@ -9,22 +9,21 @@ test('scene-specific particles/flames are deterministic, bounded and weather-awa
     for (const [x, y, w, h] of g.panes) { assert.ok(x >= 0 && y >= 0 && x + w <= g.window.width && y + h <= g.window.height); }
     for (const time of [0, .5, 5, 3600]) {
       const frame = atmosphereFrame(time, look); assert.deepEqual(frame, atmosphereFrame(time, look));
-      assert.equal(frame.snow.length, 64); assert.equal(frame.flames.length, 8);
+      assert.equal(frame.snow.length, 64);
       for (const flake of frame.snow) { assert.ok(flake.x >= 0 && flake.x < g.window.width && flake.y >= 0 && flake.y < g.window.height); }
-      for (const flame of frame.flames) { assert.ok(flame.height >= 54 && flame.height <= 139 && flame.base - flame.height > 0); }
       assert.ok(frame.light >= .065 && frame.light <= .11);
     }
     assert.equal(atmosphereFrame(10, look, 'clear').snow.length, 0);
     assert.notDeepEqual(atmosphereFrame(0, look), atmosphereFrame(1, look));
   }
 });
-test('warm light and flame shape change smoothly without flash-sized frame steps', async () => {
+test('warm light changes smoothly without flash-sized frame steps', async () => {
   const { atmosphereFrame } = await model;
   let previous = atmosphereFrame(0);
   for (let i = 1; i <= 2400; i++) {
     const next = atmosphereFrame(i / 24);
     assert.ok(Math.abs(next.light - previous.light) < .002);
-    next.flames.forEach((flame, index) => assert.ok(Math.abs(flame.height - previous.flames[index].height) < 5)); previous = next;
+    previous = next;
   }
 });
 test('one throttled animation loop pauses, resumes, freezes reduced motion and disposes completely', async () => {
