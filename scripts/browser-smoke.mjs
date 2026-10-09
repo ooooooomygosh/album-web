@@ -37,13 +37,13 @@ try {
     if (url.origin !== origin) { report.unexpectedRequests.push(request.url()); return route.abort('blockedbyclient'); }
     const p = url.pathname, body = request.postDataJSON?.() || {};
     const json = value => route.fulfill({ json: value });
-    if (p.startsWith('/api/') || p.startsWith('/desktop-music/')) report.apiCalls.push({ method: request.method(), path: p });
+    if (p.startsWith('/api/') || p.startsWith('/desktop-music/')) report.apiCalls.push({ method: request.method(), path: p, id: url.searchParams.get('id') });
     if (p === '/api/items/import') { let added = 0; for (const item of body.items || []) if (!items.some(i => i.id === item.id)) { items.push(item); added++; } return json({ added, total: items.length }); }
     if (p === '/api/items') {
       if (request.method() === 'GET') return json({ items });
       if (request.method() === 'POST') { const item = { ...body, id: `added-${items.length}`, addedAt: new Date().toISOString() }; items.unshift(item); return json({ item }); }
       const id = url.searchParams.get('id');
-      if (request.method() === 'PATCH') { const item = items.find(i => i.id === id); Object.assign(item, body); return json({ item }); }
+      if (request.method() === 'PATCH') { const item = items.find(i => i.id === id); if (!item) return route.fulfill({ status: 404, json: { error: 'Fixture album no longer exists' } }); Object.assign(item, body); return json({ item }); }
       if (request.method() === 'DELETE') { items = items.filter(i => i.id !== id); return json({ ok: true }); }
     }
     if (p === '/api/search') return json({ candidates: [{ ...items[0], id: 'search-result', title: '搜索找到的专辑' }] });
@@ -116,6 +116,8 @@ try {
   }
   await page.locator('.pet-cat').press('Enter'); await page.locator('.pet-bubble').waitFor(); check('pet-renderer-all-species-and-keyboard-poke-mocked-bridge'); await page.close(); page = mainPage;
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
+  for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
+  check('deleted-albums-do-not-receive-late-autosaves');
   assert.deepEqual(report.pageErrors, []); assert.deepEqual(report.unexpectedRequests, []); assert.deepEqual(report.consoleErrors, []); assert.deepEqual(report.failedRequests, []);
   report.passed = true;
 } catch (error) { report.passed = false; report.error = error.stack || String(error); console.error(report.error); process.exitCode = 1; if (page && !page.isClosed()) { await screenshot('failure').catch(() => {}); await fs.writeFile(path.join(output, 'failure.html'), await page.content()).catch(() => {}); } }
