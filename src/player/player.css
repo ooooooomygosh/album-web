@@ -39,3 +39,9 @@
 .record-pixel-cover img{width:100%;max-width:220px;aspect-ratio:1;image-rendering:pixelated;box-shadow:4px 4px 0 var(--px-shadow,#0d0805)}
 .record-pixel-cover small{font-size:11px;line-height:1.5;color:var(--px-ink-dim,#c9a47a)}
 .record-pixel-cover span{display:flex;flex-wrap:wrap;gap:6px}
+/* 音源与账户: "在唱机上用" */
+.music-source-use,.music-source-current{display:inline-flex;align-items:center;margin-left:6px;padding:3px 8px;font:inherit;font-size:11px;line-height:1.4;vertical-align:middle}
+.music-settings .music-source-use{color:var(--px-shadow,#0d0805);background:var(--px-accent,#e0ad69);border:0;box-shadow:2px 2px 0 var(--px-shadow,#0d0805);cursor:pointer}
+.music-settings .music-source-use:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--px-shadow,#0d0805)}
+.music-source-current{color:var(--px-good,#9ccf8c);box-shadow:inset 0 0 0 1px var(--px-good,#9ccf8c)}
+.music-source-row{display:flex;align-items:center;gap:8px;margin:6px 0 0}.music-source-row>:first-child{margin-left:0}.music-source-row small{font-size:11px;color:var(--px-ink-dim,#c9a47a)}

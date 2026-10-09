@@ -186,7 +186,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
     {selected && <div className="room-now-playing"><div className="room-selection-copy"><small>唱片架 · 双击封面放盘</small><h2 title={selected.title}>{selected.title}</h2><p>{`${selected.artist} · ${selected.year || '年份待补充'} · ${selected.tracks?.length || 0} 首曲目`}</p></div><div className="room-selection-actions">{record && record.id !== selected.id && <button type="button" className="room-queue-add" aria-pressed={player.queue.ids.includes(selected.id)} title="当前唱片放完后接着放" onClick={() => player.queue.ids.includes(selected.id) ? player.remove(selected.id) : player.enqueue(selected.id)}>{player.queue.ids.includes(selected.id) ? <><Check size={16}/>已在待播</> : <><ListBullet size={16}/>加入待播</>}</button>}<RecordTools item={selected}/><DiscogsLink item={selected}/><button type="button" className="room-open-album" onClick={() => openRecord(selected.id)}>唱片卡片 <ArrowUpRight size={18}/></button></div></div>}
     {focus && <FocusDock open={dock.open} tab={dock.tab} setTab={(tab) => saveDock({ tab })} close={() => saveDock({ open: false })}/>}
     {personalize && <RoomPersonalization look={look} petId={petId} onChange={personalizeRoom} close={() => setPersonalize(false)} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
-    {musicSettings && <MusicSettings close={() => setMusicSettings(false)}/>}
+    {musicSettings && <MusicSettings close={() => setMusicSettings(false)} provider={provider} useSource={chooseProvider}/>}
     {welcome && <CabinWelcome look={look} petId={petId} onChange={personalizeRoom} close={() => finishWelcome()} finish={finishWelcome} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
   </div>;
 }
