@@ -1,0 +1,62 @@
+/* Pet life layer (owner: beauty): breathing, hover perk, click squish +
+   hearts, drag dangle, music bop scaled by player energy, sleepy Zzz,
+   focus dots. Uses individual translate/scale/rotate properties so it
+   composes with the stroll's inline transform. All motion is stepped. */
+.pet-life { position: relative; display: block; width: 100%; height: 100%; --pet-energy: .5; }
+.pet-life > .pixel-cat { transform-origin: 50% 100%; }
+.pet-life::before { content: ''; position: absolute; left: 30%; right: 30%; bottom: 3%; height: 4%; background: #0d0805; opacity: .28; pointer-events: none; }
+
+/* idle / focus / sleep: soft breathing, 2 frames */
+.pet-life[data-pose='idle'] > .pixel-cat, .pet-life[data-pose='focus'] > .pixel-cat { animation: pet-breathe 2.4s steps(2, end) infinite; }
+.pet-life[data-pose='sleep'] > .pixel-cat { animation: pet-breathe 3.6s steps(2, end) infinite; }
+@keyframes pet-breathe { 50% { scale: 1.015 1.035; } }
+
+/* music: bounce height and speed follow --pet-energy (0..1) */
+.pet-life[data-pose='groove'] > .pixel-cat { animation: pet-bop calc(620ms - var(--pet-energy) * 220ms) steps(2, end) infinite; }
+.pet-life[data-pose='groove']::before { animation: pet-shadow calc(620ms - var(--pet-energy) * 220ms) steps(2, end) infinite; }
+@keyframes pet-bop { 50% { translate: 0 calc(-2% - var(--pet-energy) * 5%); scale: .98 1.03; } }
+@keyframes pet-shadow { 50% { scale: .8 1; opacity: .2; } }
+
+/* hover: ears up, tiny lift */
+.room-cat:hover .pet-life > .pixel-cat, .pet-cat:hover .pet-life > .pixel-cat { translate: 0 -3%; }
+.room-cat:hover .pet-life[data-pose='sleep'] > .pixel-cat { translate: 0 -1%; }
+
+/* poke: squash & stretch in three frames */
+.pet-life.is-poked > .pixel-cat { animation: pet-squish 330ms steps(3, end) 1 !important; }
+@keyframes pet-squish { 0% { scale: 1.12 .84; } 33% { scale: .93 1.08; translate: 0 -6%; } 66% { scale: 1.03 .97; translate: 0 0; } 100% { scale: 1 1; } }
+
+/* drag (desktop pet): dangle from the scruff */
+.pet-cat.is-dragging .pet-life > .pixel-cat { transform-origin: 50% 20%; animation: pet-dangle 700ms steps(4, end) infinite !important; }
+@keyframes pet-dangle { 0%, 100% { rotate: -6deg; scale: .96 1.06; } 50% { rotate: 6deg; scale: .96 1.06; } }
+
+/* FX particles */
+.pet-fx { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.pet-fx i { position: absolute; display: block; opacity: 0; image-rendering: pixelated; background: center / 100% 100% no-repeat; }
+.pet-fx .fx-heart { width: 14%; aspect-ratio: 7 / 6; top: 22%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%233b2a20' d='M1 0h2v1h1V0h2v1h1v2H6v1H5v1H4v1H3V5H2V4H1V3H0V1h1z'/%3E%3Cpath fill='%23ef7d8f' d='M1 1h2v1h1V1h2v2H5v1H4v1H3V4H2V3H1z'/%3E%3Cpath fill='%23ffd1d8' d='M1 1h1v1H1z'/%3E%3C/svg%3E"); animation: fx-heart 900ms steps(6, end) 1 both; }
+.pet-fx .fx-heart:nth-child(1) { left: 22%; }
+.pet-fx .fx-heart:nth-child(2) { left: 46%; top: 12%; width: 11%; animation-delay: 90ms; }
+.pet-fx .fx-heart:nth-child(3) { left: 66%; animation-delay: 180ms; }
+@keyframes fx-heart { 0% { opacity: 0; translate: 0 10%; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; translate: 0 -160%; } }
+.pet-fx .fx-z { width: 9%; aspect-ratio: 1; left: 64%; top: 30%; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' shape-rendering='crispEdges'%3E%3Cpath fill='%23fff7e6' d='M0 0h5v1H3v1H2v1H1v1h4v1H0V4h1V3h1V2h1V1H0z'/%3E%3C/svg%3E"); animation: fx-z 3s steps(6, end) infinite; filter: drop-shadow(1px 1px 0 #3b2a20); }
+.pet-fx .fx-z:nth-child(2) { width: 7%; animation-delay: -1s; }
+.pet-fx .fx-z:nth-child(3) { width: 5%; animation-delay: -2s; }
+@keyframes fx-z { 0% { opacity: 0; translate: 0 0; } 20% { opacity: 1; } 80% { opacity: .9; } 100% { opacity: 0; translate: 120% -260%; } }
+.pet-fx .fx-dot { width: 4%; aspect-ratio: 1; top: 18%; background: #fff7e6; box-shadow: 0 0 0 1px #3b2a20; animation: fx-dot 1.5s steps(1, end) infinite; }
+.pet-fx .fx-dot:nth-child(1) { left: 60%; }
+.pet-fx .fx-dot:nth-child(2) { left: 67%; animation-delay: .25s; }
+.pet-fx .fx-dot:nth-child(3) { left: 74%; animation-delay: .5s; }
+@keyframes fx-dot { 0%, 100% { opacity: 0; } 20%, 80% { opacity: 1; } }
+.pet-fx .fx-spark { width: 9%; aspect-ratio: 1; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5' shape-rendering='crispEdges'%3E%3Cpath fill='%23ffd99c' d='M2 0h1v2h2v1H3v2H2V3H0V2h2z'/%3E%3C/svg%3E"); animation: fx-spark 1.2s steps(3, end) infinite; }
+.pet-fx .fx-spark:nth-child(1) { left: 12%; top: 26%; }
+.pet-fx .fx-spark:nth-child(2) { left: 78%; top: 18%; animation-delay: -.4s; }
+.pet-fx .fx-spark:nth-child(3) { left: 50%; top: 4%; animation-delay: -.8s; }
+@keyframes fx-spark { 0%, 100% { opacity: 0; scale: .5; } 50% { opacity: 1; scale: 1; } }
+
+@media (prefers-reduced-motion: reduce) { .pet-life > .pixel-cat, .pet-life::before, .pet-fx i { animation: none !important; } .pet-fx .fx-z:first-child, .pet-fx .fx-dot { opacity: 1; } }
+.pet-life[data-reduced='true'] > .pixel-cat, .pet-life[data-reduced='true']::before, .pet-life[data-reduced='true'] .pet-fx i { animation: none !important; }
+.pet-life[data-reduced='true'] .pet-fx .fx-z:first-child { opacity: 1; }
+
+/* Desktop pet speech bubble: same paper tag as the room. */
+.pet-bubble { font-family: var(--px-font-cn); font-size: 12px; line-height: 16px; border: 4px solid transparent !important; border-image: var(--px-frame-img-paper) 2 / 4px stretch !important; background-clip: padding-box !important; box-shadow: 2px 2px 0 #3b2a2066 !important; animation: pet-bubble-in 240ms steps(3, end) both !important; }
+@keyframes pet-bubble-in { 0% { opacity: 0; translate: -50% 6px; } 100% { opacity: 1; translate: -50% 0; } }
+.pet-stage[data-reduce-motion='true'] .pet-bubble { animation: none !important; }

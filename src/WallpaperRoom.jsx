@@ -5,11 +5,13 @@ import RoomTurntable from './RoomTurntable';
 import RoomCat, { useClock } from './pet/RoomCat';
 import PixelClock from './focus/PixelClock';
 import { formatClock, PHASE_LABELS } from './focus/focus-model.mjs';
+import './styles/tokens.css';
 import './cabin-room.css';
 import './record-library.css';
 import './room-immersive.css';
 import './companion-room.css';
 import './wallpaper.css';
+import './styles/pixel-ui.css';
 
 function WallpaperTimer({ focus }) {
   const now = useClock(1000);

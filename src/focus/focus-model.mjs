@@ -9,6 +9,37 @@ export const PHASE_LABELS = { idle: '准备开始', focus: '专注中', shortBre
 const MINUTE = 60000;
 
 export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false, hideSeconds: false, catSkin: 'orange' });
+// One-tap rhythms. Values stay inside normalizeSettings() bounds.
+export const FOCUS_PRESETS = Object.freeze([
+  Object.freeze({ id: 'sprint', label: '冲刺', hint: '15 / 3', focusMin: 15, shortMin: 3, longMin: 10 }),
+  Object.freeze({ id: 'classic', label: '经典', hint: '25 / 5', focusMin: 25, shortMin: 5, longMin: 15 }),
+  Object.freeze({ id: 'deep', label: '深度', hint: '50 / 10', focusMin: 50, shortMin: 10, longMin: 20 }),
+  Object.freeze({ id: 'flow', label: '心流', hint: '90 / 20', focusMin: 90, shortMin: 20, longMin: 30 })
+]);
+export function presetSettings(id) {
+  const preset = FOCUS_PRESETS.find((item) => item.id === id);
+  return preset ? { focusMin: preset.focusMin, shortMin: preset.shortMin, longMin: preset.longMin } : null;
+}
+export function activePreset(settings) {
+  const s = normalizeSettings(settings);
+  return FOCUS_PRESETS.find((item) => item.focusMin === s.focusMin && item.shortMin === s.shortMin && item.longMin === s.longMin)?.id || '';
+}
+// 0..1 progress of the visible phase; idle shows an empty ring.
+export function phaseProgress(timer, settings, now) {
+  if (!timer || timer.phase === 'idle') return 0;
+  const total = timer.duration || phaseDuration(settings, timer.phase);
+  return total ? Math.max(0, Math.min(1, 1 - remainingMs(timer, now) / total)) : 0;
+}
+export function renameTask(state, taskId, value) {
+  const name = text(value, 120);
+  if (!name) return state;
+  return { ...state, tasks: state.tasks.map((task) => task.id === taskId ? { ...task, text: name } : task) };
+}
+export function taskProgress(tasks, now) {
+  const today = dayKey(now), done = tasks.filter((task) => task.done).length;
+  return { total: tasks.length, done, open: tasks.length - done, doneToday: tasks.filter((task) => task.done && task.doneAt && dayKey(task.doneAt) === today).length };
+}
+
 // Rewards follow the Chill Pulse idea of unlocking cosy extras by working.
 export const UNLOCKS = Object.freeze([
   { id: 'snow', kind: 'weather', level: 1, name: '雪夜窗景' },

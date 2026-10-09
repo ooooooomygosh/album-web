@@ -22,7 +22,8 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
   if (!SIZES[prefs.size]) prefs.size = 'M';
   const save = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(prefsPath, JSON.stringify(prefs)); } catch {} }, 300); };
   const payload = () => ({ companion: latest, size: SIZES[prefs.size] });
-  const poller = createCompanionPoller({ getSite, clean: (value) => cleanCompanion(value?.companion), onValue: (value) => { latest = value; window?.webContents.send('pet:update', payload()); } });
+  // ~8 Hz while music plays so the pet can sway with it; 750 ms otherwise.
+  const poller = createCompanionPoller({ getSite, interval: (value) => value?.musicPlaying ? 125 : 750, clean: (value) => cleanCompanion(value?.companion), onValue: (value) => { latest = value; window?.webContents.send('pet:update', payload()); } });
   const announce = () => status({ active: Boolean(window), size: prefs.size });
   const validSender = (event) => window && !window.isDestroyed() && event.sender === window.webContents && event.senderFrame === window.webContents.mainFrame && event.senderFrame.url === URL;
 

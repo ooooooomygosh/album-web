@@ -3,8 +3,10 @@ import { Search, Plus, Check, FolderOpen, Disc3, Loading } from './icons';
 import Dialog from './Dialog';
 import { buildSearchInput } from './music-search.mjs';
 import { addItem } from './collection-api.mjs';
-import { localAlbumItem, musicRequest } from './room-playback.mjs';
-import { desktopCommand } from './desktop-client';
+import { localAlbumItem, musicRequest, normalizeLocalLibrary } from './room-playback.mjs';
+import { desktopCommand, useDesktopAppearance } from './desktop-client';
+import FileImport from './player/FileImport';
+import { generatedCover } from './player/pixel-cover.mjs';
 
 const TABS = [['catalog', '曲库搜索'], ['local', '本地音乐'], ['manual', '手动填写']];
 const looseTitle = (value) => String(value || '').toLowerCase().replace(/[\s\-_:：·()（）[\]【】.,'"!?]/g, '');
@@ -62,8 +64,9 @@ function CatalogSearch({ initialQuery, onAdded, added }) {
 
 // Scanned local folders: catalog artwork is preferred because it also suits the album wall.
 function LocalImport({ items, onAdded }) {
+  const desktop = useDesktopAppearance().client;
   const [state, setState] = useState(null), [busy, setBusy] = useState(''), [message, setMessage] = useState('');
-  const load = async () => { try { setState(await musicRequest('/local/albums')); } catch (error) { setState({ error: error.message, albums: [] }); } };
+  const load = async () => { try { setState(normalizeLocalLibrary(await musicRequest('/local/albums'))); } catch (error) { setState({ error: error.message, albums: [] }); } };
   useEffect(() => {
     load();
     const receive = (event) => { if (event.detail?.scanning) setMessage('正在扫描音乐文件…'); if (event.detail?.ok) { setMessage(''); load(); } if (event.detail?.error) setMessage(event.detail.error); };
@@ -79,13 +82,14 @@ function LocalImport({ items, onAdded }) {
         const match = (found.candidates || []).find((candidate) => candidate.type === 'album' && looseTitle(candidate.title).includes(looseTitle(album.title)) && /^https:/.test(candidate.cover || ''));
         if (match) { item.cover = match.cover; if (match.year && !item.year) item.year = match.year; }
       } catch { /* Offline: keep the embedded artwork. */ }
+      if (!item.cover) item.cover = generatedCover(item); // no art anywhere: a cabin pixel cover
       const result = await addItem(item); onAdded(result.item, result.duplicate);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(''); }
   };
   return <div className="add-panel">
     <p className="add-intro">选择电脑里的音乐文件夹，按标签整理成专辑；音乐留在原位置播放，唱机音源选「本地音乐」。</p>
-    <div className="add-local-actions"><button type="button" className="pixel-button is-primary" onClick={() => { setMessage('请在弹出的窗口中选择文件夹…'); desktopCommand('local-music-folder'); }}><FolderOpen size={16}/>添加音乐文件夹</button>{state?.albumCount > 0 && <span>{state.albumCount} 张专辑 · {state.trackCount} 首歌曲</span>}</div>
+    <div className="add-local-actions"><button type="button" className="pixel-button is-primary" disabled={!desktop} title={desktop ? '' : '需要在心流小屋桌面版中使用'} onClick={() => { setMessage('请在弹出的窗口中选择文件夹…'); desktopCommand('local-music-folder'); }}><FolderOpen size={16}/>添加音乐文件夹</button>{state?.albumCount > 0 && <span>{state.albumCount} 张专辑 · {state.trackCount} 首歌曲</span>}</div>
     {message && <p className="add-status" role="status">{message}</p>}
     {state?.error && <p className="add-status">{state.error}</p>}
     <ul className="add-results" aria-label="本地专辑">{(state?.albums || []).slice(0, 300).map((album) => {
@@ -93,6 +97,7 @@ function LocalImport({ items, onAdded }) {
       return <li key={album.id}><Cover src={album.cover} title={album.title}/><span className="add-result-copy"><strong>{album.title}</strong><small>{album.artist} · {album.tracks.length} 首{album.year ? ' · ' + album.year : ''}</small></span>
         <button type="button" className={`pixel-button ${done ? '' : 'is-primary'}`} disabled={done || busy === album.id} onClick={() => importAlbum(album)}>{done ? <><Check size={15}/>已在架上</> : busy === album.id ? '放上中…' : <><Plus size={15}/>放上唱片架</>}</button></li>;
     })}</ul>
+    <FileImport items={items} onAdded={onAdded} desktop={desktop}/>
   </div>;
 }
 
@@ -102,7 +107,7 @@ function ManualAdd({ onAdded }) {
   const submit = async (event) => {
     event.preventDefault(); setBusy(true); setMessage('');
     try {
-      const result = await addItem({ type: 'album', title: form.title, artist: form.artist, year: form.year, cover: form.cover, tracks: form.tracks.split('\n').map((value) => value.trim()).filter(Boolean), source: 'manual' });
+      const result = await addItem({ type: 'album', title: form.title, artist: form.artist, year: form.year, cover: form.cover.trim() || generatedCover({ title: form.title, artist: form.artist }), tracks: form.tracks.split('\n').map((value) => value.trim()).filter(Boolean), source: 'manual' });
       onAdded(result.item, result.duplicate); setForm({ title: '', artist: '', year: '', cover: '', tracks: '' });
     } catch (error) { setMessage(error.message); } finally { setBusy(false); }
   };
@@ -112,7 +117,7 @@ function ManualAdd({ onAdded }) {
       <label>专辑名<input aria-label="专辑名" required maxLength={160} {...field('title')}/></label>
       <label>歌手<input aria-label="歌手" required maxLength={160} {...field('artist')}/></label>
       <label>发行年份<input aria-label="发行年份" inputMode="numeric" maxLength={4} {...field('year')}/></label>
-      <label>封面图片链接 · 可选<input aria-label="封面图片链接" type="url" placeholder="https://" {...field('cover')}/></label>
+      <label>封面图片链接 · 留空自动生成像素封面<input aria-label="封面图片链接" type="url" placeholder="https://" {...field('cover')}/></label>
     </div>
     <label>曲目 · 每行一首<textarea aria-label="曲目" rows={5} {...field('tracks')}/></label>
     {message && <p className="add-status" role="alert">{message}</p>}

@@ -11,7 +11,10 @@ export function ShowroomArtwork({ item, className = '', pixel = false }) {
     image.onload = () => {
       if (disposed || !canvas.current) return;
       const context = canvas.current.getContext('2d'), side = Math.min(image.naturalWidth, image.naturalHeight);
-      context.imageSmoothingEnabled = false;
+      // Average while shrinking (box-filter look) so the 64×64 cover reads as
+      // clean pixel art; nearest-neighbour sampling here produced speckled noise.
+      // The canvas itself is upscaled with image-rendering: pixelated.
+      context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
       // Display only; no readback of cross-origin pixels.
       context.drawImage(image, (image.naturalWidth - side) / 2, (image.naturalHeight - side) / 2, side, side, 0, 0, 64, 64);
       setPainted(true);

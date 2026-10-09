@@ -71,7 +71,10 @@ test('indexed local audio cannot follow a replaced symlink outside the chosen fo
   const file = path.join(folder, 'song.mp3'), other = path.join(directory, 'private.mp3'); fs.writeFileSync(file, 'audio'); fs.writeFileSync(other, 'private');
   const library = createLocalMusic({ directory, loadParser: async () => async () => ({ common: { title: 'Track' }, format: {} }) });
   const complete = await library.addFolder(folder); assert.equal(complete.scanning, false); const id = library.albums()[0].tracks[0].id;
-  assert.ok(library.track(id)); fs.unlinkSync(file); fs.symlinkSync(other, file); assert.equal(library.track(id), null);
+  assert.ok(library.track(id)); fs.unlinkSync(file);
+  try { fs.symlinkSync(other, file); }
+  catch (error) { if (process.platform === 'win32' && error.code === 'EPERM') { t.skip('File symlinks require Windows Developer Mode or administrator rights'); return; } throw error; }
+  assert.equal(library.track(id), null);
 });
 test('local folder removal accepts the selected alias after canonical indexing', async (t) => {
   const { directory } = fixture(t), folder = path.join(directory, 'music'), alias = path.join(directory, 'selected-music');

@@ -23,8 +23,10 @@
 
 ## 重现截图
 
-`npm run screenshots:product` 使用上述清单生成主界面、专注、伙伴和入门截图，并检查真实交互。首次执行会下载清单中的封面；原始封面仅缓存到被 Git 忽略的 `desktop/test-results/showcase-covers`。应用构建不会包含清单或原始缓存。封面变化时校验失败，需要人工复核来源。
+`npm run screenshots:product` 使用上述清单生成主界面、专注、伙伴和入门截图，并检查真实交互。封面不再在运行时下载：iTunes 封面 CDN 会重新编码原图，导致原始字节校验值不稳定，因此经人工核对的 300×300 副本保存在 [`docs/assets/covers`](assets/covers)，脚本按清单中的 `localSHA256` 校验。原始 `artworkSHA256` 仅作为来源记录保留。应用构建不会包含清单或封面。封面需要更新时，先人工复核来源，再替换文件与校验值。
+
+`npm run screenshots:readme` 生成 README 中番茄钟、待办与统计的特写（演示用固定专注数据），输出到 `docs/assets/screenshots`。
 
 `SHOWCASE_TOUR=1 npm run screenshots:product` 额外录制实际界面操作为 MP4（需要 ffmpeg）。这段录像展示三步指南、打开并开始专注、切换场景与伙伴、进入沉浸；没有音轨，不是平台账号播放验收。截图默认减少动态；录像使用正常动画。
 
-旧 `docs/images` 文件保留历史验收证据。README 展示的当前图片均在 `docs/images/showcase`。
+旧 `docs/images` 文件保留历史验收证据。README 展示的当前图片在 `docs/assets`（截图、GIF、MP4、封面）；`docs/images/showcase` 为上一版展示图。脚本默认输出到 `docs/images/showcase`，更新 README 时用 `SHOWCASE_OUTPUT=docs/assets/screenshots`。

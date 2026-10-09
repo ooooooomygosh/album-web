@@ -1,0 +1,85 @@
+/*
+ * Flow Cabin · pixel design tokens (shared contract).
+ * Art direction: cozy lo-fi pixel cabin — warm wood, amber lamplight, soft
+ * moss/teal accents, night-blue windows. Every size is a multiple of --px-unit
+ * so frames, shadows and offsets land on whole "pixels".
+ * Owner: beauty (art direction). Teammates: consume, don't redefine — add new
+ * tokens here instead so the palette stays in one place.
+ * Mirrored in tokens.ts for JS/canvas use; keep both in sync.
+ */
+/* Pixel fonts (SIL OFL 1.1) — see public/fonts/pixel/README.md */
+@font-face { font-family: 'Fusion Pixel 12'; src: url('/fonts/pixel/fusion-pixel-12-zh_hans.subset.woff2') format('woff2'); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: 'Silkscreen'; src: url('/fonts/pixel/silkscreen-regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Silkscreen'; src: url('/fonts/pixel/silkscreen-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+:root {
+  /* ── palette (16-colour cabin ramp) ───────────────────────────── */
+  --px-bg: #1c120b;          /* night wood, page background */
+  --px-surface: #2e1d12;     /* panel */
+  --px-surface-2: #3a2416;   /* raised panel / input */
+  --px-surface-3: #4d311c;   /* hover */
+  --px-ink: #ffe9cb;         /* primary text, warm paper */
+  --px-ink-dim: #c9a47a;     /* secondary text */
+  --px-ink-faint: #a88a68;   /* tertiary / placeholders (AA on surface-2 for ≥14px) */
+  --px-accent: #e0ad69;      /* amber lamplight — primary actions */
+  --px-accent-hi: #ffd99c;   /* accent highlight bevel */
+  --px-accent-lo: #a8743c;   /* accent shadow bevel */
+  --px-accent-2: #7fb8a8;    /* teal window-light — secondary accent */
+  --px-good: #9ccf8c;        /* moss */
+  --px-warn: #e06a4e;        /* ember */
+  --px-night: #22304a;       /* window night sky */
+  --px-border: #8a5a32;      /* frame line */
+  --px-border-hi: #b07a46;   /* frame highlight bevel */
+  --px-shadow: #0d0805;      /* hard drop shadow */
+  --px-focus: #ffd99c;       /* keyboard focus ring */
+
+  /* ── type ─────────────────────────────────────────────────────── */
+  --px-font-cn: 'Fusion Pixel 12', 'Fusion Pixel', 'Zpix', 'HarmonyOS Sans SC Bundled', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --px-font-en: 'Silkscreen', 'Fusion Pixel 12', 'Press Start 2P', monospace;
+  --px-font-body: 'HarmonyOS Sans SC Bundled', 'PingFang SC', 'Microsoft YaHei', sans-serif; /* long-form/small text where pixel CJK hurts legibility */
+  --px-text-xs: 12px;        /* pixel fonts are drawn on a 12px grid: use multiples */
+  --px-text-sm: 12px;
+  --px-text-md: 14px;
+  --px-text-lg: 24px;
+
+  /* ── geometry ─────────────────────────────────────────────────── */
+  --px-unit: 4px;            /* one art pixel at 1x */
+  --px-1: calc(var(--px-unit) * 1);
+  --px-2: calc(var(--px-unit) * 2);
+  --px-3: calc(var(--px-unit) * 3);
+  --px-4: calc(var(--px-unit) * 4);
+  --px-6: calc(var(--px-unit) * 6);
+  --px-8: calc(var(--px-unit) * 8);
+  --px-radius: 0;
+  --px-border-w: 2px;
+
+  /* pixel bevel frame: 2px outline + inner hi/lo bevel + stepped hard shadow */
+  --px-frame: 0 0 0 var(--px-border-w) var(--px-shadow), inset 2px 2px 0 var(--px-border-hi), inset -2px -2px 0 rgba(0, 0, 0, .35);
+  --px-shadow-1: 2px 2px 0 var(--px-shadow);
+  --px-shadow-2: 4px 4px 0 var(--px-shadow);
+  --px-shadow-3: 4px 4px 0 var(--px-shadow), 8px 8px 0 rgba(13, 8, 5, .45);
+
+  /* 9-slice pixel frames (6×6 source, slice 2): notched corners, top-left
+     highlight, bottom-right shade. Use with border-image (see pixel-ui.css). */
+  --px-frame-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%230d0805' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%23d4a46b' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%238a5a32' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+  --px-frame-img-accent: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%230d0805' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%23ffd99c' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%23c08a4a' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+  --px-frame-img-quiet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%230d0805' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%236b4528' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%233a2416' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+  --px-frame-img-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%233b2a20' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%23fff7e6' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%23e9d6b4' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+
+  /* ── motion (pixel art moves in frames, not curves) ───────────── */
+  --px-dur-fast: 120ms;
+  --px-dur-med: 240ms;
+  --px-dur-slow: 480ms;
+  --px-ease: steps(4, end);
+  --px-ease-fine: steps(8, end);
+  --px-ease-smooth: cubic-bezier(.2, .8, .2, 1); /* only for opacity/large panels */
+  --px-z-scene: 0;
+  --px-z-props: 10;
+  --px-z-pet: 20;
+  --px-z-hud: 40;
+  --px-z-overlay: 80;
+  --px-z-toast: 100;
+}
+
+/* Images that are pixel art must never be smoothed. */
+.px-crisp, .px-crisp img, .px-crisp canvas { image-rendering: pixelated; image-rendering: crisp-edges; }

@@ -4,7 +4,7 @@ const path = require('node:path');
 const albums = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/albums.json')));
 async function mountFixture(application, site, options = {}) {
   const items = options.items || albums;
-  await application.evaluate(({ app, webContents, safeStorage, net }, { items, results, slowCover, music, coverResponse }) => {
+  await application.evaluate(({ app, webContents, safeStorage, net }, { items, results, slowCover, music, coverResponse, autoMusic }) => {
     const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs');
     const path = require('node:path');
     const { createSiteRouter } = require(path.join(app.getAppPath(), 'site-router.cjs'));
@@ -15,6 +15,12 @@ async function mountFixture(application, site, options = {}) {
       const wav = Buffer.alloc(44 + 44100 * 2 * 20); wav.write('RIFF', 0); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(44100, 24); wav.writeUInt32LE(88200, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
       globalThis.__qaMusicResolves = []; globalThis.__qaMusicSearches = 0; globalThis.__qaMACommands = [];
       const fake = { handleQQSearch: async () => [], handleSearch: async () => { globalThis.__qaMusicSearches++; return [{ id: '12345', name: items[0].tracks[0], artist: items[0].artist, album: { name: items[0].title } }, { id: '67890', name: items[0].tracks[0] + '（现场版）', artist: items[0].artist, album: { name: '现场演出' } }]; }, handleQQSongUrl: async (_cookie, id) => { globalThis.__qaMusicResolves.push(id); if (id === items[0].trackDetails[2].providerId) return { playable: false, message: '本机测试：此曲需要平台会员权限。' }; return { playable: true, url: 'https://ws.stream.qqmusic.qq.com/qa.wav' }; }, normalizeLoginInfo: () => ({}), handleSongUrl: async (id) => { globalThis.__qaMusicResolves.push(id); return { playable: true, url: 'https://m7.music.126.net/qa.wav', trial: false }; }, audioProxyHeadersFor: (_url, range) => ({ Range: range }) };
+      if (autoMusic) {
+        const trackFor = (query) => items[0].tracks.find((name) => query.endsWith(name)) || items[0].tracks[0];
+        fake.handleSearch = async (query) => { globalThis.__qaMusicSearches++; return [{ id: '99999', name: trackFor(query), artist: items[0].artist, album: { name: items[0].title } }, { id: '12345', name: trackFor(query), artist: items[0].artist, album: { name: items[0].title } }, { id: '67890', name: trackFor(query) + '（现场版）', artist: items[0].artist, album: { name: '现场演出' } }]; };
+        const originalURL = fake.handleSongUrl;
+        fake.handleSongUrl = async (id) => { if (id === '99999') { globalThis.__qaMusicResolves.push(id); return { playable: false, message: '测试：不可播放的候选' }; } return originalURL(id); };
+      }
       let maState = 'idle';
       // Local folder with two silent WAV files, and a fake system player.
       const { createLocalMusic } = require(path.join(app.getAppPath(), 'local-music.cjs'));
@@ -60,7 +66,7 @@ async function mountFixture(application, site, options = {}) {
       if (coverResponse && url.pathname === '/qa-colour.png') return new Response(Buffer.from(coverResponse.split(',')[1], 'base64'), { headers: { 'Content-Type': 'image/png' } });
       return router(request);
     });
-  }, { items, results: options.searchResults || [items[0]], slowCover: options.slowCover === true, music: options.music === true, coverResponse: options.coverResponse });
+  }, { items, results: options.searchResults || [items[0]], slowCover: options.slowCover === true, music: options.music === true, coverResponse: options.coverResponse, autoMusic: options.autoMusic === true });
   await site.reload(); await site.locator('.app-titlebar').waitFor(); await site.locator('.cabin-room').waitFor();
   return { items };
 }

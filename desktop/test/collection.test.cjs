@@ -53,3 +53,12 @@ test('the cabin page reaches the collection and catalog search through the site 
   await call('/api/search?term=' + encodeURIComponent('周杰伦 叶惠美') + '&type=album'); assert.deepEqual(searched, ['周杰伦 叶惠美']);
   const page = await call('/'); assert.match(await page.text(), /desktop-bootstrap\.js/); assert.match(page.headers.get('content-security-policy'), /connect-src 'self';/);
 });
+
+test('picked-file albums de-duplicate and keep the original cover beside a pixel cover', (t) => {
+  const store = createCollectionStore({ directory: temp(t) }), png = 'data:image/png;base64,iVBORw0KGgo=';
+  const first = store.add({ title: '叶惠美', artist: '周杰伦', cover: png, externalIds: { fileAlbum: 'f1234abcd' } });
+  assert.equal(store.add({ title: '叶惠美', artist: '周杰伦', externalIds: { fileAlbum: 'f1234abcd' } }).duplicate, true);
+  const updated = store.update(first.item.id, { cover: png, originalCover: 'https://is1-ssl.mzstatic.com/a.jpg' }).item;
+  assert.equal(updated.cover, png); assert.equal(updated.originalCover, 'https://is1-ssl.mzstatic.com/a.jpg');
+  assert.equal(store.update(first.item.id, { originalCover: 'javascript:alert(1)' }).item.originalCover, '');
+});

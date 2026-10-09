@@ -23,7 +23,7 @@ const cover = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w
 let items = Array.from({ length: 18 }, (_, i) => ({ id: `fixture-${i}`, type: 'album', title: i === 0 ? '晨光本地唱片' : `测试唱片 ${i + 1}`, artist: 'Fixture Artist', year: '2026', cover: i === 2 ? '' : cover, source: 'manual', tracks: ['晨光', '夜雨'], trackDetails: ['abcdef0123456789', 'fedcba9876543210'].map((id, index) => ({ title: index ? '夜雨' : '晨光', source: 'local', providerId: id })), addedAt: new Date(Date.UTC(2026, 9, 8) - i * 86400000).toISOString() }));
 const wav = Buffer.alloc(44 + 22050 * 2 * 15); wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(22050, 24); wav.writeUInt32LE(44100, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
 for (let i = 0; i < (wav.length - 44) / 2; i++) wav.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * 220 / 22050) * 1200), 44 + i * 2);
-let systemPlaying = true; const systemCommands = [];
+let systemPlaying = true, localAlbumCalls = 0; const systemCommands = [];
 const screenshot = async (name) => { await page.screenshot({ path: path.join(output, name + '.png'), animations: 'disabled' }); report.screenshots.push(name + '.png'); };
 const closeDialog = () => page.keyboard.press('Escape');
 try {
@@ -32,7 +32,7 @@ try {
   for (let i = 0; i < 100; i++) { try { if ((await fetch(origin)).ok) break; } catch {} if (server.exitCode !== null) throw new Error(serverLog); if (i === 99) throw new Error('Vite startup timed out: ' + serverLog); await new Promise(r => setTimeout(r, 100)); }
   browser = await chromium.launch({ executablePath: process.env.BROWSER_EXECUTABLE || (process.env.CI ? chromium.executablePath() : await fs.access('/usr/bin/chromium').then(() => true, () => false) ? '/usr/bin/chromium' : chromium.executablePath()), headless: true, args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: 'zh-CN', reducedMotion: 'reduce' });
-  await context.addInitScript(() => { window.__desktopCommands = []; window.open = url => { window.__desktopCommands.push(String(url)); return null; }; window.albumDesktopAppearance = { client: true, reduceMotion: true }; const init = () => { document.documentElement.dataset.desktopClient = 'true'; document.documentElement.dataset.desktopReduceMotion = 'true'; }; if (document.documentElement) init(); else new MutationObserver((_, o) => { if (document.documentElement) { init(); o.disconnect(); } }).observe(document, { childList: true }); });
+  await context.addInitScript(() => { window.__desktopCommands = []; window.__cabinPlayback = []; window.addEventListener('cabin:playback', e => window.__cabinPlayback.push({ ...e.detail, at: performance.now() })); window.open = url => { window.__desktopCommands.push(String(url)); return null; }; window.albumDesktopAppearance = { client: true, reduceMotion: true }; const init = () => { document.documentElement.dataset.desktopClient = 'true'; document.documentElement.dataset.desktopReduceMotion = 'true'; }; if (document.documentElement) init(); else new MutationObserver((_, o) => { if (document.documentElement) { init(); o.disconnect(); } }).observe(document, { childList: true }); });
   const routeHandler = async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.origin !== origin) { report.unexpectedRequests.push(request.url()); return route.abort('blockedbyclient'); }
@@ -50,7 +50,7 @@ try {
     if (p === '/api/search') return json({ candidates: [{ ...items[0], id: 'search-result', title: '搜索找到的专辑' }] });
     if (p === '/desktop-music/config') return json({ qqLoggedIn: false, neteaseLoggedIn: false, maURL: '', playerId: '' });
     if (p === '/desktop-music/local/summary') return json({ folders: [{ name: 'Fixture Music', path: '/fixture/music' }], albumCount: 1, trackCount: 2 });
-    if (p === '/desktop-music/local/albums') return json({ albums: [], albumCount: 0, trackCount: 0 });
+    if (p === '/desktop-music/local/albums') return json(localAlbumCalls++ % 2 ? { albums: [{ id: '0123456789abcdef', title: '残缺资料' }, null] } : {}); // malformed on purpose: {} then an album without tracks
     if (p === '/desktop-music/resolve') return json({ audioPath: '/desktop-music/local/audio/' + body.id, trial: false });
     if (p.startsWith('/desktop-music/local/audio/')) return route.fulfill({ contentType: 'audio/wav', body: wav, headers: { 'accept-ranges': 'bytes' } });
     if (p === '/desktop-music/search') return json({ candidates: [{ id: 'fixture-stream', title: '晨光', artist: 'Fixture Artist', provider: url.searchParams.get('provider'), album: 'Fixture' }] });
@@ -70,7 +70,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { ROOM_SCENES } = await import('../src/scene-catalog.mjs');
   const { PETS } = await import('../src/pet/pet-catalog.mjs');
-  assert.equal(ROOM_SCENES.length, 5); assert.equal(PETS.length, 5);
+  assert.equal(ROOM_SCENES.length, 6); assert.equal(PETS.length, 5);
   await page.getByRole('button', { name: '布置小屋', exact: true }).click();
   for (const scene of ROOM_SCENES) {
     await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click();
@@ -81,14 +81,51 @@ try {
   await screenshot('room-personalization');
   await page.setViewportSize({ width: 960, height: 600 }); await screenshot('room-personalization-960x600'); await page.getByRole('button', { name: '回到小屋', exact: true }).click();
   for (const scene of ROOM_SCENES) { await page.getByRole('button', { name: '布置小屋', exact: true }).click(); await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click(); await closeDialog(); await screenshot(`scene-${scene.id}-960x600`); }
-  await page.reload(); await page.locator('.room-record').first().waitFor(); assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), ROOM_SCENES.at(-1).id); assert.equal(await page.locator('.room-cat .pixel-cat').getAttribute('data-pet-id'), PETS.at(-1).id); check('all-five-scenes-and-pets-select-and-persist');
+  await page.reload(); await page.locator('.room-record').first().waitFor(); assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), ROOM_SCENES.at(-1).id); assert.equal(await page.locator('.room-cat .pixel-cat').getAttribute('data-pet-id'), PETS.at(-1).id); check('all-scenes-and-pets-select-and-persist');
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('tab', { name: '手动填写' }).click(); await page.getByLabel('专辑名', { exact: true }).fill('QA 新唱片'); await page.getByLabel('歌手', { exact: true }).fill('QA Artist'); await page.getByLabel('曲目', { exact: true }).fill('第一首\n第二首'); await page.getByRole('button', { name: '放上唱片架' }).click(); await page.getByText('《QA 新唱片》已放上唱片架。', { exact: true }).waitFor(); await closeDialog(); assert(items.some(i => i.title === 'QA 新唱片')); check('collection-create-manual');
+  await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('tab', { name: '手动填写' }).click(); await page.getByLabel('专辑名', { exact: true }).fill('QA 新唱片'); await page.getByLabel('歌手', { exact: true }).fill('QA Artist'); await page.getByLabel('曲目', { exact: true }).fill('第一首\n第二首'); await page.getByRole('button', { name: '放上唱片架' }).click(); await page.getByText('《QA 新唱片》已放上唱片架。', { exact: true }).waitFor(); await closeDialog(); assert(items.some(i => i.title === 'QA 新唱片')); assert.match(items.find(i => i.title === 'QA 新唱片').cover, /^data:image\/png;base64,/, 'manual album without cover gets a pixel cover'); check('collection-create-manual');
   await page.locator('.room-record').first().click(); await page.getByRole('button', { name: '唱片卡片', exact: true }).click(); await page.getByLabel('我的笔记').fill('持久化测试笔记'); await page.getByLabel('我的笔记').blur(); await page.getByText('已保存在这台电脑', { exact: true }).waitFor(); assert(items.some(i => i.notes === '持久化测试笔记')); await page.getByRole('button', { name: '移除', exact: true }).click(); await page.getByRole('button', { name: '确认移除' }).click(); await page.getByRole('dialog').waitFor({ state: 'hidden' }); assert(!items.some(i => i.title === 'QA 新唱片')); check('collection-update-notes-and-delete');
   await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('searchbox').fill('测试'); await page.getByRole('button', { name: '搜索', exact: true }).click(); await page.locator('.add-results li').first().waitFor(); await screenshot('catalog-results'); await closeDialog(); check('catalog-search-fixture');
   await page.locator('.room-record').first().dblclick(); await page.getByLabel('唱机音源', { exact: true }).selectOption('local'); await page.waitForFunction(() => { const a = document.querySelector('audio'); return a && !a.paused && a.currentTime > .2 && a.duration > 10; }); check('actual-generated-wav-decodes-and-plays'); await page.getByRole('button', { name: '下一首展示曲目' }).click(); await page.waitForFunction(() => document.querySelector('audio').src.endsWith('fedcba9876543210')); check('local-next-track-resolves-exact-id');
+  // Player: cabin:playback signal (analyser energy), keyboard shortcuts, 待播 queue.
+  await page.waitForFunction(() => window.__cabinPlayback?.some(d => d.playing && !d.estimated && d.energy > .02 && d.track?.index === 1));
+  const signal = await page.evaluate(() => window.__cabinPlayback);
+  assert(signal.some(d => d.reason === 'track' && d.track.index === 1)); assert(signal.every(d => d.energy >= 0 && d.energy <= 1 && typeof d.playing === 'boolean'));
+  const ticks = signal.filter(d => d.reason === 'energy').map(d => d.at); if (ticks.length > 3) { const gaps = ticks.slice(1).map((t, i) => t - ticks[i]); assert(Math.min(...gaps) >= 50, 'energy ticks are throttled to ~15fps'); }
+  check('cabin-playback-event-carries-real-analyser-energy');
+  await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Space'); await page.waitForFunction(() => document.querySelector('audio').paused && window.__cabinPlayback.at(-1).playing === false);
+  await page.keyboard.press('m'); assert.equal(await page.locator('audio').evaluate(a => a.muted), true); await page.keyboard.press('m'); assert.equal(await page.locator('audio').evaluate(a => a.muted), false);
+  await page.keyboard.press('Space'); await page.waitForFunction(() => !document.querySelector('audio').paused);
+  await page.keyboard.press('Shift+ArrowLeft'); await page.waitForFunction(() => document.querySelector('.turntable-track').textContent.startsWith('01'));
+  check('keyboard-space-mute-and-previous');
+  await page.locator('.room-record').nth(1).click(); await page.getByRole('button', { name: '加入待播' }).click(); await page.getByRole('button', { name: '已在待播' }).waitFor();
+  await page.getByRole('button', { name: '待播唱片 1 张' }).click(); await page.locator('.player-queue li', { hasText: '测试唱片 2' }).waitFor(); await screenshot('player-queue'); await page.getByRole('button', { name: '待播唱片 1 张' }).click();
+  check('queue-adds-selected-album');
+  // Album import from picked files (session playback) + pixel covers.
+  await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('tab', { name: '本地音乐' }).click();
+  await page.getByRole('tab', { name: '手动填写' }).click(); await page.getByRole('tab', { name: '本地音乐' }).click(); // {} first, then a partial album
+  await page.locator('.add-results[aria-label="本地专辑"] li', { hasText: '残缺资料' }).getByText('未知歌手 · 0 首').waitFor(); check('local-music-empty-or-partial-response-renders');
+  await page.getByLabel('选择音乐文件', { exact: true }).setInputFiles([{ name: '01 - Fixture Band - 晨雾.wav', mimeType: 'audio/wav', buffer: wav }, { name: '02 - Fixture Band - 夜灯.wav', mimeType: 'audio/wav', buffer: wav }]);
+  const fileAlbum = page.locator('.file-import .add-results li').first(); await fileAlbum.locator('img.add-cover').waitFor(); await fileAlbum.getByText('Fixture Band · 2 首').waitFor(); await screenshot('file-import');
+  await fileAlbum.getByRole('button', { name: '放上唱片架' }).click(); await page.getByText('《未命名专辑》已放上唱片架。', { exact: true }).waitFor(); await closeDialog();
+  const picked = items.find(i => i.externalIds?.fileAlbum); assert(picked, 'picked-file album saved'); assert.match(picked.cover, /^data:image\/png;base64,/); assert.deepEqual(picked.tracks, ['晨雾', '夜灯']); assert(picked.trackDetails[0].lengthMillis > 10000);
+  await page.reload(); await page.locator('.room-record').first().waitFor();
+  check('files-import-with-tags-from-names-durations-and-pixel-cover');
+  // After a reload the object URLs are gone: the deck explains instead of failing silently.
+  await page.locator('.room-record').first().dblclick(); await page.locator('.player-error', { hasText: '重新打开小屋后需要再选一次文件' }).waitFor(); check('session-files-explain-reload-honestly');
+  await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('tab', { name: '本地音乐' }).click();
+  await page.getByLabel('选择音乐文件', { exact: true }).setInputFiles([{ name: '01 - Fixture Band - 晨雾.wav', mimeType: 'audio/wav', buffer: wav }, { name: '02 - Fixture Band - 夜灯.wav', mimeType: 'audio/wav', buffer: wav }]);
+  await page.getByRole('button', { name: '重新连上文件' }).click(); await page.locator('.add-notice').waitFor(); await closeDialog();
+  await page.getByRole('button', { name: '重试' }).click(); await page.waitForFunction(() => { const a = document.querySelector('audio'); return a.src.startsWith('blob:') && !a.paused && a.currentTime > .2; });
+  check('relinked-session-files-play-from-blob');
+  await page.getByRole('button', { name: '选择 Fixture Artist 的 测试唱片 4', exact: true }).click(); await page.getByRole('button', { name: '唱片卡片', exact: true }).click(); await page.getByRole('button', { name: '像素封面' }).click();
+  await page.getByRole('img', { name: /像素封面预览/ }).waitFor(); await page.getByText('已把原封面转成小屋配色的像素画。', { exact: true }).waitFor(); await screenshot('record-pixel-cover'); await page.getByRole('button', { name: '用这张' }).click(); await page.getByRole('button', { name: '恢复原封面' }).waitFor();
+  const pixelled = items.find(i => i.originalCover); assert.match(pixelled.cover, /^data:image\/png;base64,/); assert.equal(pixelled.originalCover, cover);
+  await page.getByRole('button', { name: '恢复原封面' }).click(); await page.getByText('已恢复原封面。', { exact: true }).waitFor(); assert.equal(pixelled.cover, cover); await closeDialog();
+  check('record-card-pixel-cover-preview-apply-and-restore');
+  items = items.filter(i => !i.externalIds?.fileAlbum); await page.reload(); await page.locator('.room-record').first().waitFor(); // later checks count the 18 fixture albums
   await page.getByLabel('唱机音源', { exact: true }).selectOption('system'); await page.locator('.turntable-track', { hasText: '系统测试歌曲' }).waitFor(); assert.equal(await page.locator('audio').getAttribute('src'), null); await page.getByRole('button', { name: '暂停系统播放器' }).click(); await page.getByRole('button', { name: '继续系统播放器' }).waitFor(); await page.getByRole('button', { name: '系统播放器下一首' }).click(); assert.deepEqual(systemCommands, ['toggle', 'next']); check('system-source-and-transport-mocked'); await page.getByLabel('唱机音源', { exact: true }).selectOption('visual');
-  await page.getByRole('button', { name: '音源设置', exact: true }).click(); await page.locator('.music-local-status', { hasText: '1 张专辑 · 2 首歌曲' }).waitFor(); await screenshot('music-settings'); await closeDialog(); check('music-settings-offline-account-and-local-status');
+  await page.getByRole('button', { name: '音源设置', exact: true }).click(); await page.locator('.music-local-status', { hasText: '1 张专辑 · 2 首歌曲' }).waitFor(); await screenshot('music-settings'); const sourceBefore = await page.getByLabel('唱机音源', { exact: true }).inputValue(); await page.locator('.music-account', { hasText: 'QQ 音乐' }).getByRole('button', { name: '在唱机上用' }).click(); await page.getByLabel('唱机正在使用 QQ 音乐').waitFor(); await closeDialog(); assert.equal(await page.getByLabel('唱机音源', { exact: true }).inputValue(), 'qq'); await page.getByLabel('唱机音源', { exact: true }).selectOption(sourceBefore); check('music-settings-offline-account-and-local-status'); check('music-settings-use-source-on-deck');
   await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '待办', exact: true }).click(); await page.getByLabel('新的待办').fill('浏览器测试待办'); await page.getByRole('button', { name: '添加待办' }).click(); await page.getByRole('checkbox', { name: '完成：浏览器测试待办' }).check(); assert.equal(await page.locator('.focus-task-list li.is-done').count(), 1); check('focus-tasks-create-and-complete');
   await page.getByRole('tab', { name: '随手记', exact: true }).click(); await page.getByLabel('随手记内容').fill('QA 随手记备份内容'); check('quick-notes-save-local-text');
   await page.getByRole('tab', { name: '番茄钟' }).click(); await page.getByRole('button', { name: '计时设置' }).click(); await page.getByLabel('专注（分）').fill('2'); await page.getByLabel('专注（分）').blur(); await page.getByRole('button', { name: '开始专注' }).click(); await page.clock.fastForward(121000); await page.locator('.focus-phase', { hasText: '短休息' }).waitFor(); await page.getByRole('tab', { name: '统计' }).click(); assert.match(await page.locator('.focus-stat-tiles').innerText(), /2 分钟/); await screenshot('focus-statistics'); check('focus-timer-completes-and-records-session'); await page.locator('.focus-dock-close').click();
@@ -110,7 +147,7 @@ try {
   page = await context.newPage(); await page.goto(origin + '/wallpaper.html'); await page.locator('.wallpaper-room').waitFor();
   for (const scene of ROOM_SCENES) {
     await page.evaluate(({ room, look }) => window.__pushWallpaper({ ...room, look }), { room: companion.room, look: scene.id });
-    await page.locator(`.cabin-scene[data-room-look="${scene.id}"]`).waitFor(); assert.equal(await page.locator('.room-record').count(), companion.room.items.length); await screenshot(`wallpaper-${scene.id}`);
+    await page.locator(`.cabin-scene[data-room-look="${scene.id}"]`).waitFor(); assert.equal(await page.locator('.room-record').count(), Math.min(companion.room.items.length, scene.geometry.columns.length * scene.geometry.rows.length)); await screenshot(`wallpaper-${scene.id}`);
   }
   check('wallpaper-renderer-all-scenes-mocked-snapshot'); await page.close();
   page = await context.newPage(); await page.setViewportSize({ width: 420, height: 420 }); await page.goto(origin + '/pet.html'); await page.locator('.pet-cat .pixel-cat').waitFor();
@@ -119,6 +156,96 @@ try {
     await page.locator(`.pet-cat .pixel-cat[data-pet-id="${pet.id}"]`).waitFor(); await screenshot(`desktop-pet-${pet.id}`);
   }
   await page.locator('.pet-cat').press('Enter'); await page.locator('.pet-bubble').waitFor(); check('pet-renderer-all-species-and-keyboard-poke-mocked-bridge'); await page.close(); page = mainPage;
+  page = await context.newPage(); page.setDefaultTimeout(12000); await page.setViewportSize({ width: 1280, height: 800 }); await page.goto(origin); await page.locator('.room-record').nth(5).waitFor();
+  const stage = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && [r.x, r.y, r.width, r.height].map(Math.round).join(','); }; const scrolled = [...document.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => el.className); return { scrollY, scrolled, canvas: box('.cabin-scene-canvas'), rack: box('.room-rack') }; });
+  await page.waitForTimeout(400); const stageBefore = await stage();
+  await page.locator('.room-record').nth(5).dblclick(); await page.waitForTimeout(600);
+  await page.locator('.room-record').nth(5).evaluate(el => { el.focus(); el.scrollIntoView({ block: 'start', inline: 'start' }); }); await page.waitForTimeout(100);
+  const stageAfter = await stage(); assert.deepEqual(stageAfter.scrolled, [], 'room must not keep a scroll offset'); assert.equal(stageAfter.scrollY, 0); assert.equal(stageAfter.canvas, stageBefore.canvas, 'room canvas must not move or zoom'); assert.equal(stageAfter.rack, stageBefore.rack, 'shelf must not move');
+  await screenshot('cabin-1280x800-after-dblclick'); check('room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800');
+  // Every scene at common laptop/desktop sizes: deck + record cells on screen and never under toolbar/panels,
+  // also with the focus panel open; the cat's bubble never covers a record cell or a panel.
+  // The cat always stands on something: the floor baseline or the (visible) console top.
+  const catHelpers = () => {
+    window.__catMoves = [];
+    new MutationObserver(() => { const m = document.querySelector('.room-cat')?.dataset.moving; if (m) window.__catMoves.push(m); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-moving'] });
+    window.__catSupport = () => {
+      const cat = document.querySelector('.room-cat'), scene = cat?.closest('.room-scene'); if (!cat || !scene) return [];
+      const c = cat.getBoundingClientRect(), s = scene.getBoundingClientRect(), floor = parseFloat(getComputedStyle(cat).getPropertyValue('--cat-floor'));
+      const deck = document.querySelector('.room-turntable'), d = deck && deck.getClientRects().length && getComputedStyle(deck).visibility !== 'hidden' ? deck.getBoundingClientRect() : null;
+      const onFloor = Math.abs(c.bottom - (s.bottom - floor)) <= 2, onConsole = d && Math.abs(c.bottom - d.top) <= 2 && Math.min(c.right, d.right) - Math.max(c.left, d.left) >= c.width / 2;
+      return onFloor || onConsole ? [] : [`cat floating (feet ${Math.round(c.bottom)}, floor ${Math.round(s.bottom - floor)}, console ${d ? Math.round(d.top) : 'hidden'})`];
+    };
+  };
+  await page.evaluate(catHelpers);
+  const catSettled = () => page.waitForFunction(() => { const c = document.querySelector('.room-cat'); return !c || !c.getAnimations().length; });
+  const layoutIssues = async (state) => { await catSettled(); return page.evaluate((state) => {
+    const rects = s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden').map(e => ({ name: String(e.className).split(' ')[0], r: e.getBoundingClientRect() }));
+    const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation, .focus-dock'), cells = [...rects('.room-record-slot'), ...rects('.scene-deck')], bubbles = [...rects('.room-cat-bubble'), ...rects('.room-cat').map(c => { const k = c.r.width * .14; return { name: 'room-cat', r: { left: c.r.left + k, right: c.r.right - k, top: c.r.top + k, bottom: c.r.bottom } }; })];
+    const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, out = [];
+    if (!document.querySelector('.room-now-playing')) out.push('footer missing');
+    out.push(...window.__catSupport().map(x => `${state}: ${x}`));
+    for (const t of [...cells, ...bubbles]) {
+      if (t.r.left < -1 || t.r.top < -1 || t.r.right > innerWidth + 1 || t.r.bottom > innerHeight + 1) out.push(`${state}: ${t.name} off screen`);
+      for (const o of [...panels, ...(t.name.startsWith('room-cat') ? cells : [])]) if (hit(t.r, o.r)) out.push(`${state}: ${t.name} under ${o.name}`);
+    }
+    return out;
+  }, state); };
+  await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '番茄钟' }).click();
+  const startFocus = page.getByRole('button', { name: '开始专注', exact: true }); if (await startFocus.count()) await startFocus.click();
+  await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.locator('.room-cat-bubble').waitFor();
+  for (const scene of ROOM_SCENES) {
+    await page.setViewportSize({ width: 1440, height: 900 }); await page.getByRole('button', { name: '布置小屋', exact: true }).click(); await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click(); await page.getByRole('button', { name: '回到小屋', exact: true }).click();
+    for (const [width, height] of [[1280, 720], [1280, 800], [1366, 768], [1440, 900], [1920, 1080]]) {
+      await page.setViewportSize({ width, height }); await page.waitForTimeout(700);
+      const issues = await layoutIssues('bubble');
+      await page.locator('.focus-badge').click(); await page.locator('.focus-dock').waitFor(); await page.waitForTimeout(700); issues.push(...await layoutIssues('focus panel'));
+      await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.waitForTimeout(150);
+      assert.deepEqual(issues, [], `${scene.id} ${width}x${height}: deck, record cells and cat bubble must be clear`);
+    }
+  }
+  check('every-scene-deck-cells-and-cat-bubble-clear-of-toolbar-panels-and-focus-panel-at-5-viewports');
+  // Immersive: console fully hidden, steps back in when the pointer comes near it.
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.mouse.move(1200, 120); await page.keyboard.press('z'); await page.waitForTimeout(400);
+  const deckBox = await page.locator('.room-turntable').boundingBox(), deckStyle = () => page.locator('.room-turntable').evaluate(e => [getComputedStyle(e).opacity, getComputedStyle(e).visibility, getComputedStyle(e).pointerEvents].join(' '));
+  assert.equal(await deckStyle(), '0 hidden none', 'immersive console must be fully hidden');
+  await page.waitForTimeout(700); assert.deepEqual(await layoutIssues('immersive'), []); assert.equal(await page.locator('.room-cat[data-perch]').count(), 0, 'cat leaves the hidden console');
+  await page.mouse.move(deckBox.x + deckBox.width / 2, deckBox.y + 10); await page.waitForTimeout(400); assert.equal(await deckStyle(), '1 visible auto', 'console returns when the pointer is near');
+  const catSpot = () => page.locator('.room-cat').evaluate(c => `${c.dataset.spotX}/${c.dataset.perch || 'floor'}`), spotBeforeHover = await catSpot(); await page.mouse.move(1200, 120); await page.waitForTimeout(300); assert.equal(await catSpot(), spotBeforeHover, 'a brief hover must not move the cat'); await page.mouse.move(deckBox.x + deckBox.width / 2, deckBox.y + 10); await page.waitForTimeout(1200); assert.deepEqual(await layoutIssues('immersive hover'), []);
+  await page.mouse.move(1200, 120); await page.waitForTimeout(400); assert.equal(await deckStyle(), '0 hidden none'); await page.waitForTimeout(700); assert.deepEqual(await layoutIssues('immersive again'), []); await page.keyboard.press('Escape'); await page.waitForTimeout(700); assert.deepEqual(await layoutIssues('after immersive'), []);
+  assert((await page.evaluate(() => window.__catMoves)).every(m => m === 'fade'), 'reduced motion moves the cat with a fade swap only');
+  check('cat-always-on-a-surface-and-hops-off-hidden-console'); check('immersive-console-hidden-and-revealed-near-pointer');
+  { const motionPage = await context.newPage(); await motionPage.emulateMedia({ reducedMotion: 'no-preference' }); await motionPage.setViewportSize({ width: 1280, height: 800 }); await motionPage.goto(origin); await motionPage.locator('.room-record').first().waitFor(); await motionPage.evaluate(() => { document.documentElement.dataset.desktopReduceMotion = 'false'; });
+    const mainRef = page; page = motionPage; await page.bringToFront(); await page.evaluate(catHelpers); await page.waitForTimeout(800);
+    // Sample the rendered cat every animation frame while a transition happens.
+    await page.evaluate(() => { window.__sampleCat = (ms) => new Promise((resolve) => { const out = [], start = performance.now(); const tick = (now) => {
+      const cat = document.querySelector('.room-cat'), r = cat.getBoundingClientRect(), scale = getComputedStyle(cat).scale, parts = scale === 'none' ? [1, 1] : scale.split(' ').map(Number);
+      out.push({ t: now - start, left: r.left, bottom: r.bottom, sy: parts[1] ?? parts[0], moving: cat.dataset.moving || '', unsupported: window.__catSupport().length > 0 });
+      if (now - start < ms) requestAnimationFrame(tick); else resolve(out); }; requestAnimationFrame(tick); }); });
+    const hopDuring = async (label, action) => {
+      const sampling = page.evaluate(() => window.__sampleCat(1500)); await page.waitForTimeout(50); await action(); const frames = await sampling;
+      const jump = frames.filter(f => f.moving === 'jump'); assert(jump.length, `${label}: cat must hop`);
+      const positions = new Set(jump.map(f => `${Math.round(f.left)},${Math.round(f.bottom)}`)); assert(positions.size >= 6, `${label}: hop shows ${positions.size} positions, want >= 6`);
+      const startY = jump[0].bottom, endY = frames.at(-1).bottom, apex = Math.min(...jump.map(f => f.bottom)); assert(apex < Math.min(startY, endY) - 4, `${label}: arc apex (${Math.round(apex)}) above start ${Math.round(startY)} and end ${Math.round(endY)}`);
+      const tail = jump.slice(Math.floor(jump.length * .55)); assert(tail.some(f => f.sy < 1), `${label}: squash (scaleY < 1) near landing`);
+      let idleUnsupported = 0, hover = 0, worstHover = 0;
+      frames.forEach((f, i) => { const dt = i ? f.t - frames[i - 1].t : 0, prev = frames[i - 1];
+        if (f.unsupported && !f.moving) idleUnsupported += dt;
+        hover = f.unsupported && prev && Math.round(prev.bottom) === Math.round(f.bottom) && Math.round(prev.left) === Math.round(f.left) && f.sy >= 1 && prev.sy >= 1 && prev.unsupported ? hover + dt : 0; worstHover = Math.max(worstHover, hover); });
+      assert(idleUnsupported <= 50, `${label}: ${Math.round(idleUnsupported)}ms unsupported outside the hop`); assert(worstHover <= 50, `${label}: hovered ${Math.round(worstHover)}ms in place without support`);
+      return { positions: positions.size, idleUnsupported: Math.round(idleUnsupported), worstHover: Math.round(worstHover), frames: frames.length };
+    };
+    await page.locator('.focus-badge').click(); const startFocusM = page.getByRole('button', { name: '开始专注', exact: true }); if (await startFocusM.count()) await startFocusM.click(); await page.waitForTimeout(1500);
+    assert.equal(await page.locator('.room-cat[data-perch="console"]').count(), 1, 'with the focus panel open at 1280x800 the cat perches on the console');
+    const expand = await hopDuring('console expands', () => page.locator('.room-record').nth(2).dblclick());
+    await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.waitForTimeout(1200); await page.mouse.move(1200, 120);
+    assert.equal(await page.locator('.room-cat[data-perch="console"]').count(), 1, 'cat still perched before immersive');
+    const immersive = await hopDuring('immersive hides the console', () => page.keyboard.press('z'));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
+    const moves = await page.evaluate(() => window.__catMoves);
+    assert(moves.length > 0 && moves.every(m => m === 'jump' || m === 'walk'), `cat relocations animate (got ${moves.join(',') || 'none'})`);
+    assert.deepEqual(await layoutIssues('motion'), []); await page.close(); page = mainRef; check('cat-relocation-hops-or-walks-when-motion-allowed', { expand, immersive }); }
+  await page.close(); page = mainPage; 
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
   check('deleted-albums-do-not-receive-late-autosaves');

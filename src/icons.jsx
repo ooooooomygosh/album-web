@@ -18,4 +18,5 @@ export const Download = icon('ArrowDownTrayIcon'), Check = icon('CheckIcon'), Up
 export const Info = icon('InformationCircleIcon'), ErrorIcon = icon('ExclamationCircleIcon'), Loading = icon('ArrowPathIcon');
 export const Clock = icon('ClockIcon'), CheckCircle = icon('CheckCircleIcon'), ChartBar = icon('ChartBarIcon'), SpeakerWave = icon('SpeakerWaveIcon'), SpeakerOff = icon('SpeakerXMarkIcon');
 export const Forward = icon('ForwardIcon'), Backward = icon('BackwardIcon'), Gift = icon('GiftIcon'), Bars3 = icon('Bars3Icon'), EyeSlash = icon('EyeSlashIcon'), Eye = icon('EyeIcon');
+export const Pencil = icon('PencilSquareIcon');
 export const ListBullet = icon('ListBulletIcon'), Moon = icon('MoonIcon'), Heart = icon('HeartIcon'), FolderOpen = icon('FolderOpenIcon'), Computer = icon('ComputerDesktopIcon');

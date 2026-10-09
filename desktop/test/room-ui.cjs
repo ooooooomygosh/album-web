@@ -12,7 +12,7 @@ const row = () => site.locator('.room-rack-grid').getAttribute('data-start-row')
 (async () => {
   app = await _electron.launch({ executablePath, args: process.env.ALBUM_QA_EXE ? [] : [desktop], env }); app.context().setDefaultTimeout(18000); await app.firstWindow();
   for (let i = 0; i < 100; i++) { site = app.context().pages().find((p) => p.url().startsWith('https://album-circle.vercel.app')); host = app.context().pages().find((p) => p.url() === 'album-desktop://shell/index.html'); if (site && host) break; await new Promise((r) => setTimeout(r, 100)); }
-  site.on('pageerror', (error) => report.pageErrors.push(error.message)); await mountFixture(app, site, { items });
+  site.on('pageerror', (error) => report.pageErrors.push(error.message)); await mountFixture(app, site, { items }); await useWarmCabin(site);
   await site.locator('.room-record').first().waitFor();
   const cdp = await site.context().newCDPSession(site);
   const naturalSize = await site.evaluate(() => [innerWidth, innerHeight]);
