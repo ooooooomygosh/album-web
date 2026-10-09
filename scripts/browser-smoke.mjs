@@ -167,12 +167,12 @@ try {
   // also with the focus panel open; the cat's bubble never covers a record cell or a panel.
   const layoutIssues = (state) => page.evaluate((state) => {
     const rects = s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden').map(e => ({ name: String(e.className).split(' ')[0], r: e.getBoundingClientRect() }));
-    const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation, .focus-dock'), cells = [...rects('.room-record-slot'), ...rects('.scene-deck')], bubbles = rects('.room-cat-bubble');
+    const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation, .focus-dock'), cells = [...rects('.room-record-slot'), ...rects('.scene-deck')], bubbles = [...rects('.room-cat-bubble'), ...rects('.room-cat').map(c => { const k = c.r.width * .14; return { name: 'room-cat', r: { left: c.r.left + k, right: c.r.right - k, top: c.r.top + k, bottom: c.r.bottom } }; })];
     const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, out = [];
     if (!document.querySelector('.room-now-playing')) out.push('footer missing');
     for (const t of [...cells, ...bubbles]) {
       if (t.r.left < -1 || t.r.top < -1 || t.r.right > innerWidth + 1 || t.r.bottom > innerHeight + 1) out.push(`${state}: ${t.name} off screen`);
-      for (const o of [...panels, ...(t.name === 'room-cat-bubble' ? cells : [])]) if (hit(t.r, o.r)) out.push(`${state}: ${t.name} under ${o.name}`);
+      for (const o of [...panels, ...(t.name.startsWith('room-cat') ? cells : [])]) if (hit(t.r, o.r)) out.push(`${state}: ${t.name} under ${o.name}`);
     }
     return out;
   }, state);
