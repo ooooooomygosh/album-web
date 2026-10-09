@@ -162,7 +162,27 @@ try {
   await page.locator('.room-record').nth(5).dblclick(); await page.waitForTimeout(600);
   await page.locator('.room-record').nth(5).evaluate(el => { el.focus(); el.scrollIntoView({ block: 'start', inline: 'start' }); }); await page.waitForTimeout(100);
   const stageAfter = await stage(); assert.deepEqual(stageAfter.scrolled, [], 'room must not keep a scroll offset'); assert.equal(stageAfter.scrollY, 0); assert.equal(stageAfter.canvas, stageBefore.canvas, 'room canvas must not move or zoom'); assert.equal(stageAfter.rack, stageBefore.rack, 'shelf must not move');
-  await screenshot('cabin-1280x800-after-dblclick'); await page.close(); page = mainPage; check('room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800');
+  await screenshot('cabin-1280x800-after-dblclick'); check('room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800');
+  // Every scene at common laptop/desktop sizes: deck + all record cells on screen, never under toolbar or panels.
+  for (const scene of ROOM_SCENES) {
+    await page.setViewportSize({ width: 1440, height: 900 }); await page.getByRole('button', { name: '布置小屋', exact: true }).click(); await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click(); await page.getByRole('button', { name: '回到小屋', exact: true }).click();
+    for (const [width, height] of [[1280, 720], [1280, 800], [1366, 768], [1440, 900], [1920, 1080]]) {
+      await page.setViewportSize({ width, height }); await page.waitForTimeout(150);
+      const issues = await page.evaluate(() => {
+        const rects = s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length).map(e => ({ name: String(e.className).split(' ')[0], r: e.getBoundingClientRect() }));
+        const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation'), targets = [...rects('.room-record-slot'), ...rects('.scene-deck')];
+        const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, out = [];
+        if (!document.querySelector('.room-now-playing')) out.push('footer missing');
+        for (const t of targets) {
+          if (t.r.left < -1 || t.r.top < -1 || t.r.right > innerWidth + 1 || t.r.bottom > innerHeight + 1) out.push(`${t.name} off screen`);
+          for (const panel of panels) if (hit(t.r, panel.r)) out.push(`${t.name} under ${panel.name}`);
+        }
+        return out;
+      });
+      assert.deepEqual(issues, [], `${scene.id} ${width}x${height}: deck and record cells must be fully visible`);
+    }
+  }
+  await page.close(); page = mainPage; check('every-scene-deck-and-record-cells-clear-of-toolbar-and-panels-at-5-viewports');
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
   check('deleted-albums-do-not-receive-late-autosaves');

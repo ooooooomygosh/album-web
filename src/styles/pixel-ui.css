@@ -185,4 +185,14 @@ html[data-desktop-reduce-motion='true'] .room-record:hover, html[data-desktop-re
 /* Every scene is pixel now: shelf paging uses the pixel chrome everywhere. */
 .cabin-room.cabin-room .room-shelf-navigation { background: #27170bf0; border: 2px solid #d4a46b88; border-radius: 0; box-shadow: 4px 4px 0 #0d0805aa; }
 .cabin-room.cabin-room .room-shelf-navigation button { border-radius: 0; border: 2px solid #deb57055; background: #7c542d; }
-.cabin-night-study .room-shelf-navigation { right: 4px; }
+
+
+/* Short windows scale the art down to keep deck + shelf clear of the toolbar and
+   footer (roomGeometry band). Any side gutter shows the same scene, dimmed, so
+   the stage never looks letterboxed. */
+.cabin-scene.room-scene::before { content: ''; position: absolute; inset: -8%; z-index: -1; pointer-events: none;
+  background: var(--scene-view) center / cover no-repeat; image-rendering: pixelated; filter: brightness(.38) saturate(.8); }
+/* 月夜书桌: the cabinet reaches the right edge, so shelf paging sits on the wall
+   left of the cabinet (art x≈812), centred on the middle row — never on a record. */
+.cabin-night-study .room-shelf-navigation { right: auto; left: calc(var(--scene-x) + 812px * var(--scene-k)); top: calc(var(--scene-y) + 471px * var(--scene-k)); translate: -100% -50%; }
+.room-focus-open.cabin-night-study .room-shelf-navigation { right: auto; }

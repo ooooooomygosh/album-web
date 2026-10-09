@@ -8,7 +8,10 @@ export function roomGeometry(width, height, safeArea, geometry = SHELF.warm) {
   const coverScale = Math.max(width / ROOM_SIZE.width, height / ROOM_SIZE.height);
   const safeTop = Math.max(0, safeArea?.top || 0), safeBottom = Math.max(0, safeArea?.bottom || 0);
   const lastBottom = geometry.rows.at(-1)[0] + geometry.rows.at(-1)[1];
-  const shelfTop = lastBottom > 701 ? geometry.rows[0][0] : 200, shelfBottom = Math.max(701, lastBottom);
+  // `band` (art px) is what must stay between the toolbar and footer: the shelf, plus
+  // the shelf-top deck where a scene has one. Short windows shrink the art to fit.
+  const shelfTop = geometry.band?.top ?? (lastBottom > 701 ? geometry.rows[0][0] : 200);
+  const shelfBottom = geometry.band?.bottom ?? Math.max(701, lastBottom);
   const scale = safeArea ? Math.min(coverScale, Math.max(100, height - safeTop - safeBottom) / (shelfBottom - shelfTop)) : coverScale;
   const artWidth = ROOM_SIZE.width * scale, artHeight = ROOM_SIZE.height * scale;
   const left = artWidth < width ? (width - artWidth) / 2 : Math.max(width - artWidth, Math.min(0, width / 2 - 774 * scale));
