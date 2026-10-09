@@ -18,6 +18,7 @@
 .welcome-step h3{font-size:23px;font-weight:500;margin:10px 0;line-height:1.4;outline-offset:4px}
 .welcome-step p{font-size:13px;line-height:1.85;color:#d6bea8;margin:0 0 18px}
 .welcome-scene-options,.welcome-pet-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.welcome-scene-options{grid-template-columns:repeat(6,minmax(0,1fr))}
 .welcome-scene-options button,.welcome-pet-options button{min-width:0;padding:4px;background:#fff4e905;border:1px solid transparent;border-radius:8px;display:grid;justify-items:center;gap:6px;color:#d9c3aa;transition:background .16s,border-color .16s}
 .welcome-scene-options button:hover,.welcome-pet-options button:hover{background:#fff4e910}
 .welcome-scene-options button[aria-pressed=true],.welcome-pet-options button[aria-pressed=true]{border-color:#e1be88;background:#e1be8814;color:#ffe7c4}

@@ -30,6 +30,7 @@ npm run dist:win   # 在 Windows 上打包安装版与便携版
 | `npm run test:pet` | 桌宠窗口、命令白名单、拖动与位置记忆 |
 | `npm run test:sources` | 本地音乐与系统正在播放 |
 | `npm run test:music` | QQ / 网易云 / Music Assistant 播放链路（静音 WAV 与模拟服务器） |
+| `npm run test:night-study` | 月夜书桌九格架、写字转笔、阴影、自动选源切歌、原生全屏及 Windows 桌面实际合成（需要本机 Windows） |
 | `npm run test:cover-editor` | 延迟封面取色时的透明度、泼溅、手选底色与恢复默认，含保存/重载 |
 | `npm run test:improvements` | 唱机鼠标/触控移动与持久化、封面主色与手动色优先、壁纸错误消退、独立协议资源冒烟（不代替原生桌面挂载验收） |
 | `npm run test:room` | 小屋几何与动态桌面（动态桌面需要 Windows 或 macOS） |

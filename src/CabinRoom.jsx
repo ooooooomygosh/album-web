@@ -24,7 +24,7 @@ import './companion-room.css';
 export { ShowroomArtwork } from './RoomArtwork';
 
 const snapshotItem = (item) => item ? ({ id: item.id, title: item.title, artist: item.artist, cover: item.cover, type: item.type, tracks: item.tracks, externalIds: item.externalIds, collectionId: item.collectionId }) : null;
-const PROVIDERS = ['qq', 'netease', 'ma', 'local', 'system'];
+const PROVIDERS = ['auto', 'qq', 'netease', 'ma', 'local', 'system'];
 const SORTS = { recent: '最近放上', year: '发行年份', title: '专辑名', artist: '歌手' };
 const readJSON = (key, fallback) => { try { return { ...fallback, ...(JSON.parse(localStorage.getItem(key)) || {}) }; } catch { return fallback; } };
 const writeJSON = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
@@ -43,7 +43,7 @@ function useShelfFilters(items) {
 }
 
 export default function CabinRoom({ items, loading, openRecord, openAdd, firstVisit = false, guideRequest = 0, notify }) {
-  const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'pixel';
+  const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'night-study';
   const appearance = useDesktopAppearance();
   const petId = normalizePetId(library?.data.rooms[library.roomId]?.petId);
   const [personalize, setPersonalize] = useState(false);
@@ -80,7 +80,8 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   const [dock, setDock] = useState(() => readJSON('album-circle-focus-dock-v1', { open: false, tab: 'timer' }));
   const saveDock = (change) => setDock((old) => { const next = { ...old, ...change }; writeJSON('album-circle-focus-dock-v1', next); return next; });
   const [zen, setZen] = useState(false), [pet, setPet] = useState(() => window.albumPetState || {});
-  const signature = visible.map((item) => item.id).join('|'), view = shelfWindow(visible, row);
+  const shelfColumns = getRoomScene(look).geometry.columns.length;
+  const signature = visible.map((item) => item.id).join('|'), view = shelfWindow(visible, row, shelfColumns);
   const selected = view.items.find((item) => item.id === selectedId) || view.items[0];
   const load = (item, index = 0) => {
     if (!chosenProvider.current && provider === 'visual') { const suggested = suggestProvider(item); if (suggested) { setProvider(suggested); chosenProvider.current = true; } }
@@ -90,8 +91,8 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   usePlayerShortcuts({ playback, player, provider, record, trackIndex, toggleVisual: () => setSpinning((value) => !value) });
   usePlaybackBroadcast({ playing: provider === 'system' ? Boolean(system.active && system.playing) : provider === 'visual' ? false : playback.playing, provider, spinning: effectiveSpin, record: deckItem, trackIndex: provider === 'system' ? 0 : trackIndex, trackTitle: provider === 'system' ? system.title : playback.actualTrack, audio: playback.audio });
   useEffect(() => { const open = () => setMusicSettings(true); window.addEventListener('cabin-open-music-settings', open); return () => window.removeEventListener('cabin-open-music-settings', open); }, []);
-  const changeRow = (next) => { const value = shelfWindow(visible, next); setRow(value.startRow); setSelectedId(value.items[0]?.id || ''); };
-  useEffect(() => { setRow(0); setSelectedId(visible[0]?.id || ''); }, [signature]);
+  const changeRow = (next) => { const value = shelfWindow(visible, next, shelfColumns); setRow(value.startRow); setSelectedId(value.items[0]?.id || ''); };
+  useEffect(() => { setRow(0); setSelectedId(visible[0]?.id || ''); }, [signature, look]);
   useEffect(() => { if (record && !items.some((item) => item.id === record.id)) { setRecord(null); setSpinning(false); } }, [items]);
   // The album card asks the deck to play an album, optionally from a track.
   const loadRef = useRef(load); loadRef.current = load;

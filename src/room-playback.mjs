@@ -45,6 +45,69 @@ export function normalizeLocalLibrary(value) {
   return { ...raw, albums, folders: list(raw.folders).filter((folder) => folder && typeof folder.path === 'string'), albumCount: count(raw.albumCount, albums.length), trackCount: count(raw.trackCount, albums.reduce((sum, album) => sum + album.tracks.length, 0)) };
 }
 
+const normalized = (value) => String(value || '').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+const versions = (value) => (String(value || '').toLowerCase().match(/live|remix|acoustic|instrumental|karaoke|现场|伴奏|翻唱|混音|重混|不插电|纯音乐/g) || []).sort().join('|');
+export function rankCandidates(candidates, record, index) {
+  const raw = record?.tracks?.[index], title = typeof raw === 'string' ? raw : raw?.title || raw?.name || record?.title;
+  const target = normalized(title), artist = normalized(record?.artist);
+  return candidates.map((candidate) => {
+    // A live performance or cover is not silently substituted for a studio recording.
+    const correctVersion = versions(candidate.title) === versions(title);
+    const sameTitle = normalized(candidate.title) === target;
+    const candidateArtist = normalized(candidate.artist);
+    const artistParts = String(candidate.artist || '').split(/[,，、/&;；]|\s+(?:feat\.?|ft\.?|with)\s+/i).map(normalized);
+    const sameArtist = artist && candidateArtist && (candidateArtist === artist || artistParts.includes(artist));
+    const sameAlbum = normalized(candidate.album) && normalized(candidate.album) === normalized(record?.title);
+    return { candidate, score: correctVersion && sameTitle && (sameArtist || (candidate.provider === 'local' && !candidateArtist && sameAlbum)) ? 100 + (sameAlbum ? 20 : 0) : 0 };
+  }).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score).map(({ candidate }) => candidate);
+}
+
+export async function findPlayableSource({ record, index, provider, request, play, isCurrent = () => true }) {
+  const tried = new Set(), candidates = [];
+  let lastError = '', hadMatches = false;
+  const attempt = async (candidate) => {
+    const key = `${candidate.provider}:${candidate.id}`;
+    if (!isCurrent() || tried.has(key)) return false;
+    tried.add(key); hadMatches = true;
+    try {
+      const result = await request('/resolve', candidate);
+      if (!isCurrent()) return false;
+      await play(candidate, result);
+      return isCurrent();
+    } catch (error) {
+      if (!isCurrent() || error.name === 'AbortError') return false;
+      lastError = error.name === 'NotAllowedError' ? '请点击播放按钮开始播放。' : error.message;
+      // Browser gesture restrictions are not a reason to try unrelated recordings.
+      if (error.name === 'NotAllowedError') throw error;
+      return false;
+    }
+  };
+  const providers = provider === 'auto' || provider === 'qq' ? ['qq', 'netease'] : provider === 'netease' ? ['netease', 'qq'] : [provider];
+  const raw = record?.tracks?.[index], name = typeof raw === 'string' ? raw : raw?.title || raw?.name;
+  if (!name) return { candidates: [], error: '原始资料没有曲目，无法定位音频。' };
+  for (const source of providers) {
+    if (!isCurrent()) return null;
+    const exact = exactTrack(record, index, source);
+    if (exact && await attempt(exact)) return { candidate: exact, candidates: [] };
+    if (!isCurrent()) return null;
+    try {
+      const result = await request(`/search?provider=${source}&query=${encodeURIComponent(`${record.artist} ${name}`)}`);
+      if (!isCurrent()) return null;
+      const found = Array.isArray(result.candidates) ? result.candidates : [];
+      candidates.push(...found);
+      for (const candidate of rankCandidates(found, record, index)) {
+        if (await attempt(candidate)) return { candidate, candidates: [] };
+        if (!isCurrent()) return null;
+      }
+    } catch (error) {
+      if (!isCurrent() || error.name === 'AbortError') return null;
+      if (error.name === 'NotAllowedError') throw error;
+      lastError = error.message;
+    }
+  }
+  return { candidates, error: hadMatches ? `匹配的音源暂时不可播放。${lastError}` : lastError || (provider === 'local' ? '本地音乐里没有找到这首歌，请先在音源设置中添加文件夹。' : '未找到可播放的同版本音源，可切换音源或手动选择。') };
+}
+
 // Builds a collection item from a scanned local album. Track ids let the
 // turntable play the exact files; the cover stays local unless replaced.
 export function localAlbumItem(value) {

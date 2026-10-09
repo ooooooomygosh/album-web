@@ -70,7 +70,7 @@ try {
   await page.setViewportSize({ width: 1440, height: 900 });
   const { ROOM_SCENES } = await import('../src/scene-catalog.mjs');
   const { PETS } = await import('../src/pet/pet-catalog.mjs');
-  assert.equal(ROOM_SCENES.length, 5); assert.equal(PETS.length, 5);
+  assert.equal(ROOM_SCENES.length, 6); assert.equal(PETS.length, 5);
   await page.getByRole('button', { name: '布置小屋', exact: true }).click();
   for (const scene of ROOM_SCENES) {
     await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click();
@@ -81,7 +81,7 @@ try {
   await screenshot('room-personalization');
   await page.setViewportSize({ width: 960, height: 600 }); await screenshot('room-personalization-960x600'); await page.getByRole('button', { name: '回到小屋', exact: true }).click();
   for (const scene of ROOM_SCENES) { await page.getByRole('button', { name: '布置小屋', exact: true }).click(); await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click(); await closeDialog(); await screenshot(`scene-${scene.id}-960x600`); }
-  await page.reload(); await page.locator('.room-record').first().waitFor(); assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), ROOM_SCENES.at(-1).id); assert.equal(await page.locator('.room-cat .pixel-cat').getAttribute('data-pet-id'), PETS.at(-1).id); check('all-five-scenes-and-pets-select-and-persist');
+  await page.reload(); await page.locator('.room-record').first().waitFor(); assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), ROOM_SCENES.at(-1).id); assert.equal(await page.locator('.room-cat .pixel-cat').getAttribute('data-pet-id'), PETS.at(-1).id); check('all-scenes-and-pets-select-and-persist');
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('tab', { name: '手动填写' }).click(); await page.getByLabel('专辑名', { exact: true }).fill('QA 新唱片'); await page.getByLabel('歌手', { exact: true }).fill('QA Artist'); await page.getByLabel('曲目', { exact: true }).fill('第一首\n第二首'); await page.getByRole('button', { name: '放上唱片架' }).click(); await page.getByText('《QA 新唱片》已放上唱片架。', { exact: true }).waitFor(); await closeDialog(); assert(items.some(i => i.title === 'QA 新唱片')); assert.match(items.find(i => i.title === 'QA 新唱片').cover, /^data:image\/png;base64,/, 'manual album without cover gets a pixel cover'); check('collection-create-manual');
   await page.locator('.room-record').first().click(); await page.getByRole('button', { name: '唱片卡片', exact: true }).click(); await page.getByLabel('我的笔记').fill('持久化测试笔记'); await page.getByLabel('我的笔记').blur(); await page.getByText('已保存在这台电脑', { exact: true }).waitFor(); assert(items.some(i => i.notes === '持久化测试笔记')); await page.getByRole('button', { name: '移除', exact: true }).click(); await page.getByRole('button', { name: '确认移除' }).click(); await page.getByRole('dialog').waitFor({ state: 'hidden' }); assert(!items.some(i => i.title === 'QA 新唱片')); check('collection-update-notes-and-delete');
@@ -147,7 +147,7 @@ try {
   page = await context.newPage(); await page.goto(origin + '/wallpaper.html'); await page.locator('.wallpaper-room').waitFor();
   for (const scene of ROOM_SCENES) {
     await page.evaluate(({ room, look }) => window.__pushWallpaper({ ...room, look }), { room: companion.room, look: scene.id });
-    await page.locator(`.cabin-scene[data-room-look="${scene.id}"]`).waitFor(); assert.equal(await page.locator('.room-record').count(), companion.room.items.length); await screenshot(`wallpaper-${scene.id}`);
+    await page.locator(`.cabin-scene[data-room-look="${scene.id}"]`).waitFor(); assert.equal(await page.locator('.room-record').count(), Math.min(companion.room.items.length, scene.geometry.columns.length * scene.geometry.rows.length)); await screenshot(`wallpaper-${scene.id}`);
   }
   check('wallpaper-renderer-all-scenes-mocked-snapshot'); await page.close();
   page = await context.newPage(); await page.setViewportSize({ width: 420, height: 420 }); await page.goto(origin + '/pet.html'); await page.locator('.pet-cat .pixel-cat').waitFor();

@@ -7,8 +7,8 @@ const deferred = () => { let resolve, reject; const promise = new Promise((yes, 
 const flush = () => new Promise(setImmediate);
 function fixture(platform = 'darwin') {
   const windows = [], statuses = [], timers = new Map(), logs = []; let next = 0, handled = false, registrations = 0;
-  const options = { read: async () => ({ room: { look: 'pixel', items: [] } }), load: async () => {}, appearance: async () => {}, fetch: async () => new Response('<html/>'), native: (_file, _args, _options, callback) => callback(null, JSON.stringify({ behindIcons: true, visible: true })) };
-  const partition = { protocol: { isProtocolHandled: () => handled }, fetch: (...args) => options.fetch(...args), setPermissionRequestHandler() {}, setPermissionCheckHandler() {} };
+  const options = { read: async () => ({ room: { look: 'pixel', items: [] } }), load: async () => {}, appearance: async () => true, fetch: async () => new Response('<html/>'), native: (_file, _args, _options, callback) => callback(null, JSON.stringify({ behindIcons: true, visible: true })) };
+  const partition = { protocol: { isProtocolHandled: async () => handled }, fetch: (...args) => options.fetch(...args), setPermissionRequestHandler() {}, setPermissionCheckHandler() {} };
   class BrowserWindow extends EventEmitter {
     constructor() { super(); this.destroyed = false; this.webContents = new EventEmitter(); Object.assign(this.webContents, { session: partition, setFrameRate() {}, setWindowOpenHandler() {}, executeJavaScript: () => options.appearance(), send() {} }); windows.push(this); }
     getNativeWindowHandle() { return Buffer.alloc(8); }
@@ -64,7 +64,7 @@ test('cancellation during appearance never attaches; closed/crashed windows clea
   const f = fixture(), appearance = deferred(); f.options.appearance = () => appearance.promise;
   const pending = f.manager.start(); await flush(); f.manager.stop(); appearance.resolve(); await pending;
   assert.equal(f.manager.active, false); assert.equal(f.timers.size, 0);
-  f.options.appearance = async () => {}; await f.manager.start(); f.manager.window.webContents.emit('render-process-gone');
+  f.options.appearance = async () => true; await f.manager.start(); f.manager.window.webContents.emit('render-process-gone');
   assert.equal(f.manager.active, false); assert.equal(f.manager.window, null); assert.equal(f.timers.size, 0);
   await f.manager.start(); f.manager.window.destroy(); assert.equal(f.manager.window, null); assert.equal(f.timers.size, 0);
 });
