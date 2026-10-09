@@ -1,24 +1,119 @@
 <div align="center">
 
-<img src="public/icons/icon-192.png" width="80" alt="戴耳机的像素小猫">
+<img src="public/icons/icon-192.png" width="96" alt="戴耳机的像素小猫 · Flow Cabin icon">
 
 # 心流小屋 · Flow Cabin
 
-**听一张喜欢的唱片，安心做完这一轮。**
+**听一张喜欢的唱片，安心做完这一轮。**<br>
+<sub>A cozy pixel-art desktop cabin for your favourite albums, focus sessions and a tiny companion.</sub>
 
-一间有唱片架、专注计时和像素伙伴的小屋。macOS / Windows 桌面应用，收藏与专注数据留在本机。
+<p>
+<a href="https://github.com/ooooooomygosh/album-web/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ooooooomygosh/album-web?style=flat-square&color=e0ad69&labelColor=2e1d12&label=release"></a>
+<a href="https://github.com/ooooooomygosh/album-web/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/ooooooomygosh/album-web/total?style=flat-square&color=9ccf8c&labelColor=2e1d12"></a>
+<a href="https://github.com/ooooooomygosh/album-web/actions/workflows/ci.yml"><img alt="Checks" src="https://img.shields.io/github/actions/workflow/status/ooooooomygosh/album-web/ci.yml?branch=main&style=flat-square&labelColor=2e1d12&label=checks"></a>
+<img alt="Platforms" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows-desktop-7fb8a8?style=flat-square&labelColor=2e1d12">
+<a href="https://github.com/ooooooomygosh/album-web/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/ooooooomygosh/album-web?style=flat-square&color=ffd99c&labelColor=2e1d12"></a>
+</p>
+<p>
+<img alt="React 19" src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white&labelColor=2e1d12">
+<img alt="Vite 8" src="https://img.shields.io/badge/Vite-8-646cff?style=flat-square&logo=vite&logoColor=white&labelColor=2e1d12">
+<img alt="Electron 44" src="https://img.shields.io/badge/Electron-44-47848f?style=flat-square&logo=electron&logoColor=white&labelColor=2e1d12">
+<img alt="Tone.js" src="https://img.shields.io/badge/Tone.js-15-f734d7?style=flat-square&labelColor=2e1d12">
+<img alt="Node 24" src="https://img.shields.io/badge/Node.js-24.x-5fa04e?style=flat-square&logo=node.js&logoColor=white&labelColor=2e1d12">
+</p>
 
-[**下载最新版 ↓**](https://github.com/ooooooomygosh/album-web/releases/latest) · [第一次使用](docs/getting-started.md) · [更新记录](https://github.com/ooooooomygosh/album-web/releases) · [使用边界](docs/limitations.md)
+[**⬇ 下载最新版**](https://github.com/ooooooomygosh/album-web/releases/latest) · [第一次使用](docs/getting-started.md) · [功能一览](#-功能一览) · [截图](#-截图) · [快速开始](#-快速开始) · [English](#english)
 
-<img src="docs/images/showcase/cabin.jpg" width="100%" alt="实际运行的心流小屋：雪窗、十二格唱片架、木屋唱机与像素小猫">
+<img src="docs/assets/screenshots/cabin.jpg" width="100%" alt="实际运行的心流小屋：雪窗、十二格唱片架、木屋唱机与像素小猫">
 
-<sub>实际小屋界面，展示真实专辑与公开曲库封面；使用隔离收藏，不含平台账号。[专辑与图片来源](docs/showcase-sources.md)。</sub>
+<img src="docs/assets/covers/313404785.jpg" width="64" height="64" alt="橙月 — Khalil Fong" title="橙月 · Khalil Fong">
+<img src="docs/assets/covers/966489223.jpg" width="64" height="64" alt="寓言 — Faye Wong" title="寓言 · Faye Wong">
+<img src="docs/assets/covers/1461046017.jpg" width="64" height="64" alt="小宇宙 — sodagreen" title="小宇宙 · sodagreen">
+<img src="docs/assets/covers/1443374875.jpg" width="64" height="64" alt="U 87 — Eason Chan" title="U 87 · Eason Chan">
+<img src="docs/assets/covers/1443147411.jpg" width="64" height="64" alt="克卜勒 — Yanzi Sun" title="克卜勒 · Yanzi Sun">
+<img src="docs/assets/covers/1690607869.jpg" width="64" height="64" alt="Bewitched — Laufey" title="Bewitched · Laufey">
+<img src="docs/assets/covers/1440763349.jpg" width="64" height="64" alt="First Love — Hikaru Utada" title="First Love · Hikaru Utada">
+<img src="docs/assets/covers/1078898175.jpg" width="64" height="64" alt="Metaphorical Music — Nujabes" title="Metaphorical Music · Nujabes">
+<img src="docs/assets/covers/1507014129.jpg" width="64" height="64" alt="async — Ryuichi Sakamoto" title="async · Ryuichi Sakamoto">
+<img src="docs/assets/covers/1624173298.jpg" width="64" height="64" alt="Come Away with Me — Norah Jones" title="Come Away with Me · Norah Jones">
+<img src="docs/assets/covers/1440942198.jpg" width="64" height="64" alt="Waltz for Debby — Bill Evans Trio" title="Waltz for Debby · Bill Evans Trio">
+<img src="docs/assets/covers/617154241.jpg" width="64" height="64" alt="Random Access Memories — Daft Punk" title="Random Access Memories · Daft Punk">
+
+<sub>真实运行界面与真实专辑封面（来自 iTunes Search API，版权归各自权利人）。展示使用隔离收藏，不含平台账号与音频。· <a href="docs/showcase-sources.md">专辑与图片来源</a></sub>
 
 </div>
 
-[看一段小屋实录 →](docs/images/showcase/cabin-tour.mp4) · [看看首次使用 →](#第一次来让小屋带你走三步)
+---
 
-## 下载，挑一个适合你的版本
+## ✨ 功能一览
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 💿 唱片架与唱机
+十二格唱片架，双击封面或拖到唱机上放唱片。唱片卡片里看曲目、写笔记，给黑胶挑颜色，用唱片盒整理收藏，还能导出一张专辑墙。
+
+</td>
+<td width="33%" valign="top">
+
+### 🍅 番茄钟与待办
+像素进度环 + 一键节奏（冲刺 15/5 · 经典 25/5 · 深度 50/10 · 心流 90/20），长短休自动切换，系统通知与提示音。待办可拖动排序、双击改名，并绑定到当前专注。
+
+</td>
+<td width="33%" valign="top">
+
+### 📊 统计与奖励
+今日 / 连续天数 / 累计专注，最近 7 天柱状图。每完成一轮得 1 条小鱼干，升级解锁小猫配饰与窗外天气。随手记把突然冒出的念头先存下来。
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🎧 连接你的音乐
+本地音乐、QQ 音乐 / 网易云、系统正在播放、Music Assistant。唱机默认只做动画展示，选择音源后才走对应播放路径。
+
+</td>
+<td valign="top">
+
+### 🌧 程序合成的氛围
+雨声、壁炉、风声、白噪声与黑胶底噪由程序实时合成；Lo-fi 电台用 Tone.js 离线生成，每 16 小节换一段。唱机播放时电台自动让路。
+
+</td>
+<td valign="top">
+
+### 🐱 伙伴、桌宠与动态桌面
+五个场景（像素 / 写实 / 林间 / 海边 / 星夜）与五位像素伙伴。伙伴可以出门成为桌宠，小屋可以成为动态桌面；支持减少动态效果。
+
+</td>
+</tr>
+</table>
+
+> 收藏、笔记、专注记录、待办和随手记保存在本机，可在「收藏与备份」中导出 / 导入。平台凭据通过 Electron safeStorage 加密保存。
+
+## 📸 截图
+
+<div align="center">
+<img src="docs/assets/cabin-tour.gif" width="100%" alt="小屋实录：入门指南、开始专注、切换场景与伙伴、进入沉浸模式">
+<sub>真实界面录屏（无音轨）：三步入门 → 开始专注 → 布置小屋 → 沉浸模式。<a href="docs/assets/cabin-tour.mp4">高清 MP4</a></sub>
+</div>
+
+<table>
+<tr>
+<td width="33%" align="center"><img src="docs/assets/screenshots/focus-timer.png" alt="番茄钟：像素进度环、节奏预设与今日统计"><br><sub><b>番茄钟</b> · 像素进度环与节奏预设</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/focus-tasks.png" alt="待办：完成进度条、番茄计数、拖动排序"><br><sub><b>待办</b> · 进度条、🍅 计数、拖动排序</sub></td>
+<td width="33%" align="center"><img src="docs/assets/screenshots/focus-stats.png" alt="统计：今日专注、连续天数、最近 7 天与奖励"><br><sub><b>统计</b> · 7 天柱状图与小屋奖励</sub></td>
+</tr>
+</table>
+
+| 专注中的小屋 | 布置小屋 | 第一次来 |
+| :---: | :---: | :---: |
+| <img src="docs/assets/screenshots/focus.jpg" alt="专注计时运行中，小猫冒泡提示剩余时间"> | <img src="docs/assets/screenshots/personalization.jpg" alt="五个场景与五位像素伙伴的选择器"> | <img src="docs/assets/screenshots/welcome.jpg" alt="可跳过的三步入门指南"> |
+
+<sub>截图展示当前开发分支的界面，可能尚未打包进最新 Release。重现方法见 <a href="#-截图是怎么来的">截图是怎么来的</a>。</sub>
+
+## ⬇ 下载
 
 | 你的电脑 | 下载 | 怎么打开 |
 | --- | --- | --- |
@@ -26,82 +121,108 @@
 | Mac · Intel | [DMG · x64](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-mac-x64.dmg) | 打开 DMG，把小屋拖进「应用程序」 |
 | Windows · x64 | [安装版](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-x64-setup.exe) · [便携版](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-x64-portable.exe) | 安装版按提示安装；便携版直接运行 |
 
-截图和三步入门指南展示的是当前开发代码，尚未打包进 v1.8.0。
+以上文件对应 **v1.8.0**，新版本请到 [Release 页面](https://github.com/ooooooomygosh/album-web/releases/latest)。macOS 尚未完成开发者签名与公证，Windows 可能提示未知发布者，请先核对下载来源，再看[安装说明](docs/getting-started.md#安装与首次打开)。使用小屋不需要注册账号。
 
-以上文件名对应 **v1.8.0**；新版本请从 [Release 页面](https://github.com/ooooooomygosh/album-web/releases/latest)选择。macOS 当前未完成开发者签名与公证，Windows 也可能显示未知发布者提示。先核对下载来源，再看[安装说明](docs/getting-started.md#安装与首次打开)。不需要为收藏、专注或环境音注册小屋账号。
-
-> 四种发行产物（Mac arm64 / x64、Windows x64 安装 / 便携）已完成打包与客户端检查；各平台功能的真实设备验收范围不同。已知依赖告警、许可与平台限制见[使用边界](docs/limitations.md)。
-
-## 听一张喜欢的唱片
-
-把专辑放上十二格唱片架，双击封面或拖到唱机上。打开唱片卡片看曲目、写笔记，给黑胶挑一个颜色，再用唱片盒慢慢整理收藏；也可以把喜欢的专辑导出成一张专辑墙。
-
-唱机默认是**仅动画展示，没有音频**。选择本地音乐、QQ、网易云、系统正在播放或 Music Assistant 后，才会走对应音源的播放路径。搜索到专辑不等于获得播放权限。[如何连接音源 →](docs/getting-started.md#连接音乐)
-
-## 安心做完这一轮
-
-点左上角「专注」，选择待办或自由专注。番茄钟、待办、随手记、统计与声音都在同一处；收起面板，让房间陪你。按 <kbd>Z</kbd> 进入沉浸模式，按 <kbd>Esc</kbd> 回来。
-
-雨声、壁炉、风声、白噪声与黑胶底噪由程序合成，Lo-fi 电台也可离线生成。可以分别调音量；唱机播放时，电台会自动降低音量。
-
-<img src="docs/images/showcase/focus.jpg" width="100%" alt="实际小屋界面的专注工具：番茄钟、待办、统计、声音与随手记">
-
-<sub>隔离演示中手动开始的专注计时；没有伪造专注历史或完成奖励。</sub>
-
-## 让伙伴陪你待一会儿
-
-在「布置小屋」里，选像素小屋、写实小屋、林间书屋、海边慢屋或星夜阁楼；再找奶糖、蛋挞、棉花、可可或枫糖作伴。点一下伙伴，它会回应你；场景与伙伴随时可以换，不会打断音乐和计时。
-
-伙伴还可以出门成为桌宠，小屋可以成为动态桌面。选择会同步到这两个窗口；支持减少动态效果。三套新增 SVG 场景与五位像素伙伴由本项目代码绘制。
-
-<img src="docs/images/showcase/personalization.jpg" width="100%" alt="实际布置小屋窗口：五个场景与五位像素伙伴的选择器">
-
-## 连接你常用的音乐
+## 🎧 音源支持
 
 | 音源 | 现在可以做什么 | 需要知道 |
 | --- | --- | --- |
-| 本地音乐 | 选择文件夹，按标签整理专辑，播放原位置的文件 | 文件保留在原目录；本地播放不需要平台账号 |
-| QQ 音乐 / 网易云 | 独立登录窗口、曲目检索与播放接入 | 受账号、会员、版权与地区限制；QQ 我的歌单导入尚未实现 |
-| 系统正在播放 | 显示歌曲，发送暂停／继续／切歌命令 | Windows 使用系统媒体接口；macOS 目前连接 Music / Spotify，可能需自动化权限 |
+| 本地音乐 | 选择文件夹，按标签整理专辑，播放原位置的文件 | 文件保留在原目录，无需平台账号 |
+| QQ 音乐 / 网易云 | 独立登录窗口、曲目检索与播放接入 | 受账号、会员、版权与地区限制；QQ「我的歌单」导入尚未实现 |
+| 系统正在播放 | 显示歌曲，发送暂停 / 继续 / 切歌 | Windows 用系统媒体接口；macOS 目前连接 Music / Spotify，可能需自动化权限 |
 | Music Assistant | 连接已有服务器与播放器 | 需要自己的服务器；未完成真实音箱验收 |
 
-QQ 已在 Mac Apple Silicon 上验证两首真实歌曲的播放、暂停／继续与下一首；不能外推到全曲库。网易云真实账号、Music / Spotify 实际控制及 Windows 对应功能仍需验收。官方 MusicKit / Spotify 内嵌 SDK、通用插件市场均未实现。[完整支持与验收范围 →](docs/limitations.md#音乐与平台)
+搜索到专辑不等于获得播放权限。各平台验收范围见[使用边界](docs/limitations.md#音乐与平台)，连接方法见[如何连接音源](docs/getting-started.md#连接音乐)。
 
-## 你的收藏，留在你这里
+## 🚀 快速开始
 
-收藏、笔记、黑胶外观、唱片盒、专注记录、待办和随手记保存在本机。「收藏与备份」可导出备份，换电脑时再导入；更新前也建议先备份。平台凭据通过 Electron safeStorage 保存，不能安全加密时拒绝持久保存。
-
-曲库搜索、封面加载和平台播放会访问对应第三方，本地保存不表示所有功能离线。桌宠与动态桌面只接收清洗后的显示数据。[数据、隐私与备份 →](docs/getting-started.md#数据与备份)
-
-## 第一次来，让小屋带你走三步
-
-第一次打开空白小屋，会有一份可跳过的入门指南。选择会留在本机；以后点右上角「入门指南」就能重新打开。
-
-1. **找个角落。** 直接挑选场景和伙伴，边选边看，不需要解锁。
-2. **放一张唱片。** 了解收藏与播放的区别，再决定使用本地音乐还是连接平台。无需现在登录。
-3. **留一点时间。** 打开专注工具，或去添加专辑。只有亲自点「开始专注」才计时。
-
-<img src="docs/images/showcase/welcome.jpg" width="100%" alt="三步入门指南的第一步：直接选择五种场景和五位伙伴，可跳过、返回或随时重新打开">
-
-场景淡入、唱片轻微抬起、面板展开都有短促反馈。系统或应用开启「减少动态效果」后，界面过渡与伙伴动画会静下来。使用 <kbd>Tab</kbd> 浏览控件、<kbd>Esc</kbd> 关闭指南，<kbd>Z</kbd> 进入沉浸。
-
-[安装、连接音乐与常见问题](docs/getting-started.md) · [已知限制与验证状态](docs/limitations.md)
-
-## 一起打磨小屋
-
-需要 **Node.js 24.x**：
+需要 **Node.js 24.x**。
 
 ```bash
+git clone https://github.com/ooooooomygosh/album-web.git
+cd album-web
 npm ci
 npm --prefix desktop ci
-npm run desktop:dev       # 构建并启动 Electron 客户端
-npm run check             # 完整 Node 测试与前端生产构建
-npm run test:browser      # 隔离浏览器回归，需要 Chromium
+
+npm run dev               # 只启动 React 渲染层（Vite，http://127.0.0.1:5173）
+npm run desktop:dev       # 构建并启动完整 Electron 客户端
 ```
 
-[贡献指南](CONTRIBUTING.md) · [桌面开发与打包](desktop/README.md) · [架构](docs/architecture.md) · [产品计划](docs/product-plan.md)
+| 命令 | 作用 |
+| --- | --- |
+| `npm test` | 桌面端 Node 测试 + 音频生命周期 + 专注模型单测 |
+| `npm run check` | `npm test` + 前端生产构建（CI 同款） |
+| `npm run test:browser` | 隔离浏览器冒烟回归（需要 Chromium：`cd desktop && npx playwright install chromium`） |
+| `npm run desktop:dist` | 打包 Windows 安装版与便携版；macOS 见 [desktop/README](desktop/README.md) |
+| `npm run screenshots:product` | 重新生成主界面截图与录屏（`SHOWCASE_TOUR=1` 时额外录 MP4） |
+| `npm run screenshots:readme` | 重新生成 README 中的专注工具特写 |
 
-根项目许可证与所组合 GPL 模块的分发义务仍待明确，请在再分发前阅读[许可说明](docs/limitations.md#许可与依赖)。这不会因为已有 Release 而自动解决。
+快捷键：<kbd>Z</kbd> 沉浸模式 · <kbd>Esc</kbd> 返回 · 待办中 <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> 调整顺序。
+
+## 🧱 技术栈
+
+| 层 | 选型 |
+| --- | --- |
+| 渲染层 | React 19 · Vite 8 · 原生 CSS（像素设计令牌 `src/styles/tokens.css`）· Heroicons |
+| 声音 | Web Audio 程序合成环境音 · Tone.js 生成 Lo-fi |
+| 桌面端 | Electron 44 · electron-builder · safeStorage · 桌宠与动态壁纸独立窗口 |
+| 音乐 | 本地标签（music-metadata）· QQ / 网易云适配（Simple Music，GPL-3.0）· 系统媒体会话 · Music Assistant |
+| 曲库 | iTunes Search · MusicBrainz · Cover Art Archive |
+| 质量 | `node --test` 单测 · Playwright 浏览器冒烟 · GitHub Actions |
+
+## 🗂 项目结构
+
+```text
+album-web/
+├── src/                     React 渲染层
+│   ├── CabinRoom.jsx        小屋主场景：唱片架、唱机、工具栏
+│   ├── RecordLibrary.jsx    唱片库、唱片卡片、唱片盒
+│   ├── focus/               番茄钟 · 待办 · 统计 · 声音 · 随手记（纯函数模型 + 单测）
+│   ├── audio/               环境音合成与 Lo-fi 引擎
+│   ├── pet/                 像素伙伴、桌宠窗口与动作
+│   └── styles/tokens.css    共享像素设计令牌
+├── desktop/                 Electron 主进程、音乐服务、桌宠 / 壁纸窗口、打包配置与测试
+├── public/                  字体、图标、场景图与第三方许可
+├── scripts/                 截图、冒烟测试、图标生成
+└── docs/                    使用指南、架构、限制说明、验收记录与 README 素材（docs/assets）
+```
+
+更多细节：[架构说明](docs/architecture.md) · [窗口事件](docs/events.md) · [产品计划](docs/product-plan.md) · [桌面开发与打包](desktop/README.md)
+
+## 🗺 路线图
+
+- [x] 十二格唱片架、唱机、唱片卡片与专辑墙导出
+- [x] 番茄钟 / 待办 / 统计 / 声音 / 随手记一体化专注工具
+- [x] 五个场景、五位像素伙伴、桌宠与动态桌面
+- [x] 本地音乐、QQ / 网易云、系统播放、Music Assistant 接入
+- [x] 收藏与专注数据本机备份、导入
+- [ ] macOS 签名与公证、Windows 代码签名
+- [ ] 网易云、Music / Spotify 控制与 Windows 平台的真实设备验收
+- [ ] QQ 音乐「我的歌单」导入
+- [ ] 官方 Spotify / Apple Music SDK 接入（需单独评估授权与订阅限制）
+- [ ] 根项目许可证与 GPL 模块分发义务澄清
+
+完整优先级见[产品计划](docs/product-plan.md#后续优先级)。
+
+## 🤝 参与贡献
+
+欢迎提 Issue、修 Bug 或补充真实设备验证。开始前请读 [贡献指南](CONTRIBUTING.md) 与 [使用边界](docs/limitations.md)。提交 PR 前跑一遍：
+
+```bash
+npm run check && npm run test:browser
+```
+
+截图只截小屋，请勿提交 Cookie、令牌、签名音频 URL 或个人数据备份。
+
+## 📷 截图是怎么来的
+
+所有截图都在隔离的无头浏览器里运行真实 React 界面生成：不登录任何账号、不播放音频、不写入用户收藏，专注数据是演示用固定数据。专辑名称、曲目与封面来自 iTunes Search / Lookup API（US storefront，2026-10-09 取得），封面经人工核对后以 300×300 副本保存在 [`docs/assets/covers`](docs/assets/covers)，清单与校验值见 [`scripts/showcase-albums.json`](scripts/showcase-albums.json)。
+
+## 📄 许可与致谢
+
+根项目许可证与所组合 GPL 模块的分发义务**仍待明确**，再分发前请阅读[许可说明](docs/limitations.md#许可与依赖)。
+
+**专辑封面**：README 与截图中的专辑封面版权归各自唱片公司 / 艺术家所有，仅用于说明收藏界面的实际呈现，不属于本项目原创素材，也不在任何项目许可范围内。如权利人希望移除，请提 Issue。
 
 <details>
 <summary>致谢与来源</summary>
@@ -111,3 +232,26 @@ npm run test:browser      # 隔离浏览器回归，需要 Chromium
 依赖与接口：[Simple Music](https://github.com/Yyyangshenghao/simple-music)（GPL-3.0-only）、[Music Assistant](https://github.com/music-assistant/server)、[Tone.js](https://tonejs.github.io/)、[music-metadata](https://github.com/Borewit/music-metadata)、[Heroicons](https://heroicons.com/)、HarmonyOS Sans SC。曲库资料来自 iTunes Search、MusicBrainz 与 Cover Art Archive。字体与素材许可见 [public/licenses](public/licenses)，GPL 模块来源见 [SOURCE.txt](desktop/vendor/simple-music/SOURCE.txt)。
 
 </details>
+
+---
+
+## English
+
+**Flow Cabin (心流小屋)** is a cozy pixel-art desktop app for macOS and Windows. Put your favourite albums on a twelve-slot shelf, drop one on the turntable, and get through a focus session with a Pomodoro timer, todo list, quick notes and stats — while a tiny pixel companion keeps you company.
+
+- **Records** — shelf, turntable, record cards with tracklists & notes, vinyl colours, crates and an exportable album wall.
+- **Focus** — pixel progress-ring Pomodoro with one-tap rhythms (15/5 · 25/5 · 50/10 · 90/20), auto breaks, notifications & chime; drag-to-reorder todos linked to the current session; 7-day stats and unlockable rewards.
+- **Sound** — procedurally synthesised rain, fire, wind, white noise and vinyl crackle, plus an offline Tone.js lo-fi radio that ducks when the turntable plays.
+- **Music** — local files, QQ Music / NetEase Cloud Music, the system's Now Playing, or Music Assistant. The turntable is animation-only until you pick a source.
+- **Companions** — five scenes, five pixel pals, a desktop pet and a live wallpaper. Reduced motion is respected.
+- **Local-first** — collection, notes and focus data stay on your machine, with export/import backups.
+
+```bash
+npm ci && npm --prefix desktop ci
+npm run desktop:dev   # Electron client
+npm run check         # tests + production build
+```
+
+Album artwork shown in this README is © its respective rights holders, retrieved from the iTunes Search API for illustration only. The project's own licence is still being clarified — see [limitations](docs/limitations.md#许可与依赖).
+
+<div align="center"><sub>Made with ☕ and lo-fi in a small pixel cabin.</sub></div>
