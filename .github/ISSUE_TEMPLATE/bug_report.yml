@@ -7,7 +7,7 @@ body:
     attributes:
       label: 系统与版本
       description: 请写应用版本、操作系统和芯片；桌面问题请注明单屏或多屏。
-      placeholder: v1.8.0 / macOS / Apple Silicon / 双屏
+      placeholder: v1.9.0 / macOS / Apple Silicon / 双屏
     validations:
       required: true
   - type: textarea
