@@ -216,12 +216,35 @@ try {
   assert((await page.evaluate(() => window.__catMoves)).every(m => m === 'fade'), 'reduced motion moves the cat with a fade swap only');
   check('cat-always-on-a-surface-and-hops-off-hidden-console'); check('immersive-console-hidden-and-revealed-near-pointer');
   { const motionPage = await context.newPage(); await motionPage.emulateMedia({ reducedMotion: 'no-preference' }); await motionPage.setViewportSize({ width: 1280, height: 800 }); await motionPage.goto(origin); await motionPage.locator('.room-record').first().waitFor(); await motionPage.evaluate(() => { document.documentElement.dataset.desktopReduceMotion = 'false'; });
-    const mainRef = page; page = motionPage; await page.evaluate(catHelpers); await page.waitForTimeout(800);
-    await page.locator('.focus-badge').click(); await page.locator('.focus-dock').waitFor(); await page.waitForTimeout(1500);
-    await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.keyboard.press('z'); await page.waitForTimeout(1500); await page.keyboard.press('Escape'); await page.waitForTimeout(1500);
-    const moves = await page.evaluate(() => window.__catMoves), media = await page.evaluate(() => `${matchMedia('(prefers-reduced-motion: reduce)').matches}/${document.documentElement.dataset.desktopReduceMotion}`);
-    assert(moves.length > 0 && moves.every(m => m === 'jump' || m === 'walk'), `cat relocations animate (got ${moves.join(',') || 'none'}; reduce ${media})`);
-    assert.deepEqual(await layoutIssues('motion'), []); await page.close(); page = mainRef; check('cat-relocation-hops-or-walks-when-motion-allowed'); }
+    const mainRef = page; page = motionPage; await page.bringToFront(); await page.evaluate(catHelpers); await page.waitForTimeout(800);
+    // Sample the rendered cat every animation frame while a transition happens.
+    await page.evaluate(() => { window.__sampleCat = (ms) => new Promise((resolve) => { const out = [], start = performance.now(); const tick = (now) => {
+      const cat = document.querySelector('.room-cat'), r = cat.getBoundingClientRect(), scale = getComputedStyle(cat).scale, parts = scale === 'none' ? [1, 1] : scale.split(' ').map(Number);
+      out.push({ t: now - start, left: r.left, bottom: r.bottom, sy: parts[1] ?? parts[0], moving: cat.dataset.moving || '', unsupported: window.__catSupport().length > 0 });
+      if (now - start < ms) requestAnimationFrame(tick); else resolve(out); }; requestAnimationFrame(tick); }); });
+    const hopDuring = async (label, action) => {
+      const sampling = page.evaluate(() => window.__sampleCat(1500)); await page.waitForTimeout(50); await action(); const frames = await sampling;
+      const jump = frames.filter(f => f.moving === 'jump'); assert(jump.length, `${label}: cat must hop`);
+      const positions = new Set(jump.map(f => `${Math.round(f.left)},${Math.round(f.bottom)}`)); assert(positions.size >= 6, `${label}: hop shows ${positions.size} positions, want >= 6`);
+      const startY = jump[0].bottom, endY = frames.at(-1).bottom, apex = Math.min(...jump.map(f => f.bottom)); assert(apex < Math.min(startY, endY) - 4, `${label}: arc apex (${Math.round(apex)}) above start ${Math.round(startY)} and end ${Math.round(endY)}`);
+      const tail = jump.slice(Math.floor(jump.length * .55)); assert(tail.some(f => f.sy < 1), `${label}: squash (scaleY < 1) near landing`);
+      let idleUnsupported = 0, hover = 0, worstHover = 0;
+      frames.forEach((f, i) => { const dt = i ? f.t - frames[i - 1].t : 0, prev = frames[i - 1];
+        if (f.unsupported && !f.moving) idleUnsupported += dt;
+        hover = f.unsupported && prev && Math.round(prev.bottom) === Math.round(f.bottom) && Math.round(prev.left) === Math.round(f.left) && f.sy >= 1 && prev.sy >= 1 && prev.unsupported ? hover + dt : 0; worstHover = Math.max(worstHover, hover); });
+      assert(idleUnsupported <= 50, `${label}: ${Math.round(idleUnsupported)}ms unsupported outside the hop`); assert(worstHover <= 50, `${label}: hovered ${Math.round(worstHover)}ms in place without support`);
+      return { positions: positions.size, idleUnsupported: Math.round(idleUnsupported), worstHover: Math.round(worstHover), frames: frames.length };
+    };
+    await page.locator('.focus-badge').click(); const startFocusM = page.getByRole('button', { name: '开始专注', exact: true }); if (await startFocusM.count()) await startFocusM.click(); await page.waitForTimeout(1500);
+    assert.equal(await page.locator('.room-cat[data-perch="console"]').count(), 1, 'with the focus panel open at 1280x800 the cat perches on the console');
+    const expand = await hopDuring('console expands', () => page.locator('.room-record').nth(2).dblclick());
+    await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.waitForTimeout(1200); await page.mouse.move(1200, 120);
+    assert.equal(await page.locator('.room-cat[data-perch="console"]').count(), 1, 'cat still perched before immersive');
+    const immersive = await hopDuring('immersive hides the console', () => page.keyboard.press('z'));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
+    const moves = await page.evaluate(() => window.__catMoves);
+    assert(moves.length > 0 && moves.every(m => m === 'jump' || m === 'walk'), `cat relocations animate (got ${moves.join(',') || 'none'})`);
+    assert.deepEqual(await layoutIssues('motion'), []); await page.close(); page = mainRef; check('cat-relocation-hops-or-walks-when-motion-allowed', { expand, immersive }); }
   await page.close(); page = mainPage; 
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
