@@ -30,6 +30,8 @@ function normalizeItem(body = {}, previous = {}) {
     year: /^\d{4}$/.test(text(value.year, 16)) ? text(value.year, 4) : '',
     label: text(value.label, 120),
     cover: cover(value.cover),
+    // Kept when the cover is replaced by a generated pixel cover, so it can be restored.
+    originalCover: cover(value.originalCover),
     genre: text(value.genre || value.primaryGenreName, 60),
     tags: list(value.tags, 32, 12),
     tracks,
@@ -46,9 +48,10 @@ function normalizeItem(body = {}, previous = {}) {
     addedAt: previous.addedAt || new Date().toISOString()
   };
 }
-// Same album = same catalog id, QQ album, or scanned local folder.
+// Same album = same catalog id, QQ album, scanned local folder, or the same
+// tagged album picked as files in the browser.
 function identity(item) {
-  return item.collectionId ? 'itunes:' + item.collectionId : item.externalIds?.qqAlbumMid ? 'qq:' + item.externalIds.qqAlbumMid : item.externalIds?.localAlbum ? 'local:' + item.externalIds.localAlbum : '';
+  return item.collectionId ? 'itunes:' + item.collectionId : item.externalIds?.qqAlbumMid ? 'qq:' + item.externalIds.qqAlbumMid : item.externalIds?.localAlbum ? 'local:' + item.externalIds.localAlbum : item.externalIds?.fileAlbum ? 'file:' + item.externalIds.fileAlbum : '';
 }
 
 function readLegacy(file) {
@@ -91,7 +94,7 @@ function createCollectionStore({ directory, legacyFile = path.join(directory, 'l
     },
     update(id, patch) {
       const index = items.findIndex((item) => item.id === id); if (index < 0) throw new Error('这张专辑已经不在唱片架上了。');
-      const allowed = Object.fromEntries(Object.entries(patch || {}).filter(([key]) => ['notes', 'title', 'artist', 'year', 'cover', 'tracks', 'genre', 'tags', 'label'].includes(key)));
+      const allowed = Object.fromEntries(Object.entries(patch || {}).filter(([key]) => ['notes', 'title', 'artist', 'year', 'cover', 'originalCover', 'tracks', 'genre', 'tags', 'label'].includes(key)));
       items[index] = normalizeItem(allowed, items[index]); save(); return { item: items[index] };
     },
     remove(id) { const before = items.length; items = items.filter((item) => item.id !== id); if (items.length === before) throw new Error('这张专辑已经不在唱片架上了。'); save(); return { ok: true }; },
