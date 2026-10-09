@@ -132,6 +132,10 @@ a{color:var(--amber-2)}
 .record-dialog,.music-settings{color:var(--text)!important;background:var(--wood)!important}
 .music-local p,.music-settings section>p{font-size:12px!important;line-height:1.7;color:var(--muted)}
 .music-local h3,.music-settings h3{font-size:15px}
+.music-advanced{margin-top:20px;padding:14px 0;border-top:1px solid #dca46c33;border-bottom:1px solid #dca46c33}
+.music-advanced summary{cursor:pointer;font-size:13px;color:var(--text);line-height:1.8}
+.music-advanced summary:focus-visible{outline:2px solid var(--amber-2);outline-offset:4px}
+.music-advanced form{padding:8px 0 0}.music-advanced form>p{font-size:12px;line-height:1.7;color:var(--muted)}
 .record-dialog,.music-settings{border-radius:0!important;border:2px solid var(--brass)!important;box-shadow:8px 8px 0 #0d0805dd!important}
 .record-dialog::backdrop,.music-settings::backdrop{background:#0d0805a8}
 .record-dialog button,.music-settings button{border-radius:0!important}

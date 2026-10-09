@@ -31,7 +31,7 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
   const { columns, rows } = scene.geometry;
   return <div ref={viewport} className="room-scene cabin-scene" style={{ background: scene.style.background }} aria-label={scene.label} data-room-look={look} data-weather={normalizeWeather(weather)} data-time-of-day={timeOfDay(hour)}>
     <div className="cabin-scene-canvas" style={geometry}>
-      <img className="cabin-scene-art" src={scene.art} alt={scene.alt} width="1448" height="1086" draggable="false"/>
+      <img key={scene.id} className="cabin-scene-art" src={scene.art} alt={scene.alt} width="1448" height="1086" draggable="false"/>
       <div className="room-rack cabin-rack"><div className="room-rack-grid" role="list" aria-label="木质唱片架" data-start-row={startRow}>
         {Array.from({ length: 12 }, (_, index) => {
           const item = items[index], [x, width] = columns[index % 4], [y, height] = rows[Math.floor(index / 4)];

@@ -1,4 +1,5 @@
 import RoomPersonalization from './RoomPersonalization';
+import CabinWelcome, { WELCOME_KEY } from './CabinWelcome';
 import { getRoomScene } from './scene-catalog.mjs';
 import { normalizePetId } from './pet/pet-catalog.mjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -40,11 +41,19 @@ function useShelfFilters(items) {
   return { filters, setFilters, visible };
 }
 
-export default function CabinRoom({ items, loading, openRecord, openAdd }) {
+export default function CabinRoom({ items, loading, openRecord, openAdd, firstVisit = false, guideRequest = 0, notify }) {
   const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'pixel';
   const appearance = useDesktopAppearance();
   const petId = normalizePetId(library?.data.rooms[library.roomId]?.petId);
   const [personalize, setPersonalize] = useState(false);
+  const [welcome, setWelcome] = useState(false);
+  const welcomeChecked = useRef(false);
+  useEffect(() => {
+    if (loading || welcomeChecked.current) return;
+    welcomeChecked.current = true;
+    if (firstVisit && !items.length) setWelcome(true);
+  }, [loading, firstVisit, items.length]);
+  useEffect(() => { if (guideRequest) setWelcome(true); }, [guideRequest]);
   const { filters, setFilters, visible } = useShelfFilters(items);
   const [row, setRow] = useState(0), [selectedId, setSelectedId] = useState(visible[0]?.id || '');
   const [record, setRecord] = useState(null), [spinning, setSpinning] = useState(false), [trackIndex, setTrackIndex] = useState(0);
@@ -122,6 +131,13 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
   }, []);
   const personalizeRoom = (patch) => library?.update((old) => ({ ...old, rooms: { ...old.rooms, [library.roomId]: { ...(old.rooms[library.roomId] || {}), ...patch } } }));
   const filtered = visible.length !== items.length;
+  const finishWelcome = (action) => {
+    try { localStorage.setItem(WELCOME_KEY, 'seen'); } catch { notify?.('这次未能记住入门状态，下次仍可从入门指南打开。'); }
+    setWelcome(false);
+    if (action === 'focus') saveDock({ open: true, tab: 'timer' });
+    if (action === 'album') openAdd();
+    if (action === 'music') setMusicSettings(true);
+  };
   return <div className={`listening-room cabin-room cabin-${look}`} style={{ '--amber': getRoomScene(look).style.accent }}>
     <nav className="cabin-toolbar" aria-label="小屋工具">
       {focus && <span className="zen-keep cabin-toolbar-group"><FocusBadge open={dock.open} onClick={() => saveDock({ open: !dock.open })}/><button type="button" aria-pressed={zen} title="沉浸模式 · Z" onClick={() => setZen(!zen)}>{zen ? <><Eye size={17}/><span>退出沉浸</span></> : <><EyeSlash size={17}/><span>沉浸</span></>}</button></span>}
@@ -160,5 +176,6 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
     {focus && <FocusDock open={dock.open} tab={dock.tab} setTab={(tab) => saveDock({ tab })} close={() => saveDock({ open: false })}/>}
     {personalize && <RoomPersonalization look={look} petId={petId} onChange={personalizeRoom} close={() => setPersonalize(false)} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
     {musicSettings && <MusicSettings close={() => setMusicSettings(false)}/>}
+    {welcome && <CabinWelcome look={look} petId={petId} onChange={personalizeRoom} close={() => finishWelcome()} finish={finishWelcome} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
   </div>;
 }

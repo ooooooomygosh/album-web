@@ -15,3 +15,11 @@
 @media(max-width:800px){.cabin-toolbar{padding:12px 18px}.room-now-playing{padding:18px;align-items:flex-start;flex-direction:column}.room-selection-actions{justify-content:flex-start}.cabin-scene .room-empty{inset:auto 12% 7%;font-size:12px}.cabin-rack .room-record.is-selected{outline-width:1px}}
 
 .cabin-rack .showroom-artwork img{object-fit:contain}.cabin-rack .showroom-artwork{background:#1c1711}.room-selection-art{position:relative;isolation:isolate;width:115px;height:100px;flex-shrink:0}.room-selection-art>.showroom-artwork{position:absolute;inset:0 auto 0 0;width:100px;height:100px;z-index:2;border-radius:3px}.room-selection-art>.custom-vinyl{position:absolute;right:0;top:10px;width:85px;height:85px;z-index:0}
+
+/* Short, local feedback: no room zoom, parallax or perpetual UI movement. */
+@keyframes cabin-scene-reveal{from{opacity:.35}to{opacity:1}}
+@media(prefers-reduced-motion:no-preference){
+  html:not([data-desktop-reduce-motion=true]) .cabin-scene-art{animation:cabin-scene-reveal .28s ease-out}
+  html:not([data-desktop-reduce-motion=true]) .cabin-rack .room-record{transition:translate .16s ease-out,filter .16s ease-out}
+  html:not([data-desktop-reduce-motion=true]) .cabin-rack .room-record:hover{translate:0 -3px;filter:brightness(1.08)}
+}
