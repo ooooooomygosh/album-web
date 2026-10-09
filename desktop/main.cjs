@@ -72,7 +72,7 @@ function refreshTray() {
       { label: '开始 / 暂停专注', click: () => sendCompanionCommand(siteView?.webContents, 'focus-toggle') },
       { label: '开关小屋声音', click: () => sendCompanionCommand(siteView?.webContents, 'sound-toggle') },
       { type: 'separator' },
-      petState.active ? { label: '让小猫回家', click: () => pet.stop() } : { label: '小猫出门（桌宠）', click: () => pet.start() },
+      petState.active ? { label: '让伙伴回家', click: () => pet.stop() } : { label: '伙伴出门（桌宠）', click: () => pet.start().catch((error) => writeLog('pet-error', error.message)) },
       ...(wallpaperState.active ? [{ label: '停止桌面动态背景', click: () => wallpaper.stop() }] : []),
       { type: 'separator' }, { label: '退出应用', click: () => app.quit() }
     ]));
@@ -234,7 +234,7 @@ async function wireRemoteView() {
     await applyAppearance();
     wallpaperStatus(wallpaperState); petStatus(petState);
     siteView.setVisible(!settingsOpen);
-    if (!mainWindow.isVisible() || mainWindow.isMinimized()) await contents.executeJavaScript("window.dispatchEvent(new Event('blur'));").catch(() => {});
+    if (mainWindow && !mainWindow.isDestroyed() && !contents.isDestroyed() && (!mainWindow.isVisible() || mainWindow.isMinimized())) await contents.executeJavaScript("window.dispatchEvent(new Event('blur'));").catch(() => {});
     sendState();
     writeLog('page-ready');
   });
@@ -469,7 +469,7 @@ else {
     screen.on('display-removed', () => {
       if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized() && !mainWindow.isFullScreen()) mainWindow.setBounds(safeSavedWindow(mainWindow.getBounds(), screen.getDisplayMatching(mainWindow.getBounds()).workArea));
       sendState();
-      wallpaper?.reposition();
+      wallpaper?.reposition(); pet?.reposition();
     });
     registerShellProtocol(); registerIpc();
     wallpaper = createWallpaper({ app, getMain: () => mainWindow, getSite: () => siteView?.webContents, status: wallpaperStatus, appearanceScript, getAppearance: () => appearance, log: writeLog, registerProtocol: registerShellProtocol });

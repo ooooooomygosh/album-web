@@ -1,6 +1,6 @@
 'use strict';
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const { mountFixture, albums } = require('./ui-fixture.cjs');
+const { mountFixture, albums, chooseRoomScene } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results');
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `library-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -50,9 +50,9 @@ const ROOM = 'local-room';
   await site.getByRole('button', { name: '清除音乐筛选' }).click(); assert.equal(await site.locator('.room-record').count(), 12); await filters.click();
   check('custom-vinyl-shows-on-the-turntable-and-genres-filter');
 
-  await site.getByRole('button', { name: '切换写实风格' }).click(); await site.locator('.cabin-warm').waitFor();
+  await chooseRoomScene(site, 'warm');
   await site.reload(); await site.locator('.cabin-warm').waitFor(); assert.equal((await saved()).rooms[ROOM].look, 'warm');
-  await site.getByRole('button', { name: '切换像素风格' }).click(); await site.locator('.cabin-pixel').waitFor();
+  await chooseRoomScene(site, 'pixel');
   check('cabin-look-persists');
 
   await filters.click(); await site.getByRole('button', { name: '管理唱片盒', exact: true }).click();

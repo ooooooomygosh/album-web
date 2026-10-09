@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Clock, ListBullet, ChartBar, SpeakerWave, SpeakerOff, Play, Pause, Forward, Loading, X, Settings, Shuffle } from '../icons';
+import React, { useEffect, useId, useState } from 'react';
+import { Clock, ListBullet, ChartBar, SpeakerWave, SpeakerOff, Play, Pause, Forward, Loading, X, Settings, Shuffle, BookOpen } from '../icons';
 import { useFocus } from './useFocus';
 import { useSoundscape } from '../audio/useSoundscape';
 import { AMBIENCE_TRACKS } from '../audio/ambience.mjs';
@@ -7,24 +7,41 @@ import { formatClock, PHASE_LABELS, phaseDuration } from './focus-model.mjs';
 import PixelClock from './PixelClock';
 import TaskList from './TaskList';
 import FocusStats from './FocusStats';
+import QuickNotes from './QuickNotes';
 import './focus.css';
 
-const TABS = [['timer', '番茄钟', Clock], ['tasks', '待办', ListBullet], ['stats', '统计', ChartBar], ['sound', '声音', SpeakerWave]];
+// Explicit built-in registry; never loads third-party code or remote widgets.
+export const BUILTIN_FOCUS_TOOLS = Object.freeze([['timer', '番茄钟', Clock, FocusTimer], ['tasks', '待办', ListBullet, TaskList], ['stats', '统计', ChartBar, FocusStats], ['sound', '声音', SpeakerWave, SoundMixer], ['notes', '随手记', BookOpen, QuickNotes]]);
+const TABS = BUILTIN_FOCUS_TOOLS;
+
+function DurationSetting({ name, label, value, max, onSave }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const save = () => {
+    if (!draft.trim() || !Number.isFinite(Number(draft))) { setDraft(String(value)); return; }
+    const next = Math.max(name === 'longEvery' ? 2 : 1, Math.min(max, Math.round(Number(draft))));
+    setDraft(String(next)); onSave(next);
+  };
+  return <label>{label}<input type="number" min={name === 'longEvery' ? 2 : 1} max={max} step="1" value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={save} onKeyDown={(event) => {
+    if (event.key === 'Enter') { event.preventDefault(); save(); }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setDraft(String(value)); }
+  }}/></label>;
+}
 
 export function FocusTimer() {
   const focus = useFocus(), { timer, settings, tasks } = focus.state, [editing, setEditing] = useState(false);
   const idle = timer.phase === 'idle', remaining = idle ? phaseDuration(settings, 'focus') : focus.remaining;
   const displayRemaining = settings.hideSeconds ? Math.ceil(remaining / 60000) * 60000 : remaining;
-  const total = idle ? remaining : phaseDuration(settings, timer.phase), progress = total ? Math.max(0, 1 - displayRemaining / total) : 0;
+  const total = idle ? remaining : timer.duration || phaseDuration(settings, timer.phase), progress = total ? Math.max(0, Math.min(1, 1 - displayRemaining / total)) : 0;
   const task = tasks.find((item) => item.id === timer.taskId);
-  const number = (key, label, max) => <label>{label}<input type="number" min="1" max={max} value={settings[key]} onChange={(event) => focus.settings({ [key]: event.target.value })}/></label>;
+  const number = (key, label, max) => <DurationSetting name={key} label={label} value={settings[key]} max={max} onSave={(value) => focus.settings({ [key]: value })}/>;
   const check = (key, label) => <label className="focus-check"><input type="checkbox" checked={settings[key]} onChange={(event) => focus.settings({ [key]: event.target.checked })}/>{label}</label>;
   return <div className={`focus-timer phase-${timer.phase} ${timer.paused ? 'is-paused' : ''}`}>
     <p className="focus-phase" role="status">{PHASE_LABELS[timer.phase]}{timer.paused ? ' · 已暂停' : ''}</p>
     <PixelClock text={formatClock(remaining, settings.hideSeconds)} label={`剩余 ${formatClock(remaining, settings.hideSeconds)}`}/>
     <div className="focus-progress" aria-hidden="true"><span style={{ width: `${progress * 100}%` }}/></div>
     <div className="focus-rounds" aria-label={`本组第 ${timer.round % settings.longEvery + (timer.phase === 'focus' ? 1 : 0)} 轮`}>{Array.from({ length: settings.longEvery }, (_, index) => <span key={index} className={index < timer.round % settings.longEvery ? 'is-done' : index === timer.round % settings.longEvery && timer.phase === 'focus' ? 'is-active' : ''}/>)}</div>
-    <label className="focus-current-task">当前任务<select aria-label="当前专注任务" value={timer.taskId} onChange={(event) => focus.selectTask(event.target.value || timer.taskId)}><option value="">自由专注</option>{tasks.filter((item) => !item.done || item.id === timer.taskId).map((item) => <option key={item.id} value={item.id}>{item.text}</option>)}</select></label>
+    <label className="focus-current-task">当前任务<select aria-label="当前专注任务" value={timer.taskId} onChange={(event) => focus.selectTask(event.target.value)}><option value="">自由专注</option>{tasks.filter((item) => !item.done || item.id === timer.taskId).map((item) => <option key={item.id} value={item.id}>{item.text}</option>)}</select></label>
     {task && <p className="focus-task-now" title={task.text}>正在：{task.text}</p>}
     <div className="focus-controls">
       <button type="button" className="focus-primary" onClick={focus.toggle}>{idle ? <><Play size={18}/>开始专注</> : timer.paused ? <><Play size={18}/>继续</> : <><Pause size={18}/>暂停</>}</button>
@@ -34,6 +51,7 @@ export function FocusTimer() {
       <button type="button" aria-label="计时设置" aria-expanded={editing} onClick={() => setEditing(!editing)}><Settings size={18}/></button>
     </div>
     {editing && <div className="focus-settings">
+      {!idle && <small>时长修改从下一轮开始生效。</small>}
       <div className="focus-settings-grid">{number('focusMin', '专注（分）', 180)}{number('shortMin', '短休（分）', 60)}{number('longMin', '长休（分）', 90)}{number('longEvery', '几轮长休', 8)}</div>
       {check('hideSeconds', '隐藏秒数（仅显示剩余分钟）')}{check('autoBreak', '专注结束自动开始休息')}{check('autoFocus', '休息结束自动开始专注')}{check('notify', '系统通知')}{check('chime', '提示音')}{check('autoSound', '开始专注时打开声音')}
     </div>}
@@ -68,14 +86,23 @@ export function FocusBadge({ onClick }) {
 }
 
 export default function FocusDock({ open, close, tab, setTab }) {
+  const tabId = useId();
+  const Panel = TABS.find(([id]) => id === tab)?.[3] || FocusTimer;
   if (!open) return null;
+  const navigateTabs = (event) => {
+    const index = TABS.findIndex(([id]) => id === tab);
+    const next = event.key === 'ArrowRight' ? (index + 1) % TABS.length : event.key === 'ArrowLeft' ? (index + TABS.length - 1) % TABS.length : event.key === 'Home' ? 0 : event.key === 'End' ? TABS.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault(); setTab(TABS[next][0]);
+    document.getElementById(`${tabId}-${TABS[next][0]}`)?.focus();
+  };
   return <aside className="focus-dock" aria-label="专注工具">
     <header className="focus-dock-header">
-      <nav role="tablist" aria-label="专注工具">{TABS.map(([id, label, Icon]) => <button type="button" role="tab" key={id} aria-selected={tab === id} onClick={() => setTab(id)}><Icon size={16}/><span>{label}</span></button>)}</nav>
+      <nav role="tablist" aria-label="专注工具">{TABS.map(([id, label, Icon]) => <button type="button" role="tab" key={id} id={`${tabId}-${id}`} aria-controls={`${tabId}-panel`} tabIndex={tab === id ? 0 : -1} onKeyDown={navigateTabs} aria-selected={tab === id} onClick={() => setTab(id)}><Icon size={16}/><span>{label}</span></button>)}</nav>
       <button type="button" className="focus-dock-close" aria-label="收起专注工具" onClick={close}><X size={18}/></button>
     </header>
-    <div className="focus-dock-body" role="tabpanel">
-      {tab === 'timer' && <FocusTimer/>}{tab === 'tasks' && <TaskList/>}{tab === 'stats' && <FocusStats/>}{tab === 'sound' && <SoundMixer/>}
+    <div className="focus-dock-body" role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`}>
+      <Panel/>
     </div>
   </aside>;
 }

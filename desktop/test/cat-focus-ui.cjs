@@ -2,7 +2,7 @@
 // Cabin productivity flow: focus dock, tasks, a full pomodoro with a fake
 // clock, rewards, the room cat, the sound mixer and Zen mode.
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const { mountFixture } = require('./ui-fixture.cjs');
+const { mountFixture, chooseRoomScene } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `cat-focus-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -20,6 +20,10 @@ let app, site, host;
   });
   await site.clock.install({ time: new Date('2026-10-08T12:00:00') });
   await mountFixture(app, site, { showroom: 'room' });
+  await chooseRoomScene(site, 'pixel');
+  await site.getByRole('button', { name: '布置小屋', exact: true }).click();
+  await site.getByRole('button', { name: '选择桌宠 奶糖', exact: true }).click();
+  await site.getByRole('button', { name: '回到小屋', exact: true }).click();
   const cat = site.locator('.room-cat .pixel-cat'); await cat.waitFor();
   await site.clock.fastForward(89000);
   assert.notEqual(await cat.getAttribute('data-pose'), 'walk');
@@ -50,7 +54,7 @@ let app, site, host;
   await site.getByRole('button', { name: '黑猫', exact: true }).click(); assert.equal(await cat.getAttribute('data-skin'), 'black');
   await site.screenshot({ path: path.join(output, 'cat-black-room.png') });
   await site.getByRole('tab', { name: '番茄钟' }).click(); await site.getByRole('button', { name: '计时设置' }).click();
-  await site.getByLabel('专注（分）').fill('2'); await site.getByLabel('隐藏秒数（仅显示剩余分钟）').check();
+  await site.getByLabel('专注（分）').fill('2'); await site.getByLabel('专注（分）').blur(); await site.getByLabel('隐藏秒数（仅显示剩余分钟）').check();
   await site.getByLabel('提示音', { exact: true }).uncheck(); await site.getByLabel('系统通知', { exact: true }).uncheck();
   await site.getByRole('button', { name: '开始专注', exact: true }).click();
   assert.match(await site.locator('.focus-badge').innerText(), /2 分钟/);
@@ -64,7 +68,8 @@ let app, site, host;
   await site.evaluate(() => { window.__phaseCount = 0; window.addEventListener('album-focus-phase', () => window.__phaseCount++); });
   await site.clock.fastForward(60000); assert.equal(await site.evaluate(() => window.__phaseCount), 1);
   await site.clock.fastForward(1000); assert.equal(await site.evaluate(() => window.__phaseCount), 1);
-  check('minutes-stay-still-between-boundaries-pause-resume-and-finish-once');
+  await site.getByRole('tab', { name: '统计' }).click(); assert.match(await site.locator('.focus-stat-tiles').innerText(), /2 分钟/); assert.match(await site.locator('.focus-rewards header').innerText(), /🐟 1/);
+  check('minutes-stay-still-between-boundaries-pause-resume-and-finish-once-with-active-duration-and-reward');
   await site.reload(); await cat.waitFor(); assert.equal(await cat.getAttribute('data-skin'), 'black');
   if (!await site.getByRole('tab', { name: '番茄钟' }).isVisible()) await site.locator('.focus-badge').click(); await site.getByRole('tab', { name: '番茄钟' }).click(); await site.getByRole('button', { name: '计时设置' }).click(); assert.equal(await site.getByLabel('隐藏秒数（仅显示剩余分钟）').isChecked(), true);
   check('skin-and-display-preferences-persist-after-reload');
@@ -95,7 +100,7 @@ let app, site, host;
   await app.evaluate(async ({ app, BrowserWindow, ipcMain, session }, snapshot) => {
     const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs');
     const { registerShellProtocol } = require('./shell-protocol.cjs'), { cleanSnapshot } = require('./wallpaper-model.cjs');
-    const partition = session.fromPartition('album-circle-wallpaper'); registerShellProtocol(partition.protocol);
+    const partition = session.fromPartition('album-circle-wallpaper'); if (!(await partition.protocol.isProtocolHandled('album-desktop'))) registerShellProtocol(partition.protocol);
     ipcMain.removeHandler('wallpaper:snapshot'); ipcMain.handle('wallpaper:snapshot', () => cleanSnapshot(snapshot));
     const win = new BrowserWindow({ width: 1280, height: 900, show: true, webPreferences: { partition: 'album-circle-wallpaper', preload: app.getAppPath() + '/wallpaper-preload.cjs', sandbox: true, contextIsolation: true, nodeIntegration: false } });
     await win.loadURL('album-desktop://wallpaper/wallpaper.html'); globalThis.__qaWallpaper = win;

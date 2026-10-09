@@ -65,6 +65,7 @@
       "local-music.cjs",
       "collection-store.cjs",
       "catalog-search.mjs",
+      "musicbrainz-scheduler.mjs",
       "music-service.cjs",
       "music-policy.cjs",
       "music-upstream.cjs",

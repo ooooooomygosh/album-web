@@ -1,6 +1,6 @@
 'use strict';
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const { mountFixture, albums, useWarmCabin } = require('./ui-fixture.cjs');
+const { mountFixture, albums, useWarmCabin, chooseRoomScene } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `room-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -63,7 +63,7 @@ const row = () => site.locator('.room-rack-grid').getAttribute('data-start-row')
     const helper = app.isPackaged ? path.join(process.resourcesPath, 'native', 'DesktopHost.exe') : path.join(app.getAppPath(), 'native/bin/DesktopHost.exe');
     return new Promise((resolve, reject) => execFile(helper, ['probe', win.getNativeWindowHandle().readBigUInt64LE().toString(), String(process.pid)], { windowsHide: true }, (error, output) => error ? reject(error) : resolve(JSON.parse(output))));
   }); assert.equal(native.behindIcons, true); assert.equal(native.visible, true); check('real-native-desktop-window-behind-icons', native);
-  await useWarmCabin(site); await site.getByRole('button', { name: '切换像素风格', exact: true }).click(); await wallpaper.locator('.cabin-pixel').waitFor();
+  await useWarmCabin(site); await chooseRoomScene(site, 'pixel'); await wallpaper.locator('.cabin-pixel').waitFor();
   await site.keyboard.press('ArrowDown'); await wallpaper.waitForFunction(() => document.querySelector('.room-rack-grid').dataset.startRow === '1'); check('wallpaper-live-sync-look-shelf-and-turntable');
   await wallpaper.screenshot({ path: path.join(output, 'desktop-room.png') });
   assert.equal(await wallpaper.evaluate(() => typeof window.require), 'undefined'); assert.equal(await wallpaper.evaluate(() => typeof window.albumDesktop), 'undefined'); assert.equal(await wallpaper.evaluate(() => Object.keys(window.albumWallpaper).sort().join(',')), 'getSnapshot,onSnapshot'); check('wallpaper-read-only-isolated-bridge');

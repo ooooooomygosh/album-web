@@ -1,4 +1,5 @@
 'use strict';
+const { chooseRoomScene } = require('./ui-fixture.cjs');
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'album-client-ui-'));
@@ -29,8 +30,8 @@ const check = (value) => report.checks.push(value);
   await site.getByRole('button', { name: '自定义唱片', exact: true }).first().click();
   await site.getByLabel('黑胶底色', { exact: true }).fill('#aabbcc');
   await site.getByRole('button', { name: '保存唱片设置', exact: true }).click(); check('vinyl-customization');
-  await site.getByRole('button', { name: '切换写实风格', exact: true }).click(); await site.locator('.cabin-warm').waitFor();
-  await site.getByRole('button', { name: '切换像素风格', exact: true }).click(); await site.locator('.cabin-pixel').waitFor();
+  await chooseRoomScene(site, 'warm');
+  await chooseRoomScene(site, 'pixel');
   await site.locator('.room-record').first().dblclick();
   await site.waitForFunction(() => document.querySelector('.room-turntable')?.dataset.spinning === 'true'); check('cabin-looks-and-turntable');
   await site.getByRole('button', { name: /唱片卡片/ }).click(); const card = site.getByRole('dialog', { name: '唱片卡片：本地验证专辑' });

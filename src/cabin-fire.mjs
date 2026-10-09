@@ -61,7 +61,10 @@ export function fillFireTexture(data, width, height, seconds, pixel = false) {
 }
 export function createFirePainter(pixel) {
   const buffer = document.createElement('canvas'); buffer.width = pixel ? 26 : 112; buffer.height = pixel ? 48 : 208;
-  const ctx = buffer.getContext('2d'), texture = ctx.createImageData(buffer.width, buffer.height);
+  const ctx = buffer.getContext('2d');
+  if (!ctx) return null;
+  let texture;
+  try { texture = ctx.createImageData(buffer.width, buffer.height); } catch { return null; }
   return (target, width, height, seconds) => {
     fillFireTexture(texture.data, buffer.width, buffer.height, seconds, pixel); ctx.putImageData(texture, 0, 0);
     target.drawImage(buffer, 0, 0, width, height);

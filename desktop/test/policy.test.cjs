@@ -9,7 +9,7 @@ test('original host allows room links and refuses origin lookalikes and credenti
 });
 test('only the local shell document can invoke native commands', () => {
   assert.ok(isShellUrl('album-desktop://shell/index.html'));
-  for (const url of ['album-desktop://shell/app.js', 'album-desktop://evil/index.html', 'https://album-circle.vercel.app/', 'album-desktop://user:pass@shell/index.html']) assert.equal(isShellUrl(url), false, url);
+  for (const url of ['album-desktop://shell/app.js', 'album-desktop://shell:123/index.html', 'album-desktop://evil/index.html', 'https://album-circle.vercel.app/', 'album-desktop://user:pass@shell/index.html']) assert.equal(isShellUrl(url), false, url);
 });
 test('external opening is limited to credential-free HTTPS', () => {
   assert.ok(isExternalUrl('https://music.apple.com/album/123'));

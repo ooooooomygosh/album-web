@@ -1,6 +1,6 @@
 'use strict';
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict'), crypto = require('node:crypto');
-const { mountFixture } = require('./ui-fixture.cjs');
+const { mountFixture, chooseRoomScene } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results/atmosphere'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -15,7 +15,7 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
   site.on('pageerror', (error) => report.pageErrors.push(error.message)); await mountFixture(app, site, { items: [] });
   await app.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('shell/')); win.setBounds({ x: 0, y: 0, width: 1448, height: 1086 }); });
   for (const look of ['warm', 'pixel']) {
-    const toggle = site.getByRole('button', { name: look === 'warm' ? '切换写实风格' : '切换像素风格', exact: true }); if (await toggle.count()) await toggle.click();
+    await chooseRoomScene(site, look);
     await site.locator(`.atmosphere-${look}[data-motion=running]`).waitFor();
     const floorSize = await site.evaluate(async (look) => { const img = new Image(); img.src = `/room-scenes/${look}-cabin-floor.png`; await img.decode(); return [img.naturalWidth, img.naturalHeight]; }, look);
     assert.deepEqual(floorSize, [1448, 1086]);
@@ -36,6 +36,12 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
     assert.equal(masks.crossbar, 0); assert.equal(masks.horizontal, 0); assert.equal(masks.rim, 0); assert.equal(masks.interior, 255);
     check(`${look}-two-distinct-frames-aligned-and-clipped`, { ...geometry, masks, snowHashes: [hash(a.snow), hash(b.snow)], fireHashes: [hash(a.fire), hash(b.fire)] });
   }
+  for (const look of ['forest', 'seaside', 'starlight']) {
+    const bad = []; const collect = request => { if ([`/room-scenes/${look}-cabin-clean.png`, `/room-scenes/${look}-cabin-floor.png`].includes(new URL(request.url()).pathname)) bad.push(request.url()); };
+    site.on('request', collect); await chooseRoomScene(site, look); await pause(300); site.off('request', collect);
+    assert.equal(await site.locator('.cabin-atmosphere').count(), 0); assert.deepEqual(bad, []); check(`${look}-retains-scene-without-cabin-only-atmosphere-or-missing-clean-asset`);
+  }
+  await chooseRoomScene(site, 'pixel'); await site.locator('.atmosphere-pixel[data-motion=running]').waitFor();
   const floorClip = await site.evaluate(async () => {
     const svg = document.querySelector('.cabin-floor-base').cloneNode(true); svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg'); svg.setAttribute('width', '1448'); svg.setAttribute('height', '1086');
     const imageNode = svg.querySelector('image'), rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -62,7 +68,7 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('shell/')).hide());
   await site.waitForFunction(() => document.querySelector('.cabin-atmosphere').dataset.motion === 'hidden'); const hidden = await sample(site); await pause(500); assert.deepEqual(await sample(site), hidden);
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('shell/')).show()); await site.locator('.room-turntable').click(); await site.locator('.cabin-atmosphere[data-motion=running]').waitFor(); await pause(500); assert.notEqual((await sample(site)).fire, hidden.fire); check('real-window-hide-pauses-and-show-resumes');
-  for (let i = 0; i < 6; i++) { await site.getByRole('button', { name: i % 2 ? '切换像素风格' : '切换写实风格', exact: true }).click(); await site.locator('.cabin-atmosphere[data-motion=running]').waitFor(); assert.equal(await site.locator('.cabin-atmosphere canvas').count(), 2); }
+  for (let i = 0; i < 6; i++) { await chooseRoomScene(site, i % 2 ? 'pixel' : 'warm'); await site.locator('.cabin-atmosphere[data-motion=running]').waitFor(); assert.equal(await site.locator('.cabin-atmosphere canvas').count(), 2); }
   const cdp = await site.context().newCDPSession(site);
   for (const [width, height] of [[960, 600], [1920, 1080], [2560, 1440], [3440, 1440]]) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: false }); await pause(120);
@@ -73,7 +79,7 @@ const sample = (page) => page.evaluate(() => ({ snow: document.querySelector('.c
   const snapshot = await site.evaluate(() => ({ ...window.albumRoomSnapshot(), look: 'warm' }));
   await app.evaluate(async ({ app, BrowserWindow, ipcMain, session }, snapshot) => {
     const require = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/main.cjs'); const { registerShellProtocol } = require('./shell-protocol.cjs');
-    const partition = session.fromPartition('album-circle-wallpaper'); if (!partition.protocol.isProtocolHandled('album-desktop')) registerShellProtocol(partition.protocol);
+    const partition = session.fromPartition('album-circle-wallpaper'); if (!(await partition.protocol.isProtocolHandled('album-desktop'))) registerShellProtocol(partition.protocol);
     ipcMain.removeHandler('wallpaper:snapshot'); ipcMain.handle('wallpaper:snapshot', () => require('./wallpaper-model.cjs').cleanSnapshot(snapshot));
     const win = new BrowserWindow({ width: 1448, height: 1086, show: true, webPreferences: { partition: 'album-circle-wallpaper', preload: app.getAppPath() + '/wallpaper-preload.cjs', sandbox: true, contextIsolation: true, nodeIntegration: false } }); globalThis.__qaAtmosphereWallpaper = win; await win.loadURL('album-desktop://wallpaper/wallpaper.html');
   }, snapshot);

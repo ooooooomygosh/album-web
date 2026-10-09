@@ -30,11 +30,11 @@ function registerShellProtocol(targetProtocol = protocol) {
       if (body === undefined) return new Response('Asset unavailable', { status: 404 });
       return new Response(body, { headers: { 'Content-Type': mime[path.extname(file)], 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https:; font-src 'self'; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'" } });
     }
-    const entry = url.hostname === 'shell' && !url.username && !url.password ? assets[url.pathname] : null;
+    const entry = url.hostname === 'shell' && !url.username && !url.password && !url.port && ['GET', 'HEAD'].includes(request.method) ? assets[url.pathname] : null;
     if (!entry) return new Response('Not found', { status: 404 });
     const body = readAsset(path.join(__dirname, entry[0]));
     if (body === undefined) return new Response('Asset unavailable', { status: 404 });
-    return new Response(body, {
+    return new Response(request.method === 'HEAD' ? null : body, {
       headers: {
         'Content-Type': entry[1],
         'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'"

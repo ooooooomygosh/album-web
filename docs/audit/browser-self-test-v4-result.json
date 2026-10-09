@@ -1,0 +1,102 @@
+{
+  "fixtureOnly": true,
+  "nativeTested": false,
+  "startedAt": "2026-10-08T17:07:13.594Z",
+  "viewport": {
+    "width": 1180,
+    "height": 757
+  },
+  "checks": [
+    {
+      "name": "fixture room mounted",
+      "passed": true
+    },
+    {
+      "name": "scene pixel",
+      "passed": true
+    },
+    {
+      "name": "scene warm",
+      "passed": true
+    },
+    {
+      "name": "scene forest",
+      "passed": true
+    },
+    {
+      "name": "scene seaside",
+      "passed": true
+    },
+    {
+      "name": "scene starlight",
+      "passed": true
+    },
+    {
+      "name": "pet cat",
+      "passed": true
+    },
+    {
+      "name": "pet chick",
+      "passed": true
+    },
+    {
+      "name": "pet bunny",
+      "passed": true
+    },
+    {
+      "name": "pet bear",
+      "passed": true
+    },
+    {
+      "name": "pet fox",
+      "passed": true
+    },
+    {
+      "name": "viewport horizontal fit",
+      "passed": true
+    },
+    {
+      "name": "collection add and notes update",
+      "passed": true
+    },
+    {
+      "name": "collection confirmed deletion",
+      "passed": true
+    },
+    {
+      "name": "task create and complete",
+      "passed": true
+    },
+    {
+      "name": "quick notes input",
+      "passed": true
+    },
+    {
+      "name": "timer start pause resume",
+      "passed": true
+    },
+    {
+      "name": "backup includes collection notes and task",
+      "passed": true
+    },
+    {
+      "name": "real generated WAV playback",
+      "passed": true
+    },
+    {
+      "name": "mocked system transport",
+      "passed": true
+    },
+    {
+      "name": "album wall exports PNG",
+      "passed": true
+    },
+    {
+      "name": "real one-minute timer completion",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "passed": true,
+  "finishedAt": "2026-10-08T17:08:16.088Z"
+}

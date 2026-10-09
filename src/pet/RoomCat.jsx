@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PixelCat from './PixelCat';
 import { useCatMotion } from './useCatMotion';
+import { getPet } from './pet-catalog.mjs';
 import { bubbleText, celebrateUntil, petPose, pokeLine, catStroll } from './pet-model.mjs';
 
 export function useClock(interval = 1000, enabled = true) {
@@ -10,9 +11,10 @@ export function useClock(interval = 1000, enabled = true) {
 }
 // Shared by the room, the wallpaper and the desktop pet: tracks celebration,
 // pokes and song changes, and returns the current pose and bubble.
-export function useCatBehaviour({ focus = {}, playing = false, track = '', lastActivity = 0, reduceMotion = false, hidden = false }) {
+export function useCatBehaviour({ focus = {}, playing = false, track = '', lastActivity = 0, petId = 'cat', reduceMotion = false, hidden = false }) {
   const motion = useCatMotion(reduceMotion, hidden);
   const now = useClock(500, motion.visible), [celebrate, setCelebrate] = useState(0), [poke, setPoke] = useState({ text: '', at: 0 });
+  useEffect(() => { setPoke({ text: '', at: 0 }); }, [petId]);
   const fish = useRef(focus.fish), song = useRef({ track, at: 0 });
   useEffect(() => { if (fish.current !== undefined && focus.fish > fish.current) setCelebrate(celebrateUntil(Date.now())); fish.current = focus.fish; }, [focus.fish]);
   if (track !== song.current.track) song.current = { track, at: track ? Date.now() : 0 };
@@ -21,25 +23,26 @@ export function useCatBehaviour({ focus = {}, playing = false, track = '', lastA
   const eligible = motion.visible && !motion.reduced && ['idle', 'sleep', 'walk'].includes(basePose);
   const [strollStart, setStrollStart] = useState(() => Date.now());
   const rest = useRef(90000 + Math.random() * 60000);
-  useEffect(() => { setStrollStart(Date.now()); }, [eligible]);
+  useEffect(() => { setStrollStart(Date.now()); }, [eligible, petId]);
   const stroll = catStroll(now - strollStart, rest.current, eligible);
   const pose = stroll.walking ? 'walk' : basePose === 'walk' ? 'idle' : basePose;
   const bubble = bubbleText({ phase: focus.phase, paused: focus.paused, remaining, track, trackChangedAt: song.current.at, poke: poke.text, pokedAt: poke.at, now, hour });
-  return { pose, bubble, now, x: stroll.x, reduced: motion.reduced, poke: () => setPoke({ text: pokeLine(), at: Date.now() }) };
+  return { pose, bubble, now, x: stroll.x, reduced: motion.reduced, poke: () => setPoke({ text: pokeLine(Math.random, petId), at: Date.now() }) };
 }
 
-export default function RoomCat({ focus, playing, track, reduceMotion, interactive = true, hidden = false }) {
+export default function RoomCat({ focus, playing, track, reduceMotion, petId = 'cat', interactive = true, hidden = false }) {
   const [activity, setActivity] = useState(() => Date.now());
   useEffect(() => {
-    if (!interactive) return;
+    if (!interactive || hidden) return;
     let last = 0; const mark = () => { const time = Date.now(); if (time - last > 5000) { last = time; setActivity(time); } };
     ['pointermove', 'keydown', 'wheel'].forEach((name) => window.addEventListener(name, mark, { passive: true }));
     return () => ['pointermove', 'keydown', 'wheel'].forEach((name) => window.removeEventListener(name, mark));
-  }, [interactive]);
-  const cat = useCatBehaviour({ focus, playing, track, lastActivity: interactive ? activity : 0, reduceMotion, hidden });
+  }, [interactive, hidden]);
+  const pet = getPet(petId);
+  const cat = useCatBehaviour({ focus, playing, track, petId: pet.id, lastActivity: interactive ? activity : 0, reduceMotion, hidden });
   if (hidden) return null;
-  const body = <><PixelCat pose={cat.pose} accessory={focus?.accessory || ''} skin={focus?.catSkin} reduceMotion={cat.reduced} style={{ transform: `translateX(${cat.x}px)` }} label={`像素小猫 · ${{ idle: '发呆', groove: '跟着音乐摇摆', celebrate: '庆祝', walk: '散步', sleep: '睡觉', focus: '陪你专注' }[cat.pose]}`}/>{cat.bubble && <span className="room-cat-bubble" role="status">{cat.bubble}</span>}</>;
+  const body = <><PixelCat petId={pet.id} pose={cat.pose} accessory={focus?.accessory || ''} skin={focus?.catSkin} reduceMotion={cat.reduced} style={{ transform: `translateX(${cat.x}px)` }} label={`像素${pet.species} · ${pet.name} · ${{ idle: '发呆', groove: '跟着音乐摇摆', celebrate: '庆祝', walk: '散步', sleep: '睡觉', focus: '陪你专注' }[cat.pose]}`}/>{cat.bubble && <span className="room-cat-bubble" role="status">{cat.bubble}</span>}</>;
   return interactive
-    ? <button type="button" className="room-cat" aria-label="摸摸小猫" onClick={cat.poke}>{body}</button>
-    : <div className="room-cat">{body}</div>;
+    ? <button type="button" className="room-cat" aria-label={`摸摸${pet.species}${pet.name}`} data-pet-id={pet.id} onClick={cat.poke}>{body}</button>
+    : <div className="room-cat" data-pet-id={pet.id}>{body}</div>;
 }

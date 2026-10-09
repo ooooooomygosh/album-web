@@ -48,17 +48,31 @@ function groupAlbums(tracks) {
 
 function createLocalMusic({ directory, loadParser = () => import('music-metadata').then((module) => module.parseFile), resizeCover = null }) {
   const indexPath = path.join(directory, 'local-music.json'), coverDir = path.join(directory, 'local-music', 'covers');
-  let index = { folders: [], albums: [], scannedAt: 0 }, scanning = null;
-  try { const saved = JSON.parse(fs.readFileSync(indexPath, 'utf8')); if (Array.isArray(saved.albums) && Array.isArray(saved.folders)) index = saved; } catch {}
+  let index = { folders: [], albums: [], scannedAt: 0 }, scanning = null, folderRevision = 0;
+  try { const saved = JSON.parse(fs.readFileSync(indexPath, 'utf8')); if (Array.isArray(saved.albums) && Array.isArray(saved.folders) && saved.folders.length <= LIMITS.folders && saved.folders.every((folder) => typeof folder === 'string' && path.isAbsolute(folder)) && saved.albums.every((album) => album && ID.test(album.id) && Array.isArray(album.tracks) && album.tracks.every((track) => track && ID.test(track.id) && typeof track.file === 'string'))) index = saved; } catch {}
+  // Older releases saved the selected path rather than its real path. Migrate
+  // existing symlink/junction roots and files together, keeping public track IDs.
+  // Unavailable external drives retain their saved path so they can reconnect.
+  const canonical = (file) => { try { return fs.realpathSync(file); } catch { return file; } };
+  const previousIndex = JSON.stringify(index);
+  index.folders = [...new Set(index.folders.map(canonical))];
+  index.albums = index.albums.map((album) => ({ ...album, tracks: album.tracks.map((track) => ({ ...track, file: canonical(track.file) })) }));
   let tracksById = new Map();
   const rebuild = () => { tracksById = new Map(index.albums.flatMap((album) => album.tracks.map((track) => [track.id, track]))); };
   rebuild();
   function save() { fs.mkdirSync(directory, { recursive: true }); fs.writeFileSync(indexPath + '.tmp', JSON.stringify(index)); fs.renameSync(indexPath + '.tmp', indexPath); }
 
+  if (JSON.stringify(index) !== previousIndex) { try { save(); } catch { /* Retry persistence on the next successful scan. */ } }
+
   async function scan() {
-    const parse = await loadParser(), parsed = [];
-    for (const folder of index.folders) {
+    index.folders = [...new Set(index.folders.map(canonical))];
+    const existingIds = new Map(index.albums.flatMap((album) => album.tracks.map((track) => [canonical(track.file), track.id])));
+    const currentRevision = folderRevision, folders = [...index.folders];
+    const parse = await loadParser(), parsed = [], seen = new Set();
+    for (const folder of folders) {
       for (const file of walk(folder)) {
+        if (seen.has(file)) continue; seen.add(file);
+        if (currentRevision !== folderRevision) return scan();
         try {
           const { common, format } = await parse(file, { duration: false, skipPostHeaders: true });
           const picture = common.picture?.find((item) => /^image\/(jpe?g|png)$/i.test(item.format) && item.data?.length <= 8 * 1024 * 1024) || null;
@@ -66,6 +80,7 @@ function createLocalMusic({ directory, loadParser = () => import('music-metadata
         } catch { /* Unreadable tags: skip this file. */ }
       }
     }
+    if (currentRevision !== folderRevision) return scan();
     fs.mkdirSync(coverDir, { recursive: true });
     const albums = groupAlbums(parsed).map((album) => {
       let cover = '';
@@ -75,9 +90,9 @@ function createLocalMusic({ directory, loadParser = () => import('music-metadata
           if (data?.length) { fs.writeFileSync(path.join(coverDir, album.id + '.jpg'), data); cover = album.id + '.jpg'; }
         } catch {}
       }
-      return { id: album.id, title: album.title, artist: album.artist, year: album.year, cover, tracks: album.tracks.map((track) => ({ id: hash('track:' + track.file), title: track.title, artist: track.artist || album.artist, duration: track.duration, file: track.file, type: AUDIO[path.extname(track.file).toLowerCase()] })) };
+      return { id: album.id, title: album.title, artist: album.artist, year: album.year, cover, tracks: album.tracks.map((track) => ({ id: existingIds.get(canonical(track.file)) || hash('track:' + track.file), title: track.title, artist: track.artist || album.artist, duration: track.duration, file: track.file, type: AUDIO[path.extname(track.file).toLowerCase()] })) };
     });
-    index = { folders: index.folders, albums, scannedAt: Date.now() }; rebuild(); save();
+    index = { folders, albums, scannedAt: Date.now() }; rebuild(); save();
     return summary();
   }
   function summary() {
@@ -90,16 +105,21 @@ function createLocalMusic({ directory, loadParser = () => import('music-metadata
   return {
     summary, albums,
     async addFolder(folder) {
-      const resolved = path.resolve(String(folder || ''));
-      let directory = false; try { directory = fs.statSync(resolved).isDirectory(); } catch {}
+      let resolved, directory = false; try { if (typeof folder !== 'string' || !folder.trim()) throw new Error('Empty folder'); resolved = fs.realpathSync(path.resolve(folder)); directory = fs.statSync(resolved).isDirectory(); } catch {}
       if (!directory) throw new Error('无法读取这个文件夹，请确认它仍然存在。');
-      if (!index.folders.includes(resolved)) { if (index.folders.length >= LIMITS.folders) throw new Error(`最多添加 ${LIMITS.folders} 个音乐文件夹。`); index.folders = [...index.folders, resolved]; }
+      if (!index.folders.includes(resolved)) { if (index.folders.length >= LIMITS.folders) throw new Error(`最多添加 ${LIMITS.folders} 个音乐文件夹。`); index.folders = [...index.folders, resolved]; folderRevision++; }
       return this.rescan();
     },
-    removeFolder(folderPath) { index.folders = index.folders.filter((folder) => folder !== folderPath); return this.rescan(); },
-    rescan() { if (!scanning) scanning = scan().finally(() => { scanning = null; }); return scanning; },
-    track(id) { if (!ID.test(id || '')) return null; const track = tracksById.get(id); return track && fs.existsSync(track.file) ? track : null; },
-    coverPath(id) { if (!ID.test(id || '')) return null; const album = index.albums.find((item) => item.id === id); return album?.cover ? path.join(coverDir, album.cover) : null; },
+    removeFolder(folderPath) { index.folders = index.folders.filter((folder) => folder !== folderPath); folderRevision++; return this.rescan(); },
+    rescan() { if (!scanning) scanning = scan().then(() => { scanning = null; return summary(); }, (error) => { scanning = null; throw error; }); return scanning; },
+    track(id) { if (!ID.test(id || '')) return null; const track = tracksById.get(id);
+      if (!track) return null;
+      try {
+        const file = fs.realpathSync(track.file), type = AUDIO[path.extname(file).toLowerCase()];
+        const allowed = index.folders.some((folder) => { const relative = path.relative(folder, file); return relative && relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative); });
+        return allowed && type && fs.statSync(file).isFile() ? { ...track, file, type } : null;
+      } catch { return null; } },
+    coverPath(id) { if (!ID.test(id || '')) return null; const album = index.albums.find((item) => item.id === id); return album?.cover === id + '.jpg' ? path.join(coverDir, id + '.jpg') : null; },
     search(query) {
       const words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean).slice(0, 8); if (!words.length) return [];
       const results = [];

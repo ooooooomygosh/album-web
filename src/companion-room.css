@@ -39,3 +39,12 @@
 .local-album-list li>span:not(.local-album-placeholder){flex:1;min-width:0;display:grid}.local-album-list strong,.local-album-list small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .link-button{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer}
 .turntable-collect{display:inline-flex!important;gap:5px;align-items:center;font-size:12px}
+
+/* The new illustrated rooms have reading lamps, not a fireplace. Weather stays
+   inside each new window rather than floating over the wall or the album rack. */
+.cabin-scene:is([data-room-look=forest],[data-room-look=seaside],[data-room-look=starlight]) .cabin-fire-glow{display:none}
+.cabin-scene[data-room-look=forest] :is(.cabin-weather,.cabin-snow){left:5.66%;top:11.25%;width:19.34%;height:43.7%;clip-path:inset(0 round 50% 50% 0 0)}
+.cabin-scene[data-room-look=seaside] :is(.cabin-weather,.cabin-snow){left:6.0%;top:16.2%;width:19.2%;height:25.6%;clip-path:circle(48%)}
+.cabin-scene[data-room-look=starlight] :is(.cabin-weather,.cabin-snow){left:5.94%;top:20.44%;width:19.75%;height:26.34%;clip-path:circle(48%)}
+
+.cabin-scene:not([data-weather=snow]) .cabin-snow{opacity:0}

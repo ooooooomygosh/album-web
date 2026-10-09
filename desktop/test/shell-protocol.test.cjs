@@ -27,3 +27,13 @@ test('asset I/O failure returns a diagnosable 404 instead of throwing ERR_FAILED
   const result = f.fetch('album-desktop://wallpaper/wallpaper.html');
   assert.equal(result.status, 404); assert.equal(await result.text(), 'Asset unavailable');
 });
+
+test('shell route keeps exact authority, method and HEAD restrictions after extraction', async () => {
+  const f = fixture();
+  assert.equal(f.fetch('album-desktop://shell/index.html').status, 200);
+  assert.equal(await f.fetch('album-desktop://shell/index.html', 'HEAD').text(), '');
+  for (const url of ['album-desktop://shell:100/index.html', 'album-desktop://user@shell/index.html', 'album-desktop://user:password@shell/index.html', 'album-desktop://shell.invalid/index.html', 'album-desktop://shell/private.json']) assert.equal(f.fetch(url).status, 404, url);
+  for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS']) assert.equal(f.fetch('album-desktop://shell/index.html', method).status, 404, method);
+  f.breakAsset();
+  for (const method of ['GET', 'HEAD']) assert.equal(f.fetch('album-desktop://shell/index.html', method).status, 404);
+});

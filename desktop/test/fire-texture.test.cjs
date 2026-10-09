@@ -27,3 +27,13 @@ test('advected fire is deterministic, changes without whole-frame flashes, and p
   for (let i = 0; i < pixel.length; i += 4) { assert.ok(pixel[i + 3] === 0 || pixel[i + 3] === 255); if (pixel[i + 3]) colours.add(`${pixel[i]},${pixel[i + 1]},${pixel[i + 2]}`); }
   assert.ok(colours.size <= 8); assert.ok(colours.size >= 4);
 });
+test('unavailable offscreen canvas falls back without throwing', async () => {
+  const previous = global.document;
+  try {
+    global.document = { createElement: () => ({ getContext: () => null }) };
+    const { createFirePainter } = await model;
+    assert.equal(createFirePainter(false), null);
+    global.document = { createElement: () => ({ getContext: () => ({ createImageData() { throw new Error('allocation failed'); } }) }) };
+    assert.equal(createFirePainter(true), null);
+  } finally { if (previous === undefined) delete global.document; else global.document = previous; }
+});

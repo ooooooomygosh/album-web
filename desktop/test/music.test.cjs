@@ -67,3 +67,23 @@ test('audio identifiers come from original QQ track IDs, other catalogs require 
   const { exactTrack } = await import('../../src/room-playback.mjs'); const item = { tracks: ['原曲名'], trackDetails: [{ providerId: '001n4C3p1yv0FU' }] };
   assert.equal(exactTrack(item, 0, 'qq').id, '001n4C3p1yv0FU'); assert.equal(exactTrack(item, 0, 'netease'), null); assert.equal(exactTrack({ tracks: ['原曲名'] }, 0, 'qq'), null);
 });
+test('NetEase resolution passes server-verified identity without inventing entitlement', async (t) => {
+  let received;
+  const { service, request } = await fixture(t, {
+    getNeteaseLoginInfo: async (cookie) => { assert.match(cookie, /LOGIN_SECRET/); return { loggedIn: true, userId: 42, isVip: false }; },
+    handleSongUrl: async (_id, info, _quality, cookie) => { received = { info, cookie }; return { playable: false, message: '需要平台权限' }; }
+  });
+  await service.login('netease'); await request('/resolve', { provider: 'netease', id: '12345' });
+  assert.equal(received.info.userId, 42); assert.equal(received.info.isVip, false); assert.match(received.cookie, /LOGIN_SECRET/);
+});
+test('logout during NetEase account verification prevents a later playback request', async (t) => {
+  let verify, entered, calls = 0;
+  const ready = new Promise(resolve => { entered = resolve; });
+  const { service, request } = await fixture(t, {
+    getNeteaseLoginInfo: () => { entered(); return new Promise(resolve => { verify = resolve; }); },
+    handleSongUrl: async () => { calls++; return { playable: false }; }
+  });
+  await service.login('netease'); const pending = request('/resolve', { provider: 'netease', id: '12345' });
+  await ready; await service.logout('netease'); verify({ loggedIn: true, userId: 42 });
+  assert.equal((await pending).status, 502); assert.equal(calls, 0);
+});

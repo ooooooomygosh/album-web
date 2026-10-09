@@ -31,6 +31,7 @@ var music_upstream_exports = {};
 __export(music_upstream_exports, {
   audioProxyHeadersFor: () => audioProxyHeadersFor,
   call: () => call,
+  getNeteaseLoginInfo: () => getNeteaseLoginInfo,
   getQQLoginInfo: () => getQQLoginInfo,
   handleQQSearch: () => handleQQSearch,
   handleQQSongUrl: () => handleQQSongUrl,
@@ -841,10 +842,27 @@ async function handleSongUrl(id, loginInfo, qualityPreference, cookie) {
     requestedQuality
   };
 }
+
+// music-upstream.ts
+async function getNeteaseLoginInfo(cookie) {
+  if (!cookie) return { loggedIn: false };
+  for (const endpoint of ["login_status", "user_account"]) {
+    try {
+      const response = await call(endpoint, { cookie, timestamp: Date.now() });
+      const body = asObj(response.body), data = asObj(body.data || body);
+      if (response.status >= 400 || data.code != null && Number(data.code) !== 200 || body.code != null && Number(body.code) !== 200) continue;
+      const info = normalizeLoginInfo(data.profile || body.profile, data.account || body.account, data);
+      if (info.loggedIn) return info;
+    } catch {
+    }
+  }
+  return { loggedIn: false };
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   audioProxyHeadersFor,
   call,
+  getNeteaseLoginInfo,
   getQQLoginInfo,
   handleQQSearch,
   handleQQSongUrl,

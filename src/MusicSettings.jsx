@@ -7,45 +7,90 @@ import { musicRequest } from './room-playback.mjs';
 // Local folders are scanned in place; files are never copied or uploaded.
 function LocalMusicSettings() {
   const [summary, setSummary] = useState(null), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
-  const load = async () => { try { setSummary(await musicRequest('/local/summary')); } catch (error) { setMessage(error.message); } };
+  const alive = useRef(false), pending = useRef(false), revision = useRef(0), request = useRef(null), wasScanning = useRef(false);
+  const progress = '正在扫描音乐文件，大型文件夹可能需要几分钟。可关闭此窗口，扫描会继续。';
+  const complete = (next) => `扫描完成：${next.albumCount} 张专辑，${next.trackCount} 首歌曲。`;
+  const load = async () => {
+    const version = revision.current;
+    try {
+      const next = await musicRequest('/local/summary');
+      if (!alive.current || version !== revision.current) return;
+      setSummary(next);
+      if (!pending.current) {
+        setBusy(Boolean(next.scanning));
+        if (next.scanning) setMessage(progress);
+        else if (wasScanning.current) setMessage(`扫描已结束：${next.albumCount} 张专辑，${next.trackCount} 首歌曲。`);
+      }
+      wasScanning.current = Boolean(next.scanning);
+    } catch (error) { if (alive.current && version === revision.current && !pending.current) setMessage(error.message); }
+  };
   useEffect(() => {
+    alive.current = true;
     load();
-    const receive = (event) => { const detail = event.detail || {}; if (detail.scanning) { setBusy(true); setMessage('正在扫描音乐文件…'); return; } setBusy(false); if (detail.error) setMessage(detail.error); else if (detail.ok) { setSummary(detail); setMessage(`扫描完成：${detail.albumCount} 张专辑，${detail.trackCount} 首歌曲。`); } else if (detail.cancelled) setMessage(''); };
-    window.addEventListener('album-local-music', receive); return () => window.removeEventListener('album-local-music', receive);
+    // The native scan survives closing/reopening settings or a timed-out HTTP
+    // response. Read its status so the UI never claims the scan was cancelled.
+    let polling = false;
+    const timer = setInterval(async () => { if (polling) return; polling = true; try { await load(); } finally { polling = false; } }, 2000);
+    const receive = (event) => {
+      const detail = event.detail || {}; revision.current++;
+      if (detail.scanning) { pending.current = true; wasScanning.current = true; setBusy(true); setMessage(progress); return; }
+      pending.current = false; wasScanning.current = false; setBusy(false);
+      if (detail.error) setMessage(detail.error);
+      else if (detail.ok) { setSummary(detail); setMessage(complete(detail)); }
+      else if (detail.cancelled) setMessage('');
+      load();
+    };
+    window.addEventListener('album-local-music', receive);
+    return () => { alive.current = false; revision.current++; request.current?.abort(); clearInterval(timer); window.removeEventListener('album-local-music', receive); };
   }, []);
-  const act = async (path, value) => { setBusy(true); setMessage(''); try { const next = await musicRequest(path, value); setSummary(next); setMessage(`扫描完成：${next.albumCount} 张专辑，${next.trackCount} 首歌曲。`); } catch (error) { setMessage(error.message); } finally { setBusy(false); } };
+  const act = async (path, value) => {
+    if (pending.current || busy) return;
+    pending.current = true; const version = ++revision.current;
+    const controller = new AbortController(); request.current = controller;
+    setBusy(true); setMessage(progress);
+    try {
+      const next = await musicRequest(path, value, controller.signal);
+      if (alive.current && version === revision.current) { setSummary(next); setMessage(complete(next)); }
+    } catch (error) {
+      if (alive.current && version === revision.current) setMessage(`${error.message} 扫描可能仍在后台继续，正在检查状态。`);
+    } finally {
+      if (version === revision.current) { pending.current = false; request.current = null; if (alive.current) await load(); }
+    }
+  };
   return <section className="music-local"><h3>本地音乐</h3>
     <p>选择电脑里的音乐文件夹，按标签整理成专辑。音乐留在原位置播放，不会复制或上传。在「添加专辑 › 本地音乐」里把本地专辑放上唱片架。</p>
     {summary?.folders?.length > 0 && <ul className="music-local-folders">{summary.folders.map((folder) => <li key={folder.path} title={folder.path}><FolderOpen size={16}/><span>{folder.name}</span><button type="button" aria-label={`移除文件夹 ${folder.name}`} disabled={busy} onClick={() => act('/local/remove-folder', { path: folder.path })}><Trash2 size={15}/></button></li>)}</ul>}
-    <div className="music-local-actions"><button type="button" disabled={busy} onClick={() => { setBusy(true); setMessage(''); desktopCommand('local-music-folder'); }}><FolderOpen size={16}/>添加音乐文件夹</button>{summary?.folders?.length > 0 && <button type="button" disabled={busy} onClick={() => act('/local/rescan', {})}><Loading size={16}/>重新扫描</button>}</div>
+    <div className="music-local-actions"><button type="button" disabled={busy} onClick={() => { if (pending.current || busy) return; pending.current = true; revision.current++; setBusy(true); setMessage('请选择音乐文件夹…'); desktopCommand('local-music-folder'); }}><FolderOpen size={16}/>添加音乐文件夹</button>{summary?.folders?.length > 0 && <button type="button" disabled={busy} onClick={() => act('/local/rescan', {})}><Loading size={16}/>重新扫描</button>}</div>
     <p role="status" className="music-local-status">{message || (summary ? `${summary.albumCount} 张专辑 · ${summary.trackCount} 首歌曲` : '')}</p>
   </section>;
 }
 export default function MusicSettings({ close }) {
+  const pending = useRef(false);
   const dialog = useRef(null), [config, setConfig] = useState({}), [url, setURL] = useState(''), [token, setToken] = useState(''), [players, setPlayers] = useState([]), [playerId, setPlayerId] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
-  const refresh = async () => { try { const next = await musicRequest('/config'); setConfig(next); setURL(next.maURL || ''); setPlayerId(next.playerId || ''); } catch (error) { setError(error.message); } };
+  const sameServer = url.trim().replace(/\/+$/, '') === (config.maURL || '').replace(/\/+$/, '');
+  const refresh = async () => { try { const next = await musicRequest('/config'); setConfig(next); setURL(next.maURL || ''); setPlayerId(next.playerId || ''); } catch (error) { setError((previous) => previous || error.message); } };
   useEffect(() => {
     const previous = document.activeElement; dialog.current.showModal(); refresh();
-    const receive = (event) => { setBusy(false); setError(event.detail.error || ''); if (event.detail.ok) { setNotice('平台账户已更新。'); refresh(); } };
+    const receive = (event) => { pending.current = false; setBusy(false); setError(event.detail?.error || ''); if (event.detail?.ok) setNotice('平台登录信息已更新，实际播放权限需播放时确认。'); refresh(); };
     window.addEventListener('album-music-account', receive);
     return () => { window.removeEventListener('album-music-account', receive); previous?.focus?.({ preventScroll: true }); };
   }, []);
   const connect = async (event) => {
-    event.preventDefault(); setBusy(true); setError(''); setNotice('');
-    try { const next = await musicRequest('/config', { maURL: url, ...(token ? { maToken: token } : {}), playerId }); setConfig(next); setToken(''); window.dispatchEvent(new Event('album-music-settings')); const result = await musicRequest('/ma/players'); setPlayers(result.players); setNotice(result.players.length ? '服务器连接成功，请选择播放器并保存。' : '已连接服务器，但没有可用播放器。请先在 Music Assistant 配置播放器。'); }
-    catch (error) { setError(error.message); } finally { setBusy(false); }
+    event.preventDefault(); if (pending.current) return; pending.current = true; setBusy(true); setError(''); setNotice('');
+    try { const next = await musicRequest('/config', { maURL: url, ...(token || !sameServer ? { maToken: token } : {}), playerId: sameServer ? playerId : '' }); setConfig(next); setURL(next.maURL || ''); setPlayerId(next.playerId || ''); setToken(''); window.dispatchEvent(new Event('album-music-settings')); const result = await musicRequest('/ma/players'); setPlayers(result.players); setNotice(result.players.length ? '服务器连接成功，请选择播放器并保存。' : '已连接服务器，但没有可用播放器。请先在 Music Assistant 配置播放器。'); }
+    catch (error) { setError(error.message); } finally { pending.current = false; setBusy(false); }
   };
-  const account = (provider, logout = false) => { setBusy(true); setError(''); setNotice(''); desktopCommand(logout ? 'music-logout' : 'music-login', { provider }); };
+  const account = (provider, logout = false) => { if (pending.current) return; pending.current = true; setBusy(true); setError(''); setNotice(''); desktopCommand(logout ? 'music-logout' : 'music-login', { provider }); };
   return createPortal(<dialog ref={dialog} className="record-dialog music-settings" aria-label="音源与账户" onCancel={(event) => { event.preventDefault(); close(); }}>
     <header><h2><Music2 size={22}/>音源与账户</h2><button type="button" aria-label="关闭音源设置" onClick={close}><X/></button></header>
     <p className="record-dialog-intro">Simple Music 提供 QQ / 网易云播放模块；Music Assistant 连接你已有的服务器。平台登录只保存在本机。</p>
-    {[['qq', 'QQ 音乐', config.qqLoggedIn], ['netease', '网易云音乐', config.neteaseLoggedIn]].map(([provider, name, loggedIn]) => <div className="music-account" key={provider}><span><strong>{name}</strong><small>{loggedIn ? '已保存平台登录' : '未登录，可尝试平台允许的游客音频'}</small></span><button type="button" disabled={busy} onClick={() => account(provider)}>{loggedIn ? '重新登录' : '登录'}</button>{loggedIn && <button type="button" disabled={busy} onClick={() => account(provider, true)}>退出平台</button>}</div>)}
-    <form onSubmit={connect}><h3>Music Assistant</h3><p>通过服务器的已配置播放器发声。此处不自动安装或启动 Music Assistant。</p>
-      <label>服务器地址<input type="url" aria-label="Music Assistant 服务器地址" placeholder="http://192.168.1.8:8095" value={url} onChange={(event) => setURL(event.target.value)} required/></label>
-      <label>访问令牌<input type="password" aria-label="Music Assistant 访问令牌" value={token} onChange={(event) => setToken(event.target.value)} placeholder={config.maTokenSet ? '令牌已加密保存，留空可沿用' : '从服务器的用户资料中创建访问令牌'} autoComplete="off"/></label>
+    {[['qq', 'QQ 音乐', config.qqLoggedIn], ['netease', '网易云音乐', config.neteaseLoggedIn]].map(([provider, name, loggedIn]) => <div className="music-account" key={provider}><span><strong>{name}</strong><small>{loggedIn ? '已保存登录信息 · 尚未验证本次播放权限' : '未登录，可尝试平台允许的游客音频'}</small></span><button type="button" disabled={busy} onClick={() => account(provider)}>{loggedIn ? '重新登录' : '登录'}</button>{loggedIn && <button type="button" disabled={busy} onClick={() => account(provider, true)}>退出平台</button>}</div>)}
+    <form onSubmit={connect}><h3>Music Assistant</h3><p>通过服务器的已配置播放器发声，不从本机播放。连接成功只验证服务器和播放器列表，不代表已验证歌曲播放权限。此处不自动安装或启动 Music Assistant。</p>
+      <label>服务器地址<input type="url" aria-label="Music Assistant 服务器地址" placeholder="http://192.168.1.8:8095" value={url} onChange={(event) => { setURL(event.target.value); setPlayers([]); setPlayerId(''); setToken(''); setNotice(''); }} disabled={busy} required/></label>
+      <label>访问令牌<input type="password" aria-label="Music Assistant 访问令牌" value={token} onChange={(event) => setToken(event.target.value)} disabled={busy} placeholder={config.maTokenSet && sameServer ? '令牌已加密保存，留空可沿用' : '从服务器的用户资料中创建访问令牌'} autoComplete="off"/></label>
       <button type="submit" disabled={busy}>{busy ? '正在连接…' : '连接并读取播放器'}</button>
-      {(players.length > 0 || playerId) && <><label>服务器播放器<select aria-label="Music Assistant 播放器" value={playerId} onChange={(event) => setPlayerId(event.target.value)}><option value="">请选择播放器</option>{playerId && !players.some((p) => p.id === playerId) && <option value={playerId}>{playerId}（已保存）</option>}{players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label><button type="button" disabled={busy || !playerId} onClick={async () => { try { await musicRequest('/config', { maURL: url, playerId }); window.dispatchEvent(new Event('album-music-settings')); setNotice('播放器已保存。'); } catch (error) { setError(error.message); } }}>保存播放器</button></>}
-    </form><LocalMusicSettings/><section className="music-local"><h3>系统正在播放</h3><p>在唱机选择“系统正在播放”，Spotify、网易云音乐、QQ 音乐、Apple Music 等播放器正在放的歌会显示在小屋里，并可暂停和切歌。Windows 读取系统媒体控制；macOS 支持 Music 与 Spotify，首次使用需在“自动化”中允许。</p></section><p className="music-platform-note">在唱机上选择音源后，双击或拖拽放盘即可播放。音频受版权、地区和会员权限限制；仅有名称时需手动选择版本，不会自动替换收藏中的封面或曲目。</p>
+      {(players.length > 0 || playerId) && <><label>服务器播放器<select aria-label="Music Assistant 播放器" value={playerId} onChange={(event) => setPlayerId(event.target.value)} disabled={busy}><option value="">请选择播放器</option>{playerId && !players.some((p) => p.id === playerId) && <option value={playerId}>{playerId}（已保存）</option>}{players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label><button type="button" disabled={busy || !playerId || !sameServer} onClick={async () => { if (pending.current || !sameServer) return; pending.current = true; setBusy(true); setError(''); setNotice(''); try { await musicRequest('/config', { maURL: url, playerId }); window.dispatchEvent(new Event('album-music-settings')); setNotice('播放器已保存；声音从服务器播放器输出，本机音量滑块不控制它。'); } catch (error) { setError(error.message); } finally { pending.current = false; setBusy(false); } }}>保存播放器</button></>}
+    </form><LocalMusicSettings/><section className="music-local"><h3>系统正在播放</h3><p>此模式只显示和控制外部播放器，不会把收藏自动发送到音乐平台。在唱机选择“系统正在播放”，Spotify、网易云音乐、QQ 音乐、Apple Music 等播放器正在放的歌会显示在小屋里，并可暂停和切歌。Windows 读取系统媒体控制；macOS 支持 Music 与 Spotify，首次使用需在“自动化”中允许。</p></section><p className="music-platform-note">在唱机上选择音源后，双击或拖拽放盘即可播放。音频受版权、地区和会员权限限制；仅有名称时需手动选择版本，不会自动替换收藏中的封面或曲目。</p>
     {error && <p className="record-error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}<footer><button type="button" className="record-primary" onClick={close}>完成音源设置</button></footer>
   </dialog>, document.body);
 }

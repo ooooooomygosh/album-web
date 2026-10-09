@@ -33,7 +33,9 @@ export default function useTurntablePosition(readOnly) {
   const save = (point) => {
     const area = bounds();
     const turntable = point ? { x: area.width ? (point.x - area.left) / area.width : 0, y: area.height ? (point.y - area.top) / area.height : 0 } : undefined;
-    library?.update((old) => ({ ...old, rooms: { ...old.rooms, [library.roomId]: { ...old.rooms[library.roomId], turntable } } }));
+    const stored = library?.update((old) => ({ ...old, rooms: { ...old.rooms, [library.roomId]: { ...old.rooms[library.roomId], turntable } } }));
+    if (stored === false) restore();
+    return stored;
   };
   const finish = (event, cancel = false) => {
     const drag = gesture.current; if (!drag || drag.id !== event.pointerId) return;

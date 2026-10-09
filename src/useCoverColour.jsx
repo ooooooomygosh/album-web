@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { loadWallCover } from './album-wall-canvas.mjs';
+import { readCoverPixels } from './album-wall-canvas.mjs';
 import { dominantColour } from './cover-colour.mjs';
 import { DEFAULT_RECORD_STYLE } from './record-library.mjs';
 
@@ -8,13 +8,8 @@ function coverColour(cover) {
   if (!colours.has(cover)) {
     colours.set(cover, (async () => {
       try {
-        // Reuse the existing local cover transport; no new endpoint or service.
-        const image = await loadWallCover(cover);
-        if (!image) return DEFAULT_RECORD_STYLE.base;
-        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 48;
-        const context = canvas.getContext('2d', { willReadFrequently: true });
-        context.drawImage(image, 0, 0, 48, 48);
-        return dominantColour(context.getImageData(0, 0, 48, 48).data);
+        const pixels = await readCoverPixels(cover);
+        return pixels ? dominantColour(pixels) : DEFAULT_RECORD_STYLE.base;
       } catch { return DEFAULT_RECORD_STYLE.base; }
     })());
     if (colours.size > 256) colours.delete(colours.keys().next().value);

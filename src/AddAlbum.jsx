@@ -28,8 +28,9 @@ function CatalogSearch({ initialQuery, onAdded, added }) {
       const response = await fetch('/api/search?' + new URLSearchParams(params), { signal: controller.signal });
       const data = await response.json();
       if (!response.ok || data.error) throw new Error(data.error || '搜索失败，请稍后重试。');
-      setResults(data.candidates || []); setStatus(data.candidates?.length ? '' : '没有找到，换个关键词或切换曲库试试。');
-    } catch (error) { if (error.name !== 'AbortError') setStatus(error.message.includes('timed out') ? '曲库响应超时，请稍后重试。' : error.message); }
+      if (controller.signal.aborted || request.current !== controller) return;
+      setResults(data.candidates || []); setStatus(data.candidates?.length ? (Array.isArray(data.warnings) ? data.warnings.join('；') : '') : '没有找到，换个关键词或切换曲库试试。');
+    } catch (error) { if (error.name !== 'AbortError' && request.current === controller) setStatus(error.message.includes('timed out') ? '曲库响应超时，请稍后重试。' : error.message); }
   };
   useEffect(() => { input.current?.focus(); if (initialQuery) search(null, initialQuery); return () => request.current?.abort(); }, []);
   const choose = async (candidate) => {
@@ -44,15 +45,15 @@ function CatalogSearch({ initialQuery, onAdded, added }) {
       <button type="submit" className="pixel-button is-primary" disabled={status === 'searching'}>{status === 'searching' ? <Loading size={16}/> : '搜索'}</button>
     </form>
     <div className="add-options">
-      <div className="segmented" role="radiogroup" aria-label="曲库">{[['itunes', 'Apple 曲库'], ['qq', 'QQ 音乐']].map(([value, label]) => <button type="button" role="radio" key={value} aria-checked={provider === value} onClick={() => { setProvider(value); try { localStorage.setItem('album-circle-search-provider-v2', value); } catch {} }}>{label}</button>)}</div>
-      <div className="segmented" role="radiogroup" aria-label="类型">{[['album', '专辑'], ['song', '单曲'], ['all', '全部']].map(([value, label]) => <button type="button" role="radio" key={value} aria-checked={type === value} onClick={() => setType(value)}>{label}</button>)}</div>
+      <div className="segmented" role="radiogroup" aria-label="曲库">{[['itunes', 'Apple 曲库'], ['qq', 'QQ 音乐']].map(([value, label]) => <button type="button" role="radio" key={value} aria-checked={provider === value} onClick={() => { if (provider !== value) { request.current?.abort(); setResults([]); setStatus(''); setProvider(value); } try { localStorage.setItem('album-circle-search-provider-v2', value); } catch {} }}>{label}</button>)}</div>
+      <div className="segmented" role="radiogroup" aria-label="类型">{[['album', '专辑'], ['song', '单曲'], ['all', '全部']].map(([value, label]) => <button type="button" role="radio" key={value} aria-checked={type === value} onClick={() => { if (type !== value) { request.current?.abort(); setResults([]); setStatus(''); setType(value); } }}>{label}</button>)}</div>
     </div>
     {status && status !== 'searching' && <p className="add-status" role="status">{status}</p>}
     {status === 'searching' && <p className="add-status" role="status">正在翻找唱片…</p>}
     <ul className="add-results" aria-label="搜索结果">{results.map((candidate) => {
       const done = added.has(candidate.id);
       return <li key={candidate.id}><Cover src={candidate.cover} title={candidate.title}/>
-        <span className="add-result-copy"><strong title={candidate.title}>{candidate.title}</strong><small>{candidate.artist}{candidate.year && candidate.year !== 'unknown' ? ` · ${candidate.year}` : ''}{candidate.tracks?.length ? ` · ${candidate.tracks.length} 首` : ''} · {candidate.type === 'song' ? '单曲' : '专辑'}</small><small className="add-source">{candidate.platforms?.[0] || candidate.source}</small></span>
+        <span className="add-result-copy"><strong title={candidate.title}>{candidate.title}</strong><small>{candidate.artist}{candidate.year && candidate.year !== 'unknown' ? ` · ${candidate.year}` : ''}{candidate.tracks?.length ? ` · ${candidate.tracks.length} 首` : ''} · {candidate.type === 'song' ? '单曲' : '专辑'}</small><small className="add-source">{candidate.platforms?.[0] || candidate.source}{candidate.type === 'album' && candidate.metadataCompleteness?.trackCountMatches === false ? ' · 曲目待补全，可先收藏' : ''}</small></span>
         <button type="button" className={`pixel-button ${done ? '' : 'is-primary'}`} disabled={done || busyId === candidate.id} onClick={() => choose(candidate)}>{done ? <><Check size={15}/>已在架上</> : busyId === candidate.id ? '放上中…' : <><Plus size={15}/>放上唱片架</>}</button>
       </li>;
     })}</ul>

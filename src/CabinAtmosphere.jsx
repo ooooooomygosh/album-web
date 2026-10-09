@@ -35,8 +35,9 @@ export default function CabinAtmosphere({ look, weather }) {
   useEffect(() => {
     const element = root.current, pixel = look === 'pixel';
     const snowContext = prepare(snow.current, geometry.window, pixel), fireContext = prepare(fire.current, geometry.fire, pixel);
-    if (!snowContext || !fireContext) return;
+    if (!snowContext || !fireContext) { element.dataset.motion = 'unavailable'; return; }
     const renderFire = createFirePainter(pixel);
+    if (!renderFire) { element.dataset.motion = 'unavailable'; return; }
     const surfaces = [...light.current.querySelectorAll('[data-surface]')];
     const clean = new Image(); let ready = false, disposed = false;
     const draw = (seconds) => {

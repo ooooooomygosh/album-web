@@ -3,7 +3,7 @@
 // covers), a few days of focus history and the cat in its scarf.
 // Run: npm --prefix desktop run screenshots   (writes docs/images/*.jpg)
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path');
-const { mountFixture } = require('./ui-fixture.cjs');
+const { mountFixture, chooseRoomScene } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, '..', 'docs', 'images'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(desktop, 'test-results', `screenshots-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -57,8 +57,8 @@ const items = ALBUMS.map(([title, artist, background, accent, motif], index) => 
   await site.locator('.focus-badge').click(); await site.getByRole('button', { name: '开始专注' }).click(); await shot('cabin-focus.jpg');
   await site.getByRole('tab', { name: '统计' }).click(); await shot('cabin-stats.jpg');
   await site.locator('.focus-dock-close').click(); await site.keyboard.press('z'); await shot('cabin-zen.jpg'); await site.keyboard.press('Escape');
-  await site.getByRole('button', { name: '切换写实风格' }).click(); await site.locator('.cabin-warm').waitFor(); await site.waitForTimeout(600); await shot('cabin-warm.jpg');
-  await site.getByRole('button', { name: '切换像素风格' }).click(); await site.locator('.cabin-pixel').waitFor();
+  await chooseRoomScene(site, 'warm'); await site.waitForTimeout(600); await shot('cabin-warm.jpg');
+  await chooseRoomScene(site, 'pixel');
   await site.locator('.room-record').nth(2).click(); await site.getByRole('button', { name: /唱片卡片/ }).click(); await site.locator('.record-card').waitFor(); await shot('record-card.jpg');
   await site.getByRole('button', { name: '关闭唱片卡片' }).click();
   await site.getByRole('button', { name: '添加专辑' }).click(); const add = site.getByRole('dialog', { name: '添加专辑' });
