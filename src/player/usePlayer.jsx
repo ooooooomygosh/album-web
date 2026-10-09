@@ -48,7 +48,7 @@ export function usePlayerShortcuts({ playback, player, provider, toggleVisual, r
       if (!current) return;
       const audible = source !== 'visual' && source !== 'system', key = event.key;
       const act = (fn) => { event.preventDefault(); fn(); };
-      if (key.startsWith('Arrow') && event.target?.closest?.('.room-turntable')) return; // arrows nudge the deck while its handle is focused
+      if (key.startsWith('Arrow') && event.target?.closest?.('.room-turntable,[role=tablist],[role=listbox],[role=menu],[role=radiogroup],.focus-dock')) return; // arrows nudge the deck while its handle is focused
       if (key === ' ' || key === 'Spacebar') { if (event.target?.closest?.('button,a,[role=button],[role=slider]')) return; act(() => audible ? pb.toggle() : source === 'visual' && spin()); }
       else if (event.shiftKey && key === 'ArrowRight') act(() => pl.next());
       else if (event.shiftKey && key === 'ArrowLeft') act(() => pl.previous());
