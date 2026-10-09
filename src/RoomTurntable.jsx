@@ -47,7 +47,7 @@ export default function RoomTurntable({ item, spinning, trackIndex = 0, style, i
       {playback.candidates.length > 0 && <div className="turntable-matches" aria-label="选择曲目版本">{playback.candidates.map((candidate) => <button type="button" key={candidate.id} onClick={() => playback.choose(candidate)}><strong>{candidate.title}</strong><span>{candidate.artist} · {candidate.album || '专辑未知'}</span></button>)}</div>}
       {provider !== 'ma' && item && <div className="turntable-audio-sliders"><label>进度<input type="range" aria-label="音乐播放进度" min="0" max={playback.duration || 1} step=".1" value={Math.min(playback.position, playback.duration || 1)} disabled={!playback.duration} onChange={(event) => playback.seek(Number(event.target.value))}/><small>{Math.floor(playback.position / 60)}:{String(Math.floor(playback.position % 60)).padStart(2, '0')} / {Math.floor(playback.duration / 60)}:{String(Math.floor(playback.duration % 60)).padStart(2, '0')}</small></label><label>音量<input type="range" aria-label="音乐音量" min="0" max="1" step=".01" value={playback.volume} onChange={(event) => playback.setVolume(Number(event.target.value))}/></label></div>}
     </>}
-    {!readOnly && !item && provider !== 'system' && <p className="turntable-hint">双击放盘 / 拖拽放盘</p>}
+    {!readOnly && provider !== 'system' && (provider === 'visual' || !item) && <p className="turntable-hint">{provider === 'visual' ? '听歌前，先选择音源。' : !item ? '双击封面，或把唱片拖到这里。' : ''}</p>}
       </div>
     </div>
   </aside>;

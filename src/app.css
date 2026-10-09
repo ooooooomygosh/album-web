@@ -156,3 +156,16 @@ a{color:var(--amber-2)}
 @media (prefers-reduced-transparency: reduce){.cabin-room:not(.cabin-pixel) :is(.cabin-toolbar-group,.room-now-playing,.room-shelf-navigation){background:#1d2529;backdrop-filter:none}}
 
 .room-preferences-error{position:absolute;z-index:25;left:18px;right:18px;top:130px;padding:10px 14px;border:1px solid #dfbd87;border-radius:8px;background:#4a3029f2;color:#fff0d2;font-size:12px}
+
+/* First visit: two useful paths, with no setup required before focusing. */
+.cabin-scene .room-empty{inset:42% 24% auto 31%;padding:24px 20px;gap:12px;max-height:calc(100% - 42% - 24px);overflow:auto}
+.room-empty p{margin:0;font-size:clamp(14px,1.2vw,18px);line-height:1.6}
+.room-empty small{color:var(--muted);font-size:12px;line-height:1.6}
+.room-welcome-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin:4px 0}
+.cabin-scene .room-empty .room-welcome-focus{background:transparent;color:var(--text);border-color:#d4a46b66;box-shadow:none;font-weight:400}
+.room-empty .room-welcome-tip{font-size:11px;color:var(--faint)}
+.cabin-room:not(.cabin-pixel) .room-empty{background:#1d2529ed;border:1px solid #e6d5b340;border-radius:12px;box-shadow:0 8px 28px #0003;backdrop-filter:blur(12px)}
+.cabin-room:not(.cabin-pixel) .room-empty button{border-width:1px;border-radius:7px;box-shadow:none}
+@media(max-height:700px){.cabin-scene .room-empty{padding:16px;gap:8px}.room-welcome-actions{gap:8px}.room-empty .room-welcome-tip{display:none}}
+@media(max-width:760px){.cabin-scene .room-empty{left:27%;right:8%;top:36%}}
+@media(prefers-reduced-transparency:reduce){.cabin-room:not(.cabin-pixel) .room-empty{background:#1d2529;backdrop-filter:none}}

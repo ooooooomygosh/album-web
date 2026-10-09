@@ -1,0 +1,11 @@
+name: 一个小屋改进想法
+description: 从你实际使用时的感受出发
+title: "[想法] "
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: 什么时候需要它
+      description: 描述具体场景与现在的不便，可以附你想象的行为。
+    validations:
+      required: true
