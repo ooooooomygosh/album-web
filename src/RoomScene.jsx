@@ -31,8 +31,10 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
     [viewport.current, toolbar, footer, header].filter(Boolean).forEach((element) => observer.observe(element)); update();
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, [scene]);
+  // Fallback for engines without overflow:clip: the stage never keeps a scroll offset.
+  const pinStage = (event) => { const el = event.currentTarget; if (el.scrollTop || el.scrollLeft) { el.scrollTop = 0; el.scrollLeft = 0; } };
   const { columns, rows } = scene.geometry;
-  return <div ref={viewport} className="room-scene cabin-scene" style={{ background: scene.style.background }} aria-label={scene.label} data-room-look={look} data-weather={normalizeWeather(weather)} data-time-of-day={timeOfDay(hour)}>
+  return <div ref={viewport} className="room-scene cabin-scene" onScroll={pinStage} style={{ background: scene.style.background }} aria-label={scene.label} data-room-look={look} data-weather={normalizeWeather(weather)} data-time-of-day={timeOfDay(hour)}>
     <div className="cabin-scene-canvas" style={geometry}>
       <img key={scene.id} className="cabin-scene-art" src={scene.view || scene.art} alt={scene.alt} width="1448" height="1086" draggable="false"/>
       {scene.id === 'night-study' && <StudyWriting/>}

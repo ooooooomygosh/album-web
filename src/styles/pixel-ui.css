@@ -158,3 +158,14 @@ html[data-desktop-reduce-motion='true'] .room-record:hover, html[data-desktop-re
 .scene-choice[aria-pressed=true], .pet-choice[aria-pressed=true] { border-color: var(--px-accent-hi) !important; background: #e0ad6914 !important; box-shadow: 0 0 0 2px var(--px-shadow), var(--px-shadow-2) !important; }
 .scene-choice > img, .welcome-scene-options img, .welcome-scene img { image-rendering: pixelated; }
 .welcome-shortcuts kbd { font-family: var(--px-font-en); font-size: 8px; box-shadow: inset -2px -2px 0 #0000004d, var(--px-shadow-1); }
+
+/* The cabin is a fixed stage, never a scroller. overflow:hidden boxes can still be
+   scrolled by scrollIntoView / focus / automation retries (the 1280×800 tour jumped
+   160px when a record was scrolled to block:start). overflow:clip forbids that. */
+.cabin-room,
+.cabin-scene.room-scene,
+.cabin-rack .room-record-slot,
+.ambient-life,
+.cabin-atmosphere,
+.wallpaper-room { overflow: hidden; overflow: clip; }
+.cabin-scene.room-scene { overscroll-behavior: none; }

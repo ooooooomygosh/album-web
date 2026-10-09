@@ -156,6 +156,13 @@ try {
     await page.locator(`.pet-cat .pixel-cat[data-pet-id="${pet.id}"]`).waitFor(); await screenshot(`desktop-pet-${pet.id}`);
   }
   await page.locator('.pet-cat').press('Enter'); await page.locator('.pet-bubble').waitFor(); check('pet-renderer-all-species-and-keyboard-poke-mocked-bridge'); await page.close(); page = mainPage;
+  page = await context.newPage(); page.setDefaultTimeout(12000); await page.setViewportSize({ width: 1280, height: 800 }); await page.goto(origin); await page.locator('.room-record').nth(5).waitFor();
+  const stage = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && [r.x, r.y, r.width, r.height].map(Math.round).join(','); }; const scrolled = [...document.querySelectorAll('*')].filter(el => el.scrollTop || el.scrollLeft).map(el => el.className); return { scrollY, scrolled, canvas: box('.cabin-scene-canvas'), rack: box('.room-rack') }; });
+  await page.waitForTimeout(400); const stageBefore = await stage();
+  await page.locator('.room-record').nth(5).dblclick(); await page.waitForTimeout(600);
+  await page.locator('.room-record').nth(5).evaluate(el => { el.focus(); el.scrollIntoView({ block: 'start', inline: 'start' }); }); await page.waitForTimeout(100);
+  const stageAfter = await stage(); assert.deepEqual(stageAfter.scrolled, [], 'room must not keep a scroll offset'); assert.equal(stageAfter.scrollY, 0); assert.equal(stageAfter.canvas, stageBefore.canvas, 'room canvas must not move or zoom'); assert.equal(stageAfter.rack, stageBefore.rack, 'shelf must not move');
+  await screenshot('cabin-1280x800-after-dblclick'); await page.close(); page = mainPage; check('room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800');
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
   check('deleted-albums-do-not-receive-late-autosaves');
