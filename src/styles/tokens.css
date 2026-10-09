@@ -1,0 +1,73 @@
+/*
+ * Flow Cabin · pixel design tokens (shared contract).
+ * Art direction: cozy lo-fi pixel cabin — warm wood, amber lamplight, soft
+ * moss/teal accents, night-blue windows. Every size is a multiple of --px-unit
+ * so frames, shadows and offsets land on whole "pixels".
+ * Owner: beauty (art direction). Teammates: consume, don't redefine — add new
+ * tokens here instead so the palette stays in one place.
+ * Mirrored in tokens.ts for JS/canvas use; keep both in sync.
+ */
+:root {
+  /* ── palette (16-colour cabin ramp) ───────────────────────────── */
+  --px-bg: #1c120b;          /* night wood, page background */
+  --px-surface: #2e1d12;     /* panel */
+  --px-surface-2: #3a2416;   /* raised panel / input */
+  --px-surface-3: #4d311c;   /* hover */
+  --px-ink: #ffe9cb;         /* primary text, warm paper */
+  --px-ink-dim: #c9a47a;     /* secondary text */
+  --px-ink-faint: #a88a68;   /* tertiary / placeholders (AA on surface-2 for ≥14px) */
+  --px-accent: #e0ad69;      /* amber lamplight — primary actions */
+  --px-accent-hi: #ffd99c;   /* accent highlight bevel */
+  --px-accent-lo: #a8743c;   /* accent shadow bevel */
+  --px-accent-2: #7fb8a8;    /* teal window-light — secondary accent */
+  --px-good: #9ccf8c;        /* moss */
+  --px-warn: #e06a4e;        /* ember */
+  --px-night: #22304a;       /* window night sky */
+  --px-border: #8a5a32;      /* frame line */
+  --px-border-hi: #b07a46;   /* frame highlight bevel */
+  --px-shadow: #0d0805;      /* hard drop shadow */
+  --px-focus: #ffd99c;       /* keyboard focus ring */
+
+  /* ── type ─────────────────────────────────────────────────────── */
+  --px-font-cn: 'Fusion Pixel 12', 'Fusion Pixel', 'Zpix', 'HarmonyOS Sans SC Bundled', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --px-font-en: 'Silkscreen', 'Fusion Pixel 12', 'Press Start 2P', monospace;
+  --px-font-body: 'HarmonyOS Sans SC Bundled', 'PingFang SC', 'Microsoft YaHei', sans-serif; /* long-form/small text where pixel CJK hurts legibility */
+  --px-text-xs: 12px;        /* pixel fonts are drawn on a 12px grid: use multiples */
+  --px-text-sm: 12px;
+  --px-text-md: 14px;
+  --px-text-lg: 24px;
+
+  /* ── geometry ─────────────────────────────────────────────────── */
+  --px-unit: 4px;            /* one art pixel at 1x */
+  --px-1: calc(var(--px-unit) * 1);
+  --px-2: calc(var(--px-unit) * 2);
+  --px-3: calc(var(--px-unit) * 3);
+  --px-4: calc(var(--px-unit) * 4);
+  --px-6: calc(var(--px-unit) * 6);
+  --px-8: calc(var(--px-unit) * 8);
+  --px-radius: 0;
+  --px-border-w: 2px;
+
+  /* pixel bevel frame: 2px outline + inner hi/lo bevel + stepped hard shadow */
+  --px-frame: 0 0 0 var(--px-border-w) var(--px-shadow), inset 2px 2px 0 var(--px-border-hi), inset -2px -2px 0 rgba(0, 0, 0, .35);
+  --px-shadow-1: 2px 2px 0 var(--px-shadow);
+  --px-shadow-2: 4px 4px 0 var(--px-shadow);
+  --px-shadow-3: 4px 4px 0 var(--px-shadow), 8px 8px 0 rgba(13, 8, 5, .45);
+
+  /* ── motion (pixel art moves in frames, not curves) ───────────── */
+  --px-dur-fast: 120ms;
+  --px-dur-med: 240ms;
+  --px-dur-slow: 480ms;
+  --px-ease: steps(4, end);
+  --px-ease-fine: steps(8, end);
+  --px-ease-smooth: cubic-bezier(.2, .8, .2, 1); /* only for opacity/large panels */
+  --px-z-scene: 0;
+  --px-z-props: 10;
+  --px-z-pet: 20;
+  --px-z-hud: 40;
+  --px-z-overlay: 80;
+  --px-z-toast: 100;
+}
+
+/* Images that are pixel art must never be smoothed. */
+.px-crisp, .px-crisp img, .px-crisp canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
