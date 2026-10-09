@@ -72,7 +72,7 @@
 <td valign="top">
 
 ### 🎧 连接你的音乐
-本地音乐、QQ 音乐 / 网易云、系统正在播放、Music Assistant。唱机默认只做动画展示，选择音源后才走对应播放路径。
+本地音乐、QQ 音乐 / 网易云、系统正在播放、Music Assistant。唱机默认只做动画展示；选「自动匹配可播放音源」后，按歌名、歌手和版本找能播的那一首（先 QQ 再网易云），不会拿现场版或翻唱顶替。
 
 </td>
 <td valign="top">
@@ -84,13 +84,31 @@
 <td valign="top">
 
 ### 🐱 伙伴、桌宠与动态桌面
-五个统一像素风的场景（像素 / 琥珀 / 林间 / 海边 / 星夜）与五位像素伙伴。伙伴会呼吸、被戳会冒爱心、跟着音乐摇摆；还可以出门成为桌宠，小屋可以成为动态桌面。所有动效都支持「减少动态效果」。
+六个统一像素风的场景（像素小屋 / 琥珀小屋 / 月夜书桌 / 林间书屋 / 海边慢屋 / 星夜阁楼），默认是像素小屋；再配五位像素伙伴。伙伴会呼吸、被戳会冒爱心、跟着音乐摇摆，还可以出门成为桌宠。所有动效都支持「减少动态效果」。
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🌙 月夜书桌
+月夜窗边戴耳机写字的女孩，右侧是九格木质唱片架。她会写一阵、抬笔、用拇指转一圈笔再接住落笔；封面随台灯方向明暗变化，鼠标停留时被照亮。窗口隐藏时动画暂停。
+
+</td>
+<td valign="top">
+
+### 🖥 动态桌面与全屏
+「设为桌面动态背景」把当前场景铺满桌面、放在图标后面，关掉主窗口也会继续动。桌面版按全屏按钮或 <kbd>F11</kbd> 进入干净全屏：隐藏顶栏、工具栏、唱机和弹窗，只留场景；<kbd>Esc</kbd> / <kbd>F11</kbd> 返回。
+
+</td>
+<td valign="top">
+
+### 🔒 数据留在本机
+收藏、笔记、专注记录、待办和随手记保存在本机，可在「收藏与备份」中导出 / 导入。平台凭据通过 Electron safeStorage 加密保存，不能安全加密时拒绝保存。
 
 </td>
 </tr>
 </table>
-
-> 收藏、笔记、专注记录、待办和随手记保存在本机，可在「收藏与备份」中导出 / 导入。平台凭据通过 Electron safeStorage 加密保存。
 
 ## 📸 截图
 
@@ -109,7 +127,7 @@
 
 | 专注中的小屋 | 布置小屋 | 第一次来 |
 | :---: | :---: | :---: |
-| <img src="docs/assets/screenshots/focus.jpg" alt="专注计时运行中，小猫冒泡提示剩余时间"> | <img src="docs/assets/screenshots/personalization.jpg" alt="五个场景与五位像素伙伴的选择器"> | <img src="docs/assets/screenshots/welcome.jpg" alt="可跳过的三步入门指南"> |
+| <img src="docs/assets/screenshots/focus.jpg" alt="专注计时运行中，小猫冒泡提示剩余时间"> | <img src="docs/assets/screenshots/personalization.jpg" alt="六个场景与五位像素伙伴的选择器"> | <img src="docs/assets/screenshots/welcome.jpg" alt="可跳过的三步入门指南"> |
 
 <sub>截图展示当前开发分支的界面，可能尚未打包进最新 Release。重现方法见 <a href="#-截图是怎么来的">截图是怎么来的</a>。</sub>
 
@@ -128,7 +146,8 @@
 | 音源 | 现在可以做什么 | 需要知道 |
 | --- | --- | --- |
 | 本地音乐 | 选择文件夹，按标签整理专辑，播放原位置的文件 | 文件保留在原目录，无需平台账号 |
-| QQ 音乐 / 网易云 | 独立登录窗口、曲目检索与播放接入 | 受账号、会员、版权与地区限制；QQ「我的歌单」导入尚未实现 |
+| 自动匹配 | 按歌名、歌手、版本匹配；先用唱片自带的原始曲目 ID，再依次试 QQ、网易云，跳过放不了的候选 | 不会自动换成别的歌手、现场版或翻唱；匹配不到时可手动选 |
+| QQ 音乐 / 网易云 | 独立登录窗口、曲目检索与播放接入；两者之间可互为后备 | 受账号、会员、版权与地区限制；QQ「我的歌单」导入尚未实现 |
 | 系统正在播放 | 显示歌曲，发送暂停 / 继续 / 切歌 | Windows 用系统媒体接口；macOS 目前连接 Music / Spotify，可能需自动化权限 |
 | Music Assistant | 连接已有服务器与播放器 | 需要自己的服务器；未完成真实音箱验收 |
 
@@ -157,7 +176,7 @@ npm run desktop:dev       # 构建并启动完整 Electron 客户端
 | `npm run screenshots:product` | 重新生成主界面截图与录屏（`SHOWCASE_TOUR=1` 时额外录 MP4） |
 | `npm run screenshots:readme` | 重新生成 README 中的专注工具特写 |
 
-快捷键：<kbd>Z</kbd> 沉浸模式 · <kbd>Esc</kbd> 返回 · 待办中 <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> 调整顺序。
+快捷键：<kbd>Z</kbd> 沉浸模式 · <kbd>F11</kbd> 全屏（桌面版）· <kbd>Esc</kbd> 返回 · 待办中 <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> 调整顺序。
 
 ## 🧱 技术栈
 
@@ -195,7 +214,8 @@ album-web/
 
 - [x] 十二格唱片架、唱机、唱片卡片与专辑墙导出
 - [x] 番茄钟 / 待办 / 统计 / 声音 / 随手记一体化专注工具
-- [x] 五个场景、五位像素伙伴、桌宠与动态桌面
+- [x] 六个像素场景（含月夜书桌）、五位像素伙伴、桌宠、动态桌面与干净全屏
+- [x] 自动匹配可播放音源
 - [x] 本地音乐、QQ / 网易云、系统播放、Music Assistant 接入
 - [x] 收藏与专注数据本机备份、导入
 - [ ] macOS 签名与公证、Windows 代码签名
@@ -239,13 +259,15 @@ npm run check && npm run test:browser
 
 ## English
 
-**Flow Cabin (心流小屋)** is a cozy pixel-art desktop app for macOS and Windows. Put your favourite albums on a twelve-slot shelf, drop one on the turntable, and get through a focus session with a Pomodoro timer, todo list, quick notes and stats — while a tiny pixel companion keeps you company.
+**Flow Cabin (心流小屋)** is a cozy pixel-art desktop app for macOS and Windows. Put your favourite albums on the shelf, drop one on the turntable, and get through a focus session with a Pomodoro timer, todo list, quick notes and stats — while a tiny pixel companion keeps you company.
 
-- **Records** — a twelve-slot shelf with an animated pixel turntable on top, record cards with tracklists & notes, vinyl colours, crates and an exportable album wall.
+- **Records** — a record shelf (twelve slots; nine in 月夜书桌) with an animated pixel turntable, record cards with tracklists & notes, vinyl colours, crates and an exportable album wall.
 - **Focus** — pixel progress-ring Pomodoro with one-tap rhythms (15/5 · 25/5 · 50/10 · 90/20), auto breaks, notifications & chime; drag-to-reorder todos linked to the current session; 7-day stats and unlockable rewards.
 - **Sound** — procedurally synthesised rain, fire, wind, white noise and vinyl crackle, plus an offline Tone.js lo-fi radio that ducks when the turntable plays.
-- **Music** — local files, QQ Music / NetEase Cloud Music, the system's Now Playing, or Music Assistant. The turntable is animation-only until you pick a source.
-- **Companions** — five pixel-art scenes (Pixel · Amber · Forest · Seaside · Starlight), five pixel pals that breathe, react to pokes and bop to the music, a desktop pet and a live wallpaper. Reduced motion is respected.
+- **Music** — local files, QQ Music / NetEase Cloud Music, the system's Now Playing, or Music Assistant. The turntable is animation-only until you pick a source; **auto match** finds a playable copy by title, artist and version (original track ID first, then QQ, then NetEase) and never swaps in a live version or cover.
+- **Scenes** — six pixel-art rooms: 像素小屋 Pixel Cabin (default), 琥珀小屋 Amber Cabin, 月夜书桌 Moonlit Desk, 林间书屋 Forest Study, 海边慢屋 Seaside Room and 星夜阁楼 Starlight Attic. In 月夜书桌 a girl at a moonlit window writes, lifts her pen and spins it, beside a nine-slot shelf whose covers are shaded by the desk lamp.
+- **Desktop** — set the room as a live wallpaper behind your desktop icons (it keeps running after the main window closes), or press F11 for a clean fullscreen that hides all chrome; Esc / F11 to return.
+- **Companions** — five pixel pals that breathe, react to pokes and bop to the music, a desktop pet and a live wallpaper. Reduced motion is respected.
 - **Look & feel** — one pixel style throughout: Fusion Pixel / Silkscreen fonts, notched pixel frames, `steps()` motion, dust motes and a time-of-day window light.
 - **Local-first** — collection, notes and focus data stay on your machine, with export/import backups.
 
