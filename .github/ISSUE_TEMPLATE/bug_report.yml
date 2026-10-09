@@ -1,0 +1,24 @@
+name: 使用中遇到问题
+description: 帮我们复现一个具体的问题
+title: "[问题] "
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: 系统与版本
+      description: 请写应用版本、操作系统和芯片；桌面问题请注明单屏或多屏。
+      placeholder: v1.8.0 / macOS / Apple Silicon / 双屏
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么遇到的
+      description: 操作步骤、预期结果和实际结果；音乐问题请注明音源与状态文字。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图或错误文字（可选）
+      description: 只截小屋；请移除账号、路径、Cookie、令牌与签名音频链接，不上传个人备份。

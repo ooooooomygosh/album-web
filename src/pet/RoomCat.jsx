@@ -43,6 +43,6 @@ export default function RoomCat({ focus, playing, track, reduceMotion, petId = '
   if (hidden) return null;
   const body = <><PixelCat petId={pet.id} pose={cat.pose} accessory={focus?.accessory || ''} skin={focus?.catSkin} reduceMotion={cat.reduced} style={{ transform: `translateX(${cat.x}px)` }} label={`像素${pet.species} · ${pet.name} · ${{ idle: '发呆', groove: '跟着音乐摇摆', celebrate: '庆祝', walk: '散步', sleep: '睡觉', focus: '陪你专注' }[cat.pose]}`}/>{cat.bubble && <span className="room-cat-bubble" role="status">{cat.bubble}</span>}</>;
   return interactive
-    ? <button type="button" className="room-cat" aria-label={`摸摸${pet.species}${pet.name}`} data-pet-id={pet.id} onClick={cat.poke}>{body}</button>
+    ? <button type="button" className="room-cat" title={`点一下，摸摸${pet.name}`} aria-label={`摸摸${pet.species}${pet.name}`} data-pet-id={pet.id} onClick={cat.poke}>{body}</button>
     : <div className="room-cat" data-pet-id={pet.id}>{body}</div>;
 }
