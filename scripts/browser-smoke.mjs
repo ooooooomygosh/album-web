@@ -241,10 +241,33 @@ try {
     await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.waitForTimeout(1200); await page.mouse.move(1200, 120);
     assert.equal(await page.locator('.room-cat[data-perch="console"]').count(), 1, 'cat still perched before immersive');
     const immersive = await hopDuring('immersive hides the console', () => page.keyboard.press('z'));
+    // Hover held on the revealed console: a brief pass leaves the cat alone, a held hover (> 1.2s) brings it back up; hiding again sends it down.
+    const zenDeck = await page.locator('.room-turntable').boundingBox(), perchCount = () => page.locator('.room-cat[data-perch="console"]').count();
+    await page.mouse.move(zenDeck.x + zenDeck.width / 2, zenDeck.y + 10); await page.waitForTimeout(500); await page.mouse.move(1200, 120); await page.waitForTimeout(900);
+    assert.equal(await perchCount(), 0, 'a brief pass over the console does not bring the cat back');
+    await page.evaluate(() => { window.__catMoves.length = 0; });
+    await page.mouse.move(zenDeck.x + zenDeck.width / 2, zenDeck.y + 10); await page.waitForTimeout(1000);
+    assert.equal(await perchCount(), 0, 'cat waits while the hover is short');
+    await page.waitForTimeout(1200); await catSettled();
+    assert.equal(await perchCount(), 1, 'a hover held on the console brings the cat back onto it');
+    assert((await page.evaluate(() => window.__catMoves)).includes('jump'), 'cat hops back up');
+    assert.deepEqual(await layoutIssues('immersive hover held'), []);
+    await page.mouse.move(1200, 120); await page.waitForTimeout(900); await catSettled();
+    assert.equal(await perchCount(), 0, 'cat hops down again when the console hides'); assert.deepEqual(await layoutIssues('immersive hidden again'), []);
+    // Walk: a 120px stroll sampled at 60fps passes through many stepped positions.
+    const walk = await page.evaluate(async () => {
+      const { animateCatMove } = await import('/src/pet/useCatPlacement.js');
+      const el = document.createElement('div'); el.style.cssText = 'position:fixed;left:300px;top:300px;width:64px;height:64px'; document.body.append(el);
+      const after = el.getBoundingClientRect(), before = { left: after.left - 120, bottom: after.bottom };
+      const out = [], anim = animateCatMove(el, before, after, 'walk'); const start = performance.now();
+      await new Promise((resolve) => { const tick = (now) => { const r = el.getBoundingClientRect(); out.push(`${Math.round(r.left)},${Math.round(r.top)}`); if (anim.playState !== 'finished' && now - start < 2000) requestAnimationFrame(tick); else resolve(); }; requestAnimationFrame(tick); });
+      el.remove(); return { positions: new Set(out).size, bobs: new Set(out.map(p => p.split(',')[1])).size, frames: out.length };
+    });
+    assert(walk.positions >= 10, `120px walk shows ${walk.positions} positions at 60fps, want >= 10`); assert(walk.bobs >= 2, 'walk bobs');
     await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
     const moves = await page.evaluate(() => window.__catMoves);
     assert(moves.length > 0 && moves.every(m => m === 'jump' || m === 'walk'), `cat relocations animate (got ${moves.join(',') || 'none'})`);
-    assert.deepEqual(await layoutIssues('motion'), []); await page.close(); page = mainRef; check('cat-relocation-hops-or-walks-when-motion-allowed', { expand, immersive }); }
+    assert.deepEqual(await layoutIssues('motion'), []); await page.close(); page = mainRef; check('cat-relocation-hops-or-walks-when-motion-allowed', { expand, immersive, walk }); }
   await page.close(); page = mainPage; 
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
