@@ -37,6 +37,16 @@ window.addEventListener('cabin:playback', (event) => {
 - Respect reduced motion (`[data-desktop-reduce-motion=true]` / `prefers-reduced-motion`). The event still fires, but motion should stay subtle.
 - The analyser is attached during the first user-started play and only when the context is running. Audio never goes silent because of it.
 
+### In the desktop pet window
+
+The pet runs in its own Electron window (`pet.html`), so it never sees the main page's `window` events. The music state travels with the companion snapshot instead:
+
+1. `src/CompanionBridge.jsx` listens to `cabin:playback` and adds `musicPlaying`, `energy` (rounded to 0.05) and `energyEstimated` to `albumCompanionSnapshot()`.
+2. `desktop/companion-sync.cjs` reads the snapshot. `desktop/wallpaper-model.cjs` `cleanCompanion` whitelists and clamps it (`energy` 0..1, 2 decimals, forced to 0 when nothing is playing). `desktop/pet.cjs` polls about every **125 ms (~8 Hz) while `musicPlaying` is true** and every 750 ms otherwise, and only sends `pet:update` when the cleaned value changed.
+3. `src/pet/pet-snapshot.mjs` re-dispatches `cabin:playback` on the pet window with `{ playing, energy, estimated, source: 'companion', reason: 'companion' }`, and only when the values change.
+
+Pet code listens the same way in both windows (`onCabinPlayback` in `src/scene/playback-listener.mjs`). In the pet window the signal is coarser: about 8 Hz, with 0.05 energy steps and roughly 125 ms of extra latency. That is enough for sway or bob, but not for beat-accurate motion. The existing `playing` field in the snapshot still means "grooving" (real audio, spinning, or lo-fi). Use `musicPlaying` / the event's `playing` for real audio only.
+
 ## Other player events (existing)
 
 | event | direction | detail |

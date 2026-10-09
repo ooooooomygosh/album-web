@@ -20,7 +20,9 @@ function cleanFocus(value) {
 }
 function cleanCompanion(value) {
   if (!value || typeof value !== 'object') return null;
-  return { petId: petId(value.petId), focus: cleanFocus(value.focus), playing: value.playing === true, track: string(value.track, 200), reduceMotion: value.reduceMotion === true };
+  const musicPlaying = value.musicPlaying === true, energy = Number(value.energy);
+  return { petId: petId(value.petId), focus: cleanFocus(value.focus), playing: value.playing === true, track: string(value.track, 200), reduceMotion: value.reduceMotion === true,
+    musicPlaying, energy: musicPlaying && Number.isFinite(energy) ? Math.round(Math.max(0, Math.min(1, energy)) * 100) / 100 : 0, energyEstimated: musicPlaying && value.energyEstimated === true };
 }
 const colour = (value, fallback) => /^#[\da-f]{6}$/i.test(value || '') ? value : fallback;
 function cleanSnapshot(value) {

@@ -155,3 +155,25 @@ test('local music groups tags into albums and streams only indexed files with ra
   const grouped = groupAlbums([{ file: '/a/Mix/x.mp3', title: 'x' }, { file: '/a/Mix/y.mp3', title: 'y', artist: 'B' }]);
   assert.equal(grouped.length, 2); assert.equal(grouped.find((a) => a.artist === '未知艺人').title, 'Mix');
 });
+
+test('pet companion carries music energy: cleaned, adaptive polling, relayed as cabin:playback', async () => {
+  const clean = cleanCompanion({ petId: 'fox', playing: true, musicPlaying: true, energy: 7, energyEstimated: true, cookie: 'secret' });
+  assert.equal(clean.musicPlaying, true); assert.equal(clean.energy, 1); assert.equal(clean.energyEstimated, true); assert.equal('cookie' in clean, false);
+  assert.deepEqual([cleanCompanion({ musicPlaying: false, energy: .8 }).energy, cleanCompanion({ musicPlaying: true, energy: 'loud' }).energy, cleanCompanion({ musicPlaying: true, energy: .456 }).energy], [0, 0, .46]);
+  const { createCompanionPoller } = require('../companion-sync.cjs');
+  let value = { musicPlaying: true, energy: .1 }, reads = 0; const seen = [];
+  const poller = createCompanionPoller({ getSite: () => ({ isDestroyed: () => false, executeJavaScript: async () => { reads++; value = { ...value, energy: value.energy + .05 }; return value; } }), clean: (v) => v, interval: (last) => last?.musicPlaying ? 60 : 5000, onValue: (v) => seen.push(v) });
+  poller.start(); await new Promise((resolve) => setTimeout(resolve, 400)); poller.stop();
+  assert.ok(reads >= 4 && reads <= 9, `fast while playing: ${reads} polls in 400 ms`);
+  value = { musicPlaying: false, energy: 0 }; reads = 0; poller.start(); await new Promise((resolve) => setTimeout(resolve, 300)); poller.stop();
+  assert.equal(reads, 1, 'slow poll when music is paused');
+  const { createPlaybackRelay, subscribePetSnapshot } = await import('../../src/pet/pet-snapshot.mjs');
+  class FakeEvent { constructor(type, init) { this.type = type; this.detail = init.detail; } }
+  const events = [], target = { dispatchEvent: (event) => events.push(event) }, relay = createPlaybackRelay(target, FakeEvent);
+  let broadcast; const applied = [];
+  const stop = subscribePetSnapshot({ getSnapshot: async () => null, onSnapshot: (fn) => { broadcast = fn; } }, (v) => applied.push(v), relay);
+  broadcast({ companion: { musicPlaying: true, energy: .4 } }); broadcast({ companion: { musicPlaying: true, energy: .4 } }); broadcast({ size: 192 }); broadcast({ companion: { musicPlaying: false, energy: .4 } }); broadcast({ companion: null });
+  stop();
+  assert.equal(applied.length, 5, 'pet code still gets every snapshot');
+  assert.deepEqual(events.map((e) => [e.type, e.detail.playing, e.detail.energy]), [['cabin:playback', true, .4], ['cabin:playback', false, 0]]);
+});
