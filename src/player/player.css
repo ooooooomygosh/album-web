@@ -12,7 +12,7 @@
 .player-controls .turntable-controls .player-mode[aria-pressed=true],.player-controls .turntable-controls .player-mode[aria-expanded=true]{color:var(--pl-shadow);background:var(--pl-accent-2)}
 .player-mode b{position:absolute;top:-6px;right:-6px;min-width:14px;height:14px;padding:0 3px;font-size:9px;line-height:14px;color:var(--pl-shadow);background:var(--pl-accent);box-shadow:1px 1px 0 var(--pl-shadow)}
 .player-queue{margin-top:8px;padding:6px 8px;font-size:11px;color:var(--pl-dim);background:var(--pl-surface);box-shadow:0 0 0 2px var(--pl-shadow),inset 2px 2px 0 var(--pl-border);animation:player-pop var(--pl-med) var(--pl-ease)}
-.player-queue ol{margin:0;padding:0 0 0 18px;display:grid;gap:3px;max-height:110px;overflow:auto}
+.player-queue ol{margin:0;padding:0 0 0 18px;display:grid;gap:3px;max-height:64px;overflow:auto}
 .player-queue li{display:flex;align-items:center;gap:6px;color:var(--pl-ink)}.player-queue li span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .player-queue li button{display:grid;place-items:center;padding:2px;color:var(--pl-dim);background:none;border:0;cursor:pointer}.player-queue li button:hover{color:var(--pl-warn)}
 .player-queue p{margin:0;line-height:1.5}
