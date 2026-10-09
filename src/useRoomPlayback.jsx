@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { exactTrack, musicRequest } from './room-playback.mjs';
 import { trackNames } from './room-model.mjs';
+import { ensureAnalyser } from './player/audio-graph.mjs';
+import { isSessionAlbum, sessionTrackUrl } from './player/session-files.mjs';
+
+const VOLUME_KEY = 'album-circle-player-volume-v1';
+const readVolume = () => { try { const value = JSON.parse(localStorage.getItem(VOLUME_KEY)); return { volume: Number.isFinite(value?.volume) ? Math.max(0, Math.min(1, value.volume)) : .65, muted: Boolean(value?.muted) }; } catch { return { volume: .65, muted: false }; } };
+// Plain-language messages for media element failures (MediaError codes).
+const MEDIA_ERRORS = { 1: '播放被中断，请重新播放。', 2: '网络中断，音频没有加载完。检查网络后点「重试」。', 3: '这个音频文件无法解码，可能已损坏或格式不受支持。', 4: '音源地址不可用或格式不受支持。可能需要重新登录平台，或换一个音源。' };
 
 export default function useRoomPlayback(record, trackIndex, provider, onNext) {
   const audio = useRef(null), sequence = useRef(0), remote = useRef(false), next = useRef(onNext), resolveRef = useRef(null), controlling = useRef(false);
   next.current = onNext;
   const [state, setState] = useState({ status: 'idle', playing: false, candidates: [], position: 0, duration: 0, error: '', trial: false });
-  const [volume, setVolume] = useState(.65);
+  const [{ volume, muted }, setVolumeState] = useState(readVolume);
+  const setSound = (patch) => setVolumeState((old) => { const next = { ...old, ...patch }; next.volume = Math.max(0, Math.min(1, Number(next.volume) || 0)); try { localStorage.setItem(VOLUME_KEY, JSON.stringify(next)); } catch {} return next; });
   const [accountEpoch, setAccountEpoch] = useState(0);
   const update = (value) => setState((old) => ({ ...old, ...value }));
   const resetAudio = (element = audio.current) => { if (element) { element.pause(); element.removeAttribute('src'); element.load(); } };
@@ -21,11 +29,12 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
       const latest = () => active() && request === resolution;
       resetAudio(element); update({ status: 'loading', candidates: [], error: '' });
       try {
-        const result = await musicRequest('/resolve', candidate, controller.signal); if (!latest()) return;
+        const result = candidate.sessionUrl ? { audioPath: candidate.sessionUrl, trial: false, quality: '本次导入的文件' } : await musicRequest('/resolve', candidate, controller.signal); if (!latest()) return;
         if (result.remote) { remote.current = true; update({ status: 'loading', remote: true }); }
         else {
           remote.current = false; update({ trial: result.trial, quality: result.quality, remote: false });
           audio.current.src = result.audioPath; audio.current.load();
+          await ensureAnalyser(audio.current);
           await audio.current.play(); // onPlay, not a successful URL, confirms playback.
         }
       } catch (error) { if (latest()) update({ status: 'error', playing: false, error: error.name === 'NotAllowedError' ? '请点击播放按钮开始播放。' : error.message }); }
@@ -35,6 +44,9 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
       if (remote.current) { remote.current = false; await musicRequest('/ma/control', { action: 'stop' }).catch(() => {}); }
       if (!record || provider === 'visual' || provider === 'system' || !active()) return;
       const name = trackNames(record)[trackIndex]; if (!name) { update({ status: 'error', error: '原始资料没有曲目，无法定位音频。' }); return; }
+      // Files picked in this session play directly, whichever audio source is selected.
+      const sessionUrl = sessionTrackUrl(record, trackIndex); if (sessionUrl) { await resolve({ sessionUrl }); return; }
+      if (isSessionAlbum(record) && provider === 'local') { update({ status: 'error', error: '这张专辑是从文件临时导入的，重新打开小屋后需要再选一次文件：「添加专辑 › 本地音乐 › 选择音乐文件」。' }); return; }
       const exact = exactTrack(record, trackIndex, provider); if (exact) { await resolve(exact); return; }
       update({ status: 'searching' });
       try { const result = await musicRequest(`/search?provider=${provider}&query=${encodeURIComponent(`${record.artist} ${name}`)}`, undefined, controller.signal); if (active()) update({ status: result.candidates.length ? 'choose' : 'error', candidates: result.candidates, error: result.candidates.length ? '' : provider === 'local' ? '本地音乐里没有找到这首歌，请先在音源设置中添加文件夹。' : '未找到可匹配音源，请切换平台或使用动画展示。' }); }
@@ -55,7 +67,7 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     };
     const timer = setInterval(poll, 1500); return () => { disposed = true; clearInterval(timer); };
   }, [provider, record?.id, trackIndex, accountEpoch]);
-  useEffect(() => { if (audio.current) audio.current.volume = volume; }, [volume]);
+  useEffect(() => { if (audio.current) { audio.current.volume = volume; audio.current.muted = muted; } }, [volume, muted]);
   useEffect(() => () => { if (remote.current) musicRequest('/ma/control', { action: 'stop' }).catch(() => {}); }, []);
   const toggle = async () => {
     if (controlling.current || provider === 'system' || provider === 'visual') return;
@@ -63,8 +75,8 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     const current = sequence.current;
     try {
       if (remote.current) { await musicRequest('/ma/control', { action: state.playing ? 'pause' : 'play' }); return; }
-      if (audio.current?.getAttribute('src')) { if (audio.current.paused) await audio.current.play(); else audio.current.pause(); }
-      else { const exact = exactTrack(record, trackIndex, provider); if (exact) await resolveRef.current?.(exact); }
+      if (audio.current?.getAttribute('src')) { if (audio.current.paused) { await ensureAnalyser(audio.current); await audio.current.play(); } else audio.current.pause(); }
+      else { const sessionUrl = sessionTrackUrl(record, trackIndex), exact = sessionUrl ? { sessionUrl } : exactTrack(record, trackIndex, provider); if (exact) await resolveRef.current?.(exact); else if (state.status === 'error' || state.status === 'ended') setAccountEpoch((value) => value + 1); }
     } catch (error) { if (sequence.current === current) update({ status: 'error', error: error.message }); }
     finally { controlling.current = false; }
   };
@@ -72,8 +84,17 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     onPlay: () => { if (audio.current?.getAttribute('src')) update({ playing: true, status: 'playing', error: '' }); }, onPause: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'paused' }); },
     onTimeUpdate: () => update({ position: audio.current.currentTime }), onDurationChange: () => update({ duration: Number.isFinite(audio.current.duration) ? audio.current.duration : 0 }),
     onEnded: () => { update({ playing: false, status: 'ended' }); next.current?.(); },
-    onError: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'error', error: '音频加载失败。请重新播放，或检查平台权限与网络。' }); }
+    onError: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'error', error: MEDIA_ERRORS[audio.current.error?.code] || '音频加载失败。请重新播放，或检查平台权限与网络。' }); },
+    onWaiting: () => { if (audio.current?.getAttribute('src') && !audio.current.paused) update({ status: 'buffering' }); },
+    onPlaying: () => { if (audio.current?.getAttribute('src')) update({ playing: true, status: 'playing', error: '' }); }
   };
-  const statusText = state.error || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器' }[state.status] || '待播放');
-  return { ...state, statusText, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek: (value) => { if (audio.current && !remote.current && Number.isFinite(value) && Number.isFinite(audio.current.duration)) audio.current.currentTime = Math.max(0, Math.min(value, audio.current.duration)); }, volume, setVolume };
+  const statusText = state.error || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器', buffering: '缓冲中…' }[state.status] || '待播放');
+  const seek = (value) => { if (audio.current && !remote.current && Number.isFinite(value) && Number.isFinite(audio.current.duration)) audio.current.currentTime = Math.max(0, Math.min(value, audio.current.duration)); };
+  // Same track again ("repeat one", or "previous" after 3 s).
+  const restart = async () => {
+    if (remote.current || !audio.current?.getAttribute('src')) { setAccountEpoch((value) => value + 1); return; }
+    audio.current.currentTime = 0;
+    try { if (audio.current.paused) await audio.current.play(); } catch (error) { update({ status: 'error', error: error.message }); }
+  };
+  return { ...state, statusText, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek, seekBy: (delta) => seek((audio.current?.currentTime || 0) + delta), restart, retry: () => setAccountEpoch((value) => value + 1), remote: Boolean(state.remote), volume, muted, setVolume: (value) => setSound({ volume: value, muted: false }), setMuted: (value) => setSound({ muted: Boolean(value) }), canControl: provider !== 'visual' && provider !== 'system' };
 }

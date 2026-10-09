@@ -5,8 +5,9 @@ import { ShowroomArtwork } from './RoomArtwork';
 import { ROOM_DRAG_TYPE } from './RoomScene';
 import useTurntablePosition from './useTurntablePosition';
 import { trackNames } from './room-model.mjs';
+import PlayerControls from './player/PlayerControls';
 
-export default function RoomTurntable({ item, spinning, trackIndex = 0, style, items = [], load, toggle, track, eject, readOnly = false, desktopClient = false, provider = 'visual', setProvider, playback, statusText, actualTrack, system }) {
+export default function RoomTurntable({ item, spinning, trackIndex = 0, style, items = [], load, toggle, track, eject, readOnly = false, desktopClient = false, provider = 'visual', setProvider, playback, statusText, actualTrack, system, player }) {
   const [dragging, setDragging] = useState(false), names = trackNames(item);
   const placement = useTurntablePosition(readOnly);
   const trackName = actualTrack || playback?.actualTrack || names[trackIndex] || (item ? '原始资料暂无曲目' : '双击封面，或将唱片拖到这里');
@@ -36,18 +37,9 @@ export default function RoomTurntable({ item, spinning, trackIndex = 0, style, i
       <button type="button" aria-label="系统播放器下一首" disabled={!system.active} onClick={() => system.control('next')}><ChevronRight size={18}/></button>
       {system.active && <button type="button" className="turntable-collect" title="在曲库中搜索这张专辑并收藏到唱片架" onClick={() => window.dispatchEvent(new CustomEvent('album-quick-search', { detail: { query: `${system.albumArtist || system.artist} ${system.album || system.title}` } }))}><Plus size={16}/>收藏这张</button>}
     </div>}
-    {!readOnly && item && provider !== 'system' && <div className="turntable-controls">
-      <button type="button" aria-label="上一首展示曲目" disabled={trackIndex <= 0} onClick={() => track?.(trackIndex - 1)}><ChevronLeft size={18}/></button>
-      <button type="button" className="turntable-toggle" aria-label={provider === 'visual' ? spinning ? '暂停唱片旋转' : '继续唱片旋转' : playback?.playing ? '暂停音乐播放' : '播放音乐'} onClick={provider === 'visual' ? toggle : playback?.toggle}>{spinning ? <Pause size={19}/> : <Play size={19}/>}</button>
-      <button type="button" aria-label="下一首展示曲目" disabled={trackIndex >= names.length - 1} onClick={() => track?.(trackIndex + 1)}><ChevronRight size={18}/></button>
-      <button type="button" aria-label="取下唱片" onClick={eject}><X size={17}/></button>
-      {!!names.length && <select aria-label="唱机展示曲目" value={trackIndex} onChange={(event) => track?.(Number(event.target.value))}>{names.map((name, index) => <option value={index} key={index}>{String(index + 1).padStart(2, '0')} · {name}</option>)}</select>}
-    </div>}
-    {!readOnly && !['visual', 'system'].includes(provider) && playback && <>
-      {playback.candidates.length > 0 && <div className="turntable-matches" aria-label="选择曲目版本">{playback.candidates.map((candidate) => <button type="button" key={candidate.id} onClick={() => playback.choose(candidate)}><strong>{candidate.title}</strong><span>{candidate.artist} · {candidate.album || '专辑未知'}</span></button>)}</div>}
-      {provider !== 'ma' && item && <div className="turntable-audio-sliders"><label>进度<input type="range" aria-label="音乐播放进度" min="0" max={playback.duration || 1} step=".1" value={Math.min(playback.position, playback.duration || 1)} disabled={!playback.duration} onChange={(event) => playback.seek(Number(event.target.value))}/><small>{Math.floor(playback.position / 60)}:{String(Math.floor(playback.position % 60)).padStart(2, '0')} / {Math.floor(playback.duration / 60)}:{String(Math.floor(playback.duration % 60)).padStart(2, '0')}</small></label><label>音量<input type="range" aria-label="音乐音量" min="0" max="1" step=".01" value={playback.volume} onChange={(event) => playback.setVolume(Number(event.target.value))}/></label></div>}
-    </>}
-    {!readOnly && provider !== 'system' && (provider === 'visual' || !item) && <p className="turntable-hint">{provider === 'visual' ? '听歌前，先选择音源。' : !item ? '双击封面，或把唱片拖到这里。' : ''}</p>}
+    {!readOnly && item && provider !== 'system' && <PlayerControls item={item} items={items} provider={provider} spinning={spinning} trackIndex={trackIndex} track={track} toggle={toggle} eject={eject} playback={playback} player={player} setProvider={setProvider}/>}
+    {!readOnly && !['visual', 'system'].includes(provider) && playback?.candidates.length > 0 && <div className="turntable-matches" aria-label="选择曲目版本">{playback.candidates.map((candidate) => <button type="button" key={candidate.id} onClick={() => playback.choose(candidate)}><strong>{candidate.title}</strong><span>{candidate.artist} · {candidate.album || '专辑未知'}</span></button>)}</div>}
+    {!readOnly && provider !== 'system' && !item && <p className="turntable-hint">双击封面，或把唱片拖到这里。</p>}
       </div>
     </div>
   </aside>;

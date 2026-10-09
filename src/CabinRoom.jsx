@@ -3,7 +3,7 @@ import CabinWelcome, { WELCOME_KEY } from './CabinWelcome';
 import { getRoomScene } from './scene-catalog.mjs';
 import { normalizePetId } from './pet/pet-catalog.mjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Up, Down, ArrowUpRight, Grid3X3, Settings, External, Music2, Eye, EyeSlash, Heart, Plus } from './icons';
+import { Up, Down, ArrowUpRight, Grid3X3, Settings, External, Music2, Eye, EyeSlash, Heart, Plus, ListBullet, Check } from './icons';
 import DiscogsLink from './DiscogsLink';
 import { RecordBoxControls, RecordTools, useRecordLibrary, useRecordStyle } from './RecordLibrary';
 import { matchesLibraryFilters } from './record-library.mjs';
@@ -19,6 +19,7 @@ import { useFocus } from './focus/useFocus';
 import { focusSnapshot } from './focus/focus-model.mjs';
 import { useSoundscape } from './audio/useSoundscape';
 import RoomCat from './pet/RoomCat';
+import { usePlayerQueue, usePlayerShortcuts, usePlaybackBroadcast, suggestProvider } from './player/usePlayer';
 import './companion-room.css';
 export { ShowroomArtwork } from './RoomArtwork';
 
@@ -57,9 +58,12 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   const { filters, setFilters, visible } = useShelfFilters(items);
   const [row, setRow] = useState(0), [selectedId, setSelectedId] = useState(visible[0]?.id || '');
   const [record, setRecord] = useState(null), [spinning, setSpinning] = useState(false), [trackIndex, setTrackIndex] = useState(0);
-  const [provider, setProvider] = useState(() => { try { const value = localStorage.getItem('album-circle-room-player-v1'); return PROVIDERS.includes(value) ? value : 'visual'; } catch { return 'visual'; } });
+  const [provider, setProvider] = useState(() => { try { const value = localStorage.getItem('album-circle-room-player-v1'); return PROVIDERS.includes(value) || value === 'visual' ? value : 'visual'; } catch { return 'visual'; } });
+  const chosenProvider = useRef((() => { try { return Boolean(localStorage.getItem('album-circle-room-player-v1')); } catch { return true; } })());
+  const chooseProvider = (value) => { chosenProvider.current = true; setProvider(value); try { localStorage.setItem('album-circle-room-player-v1', value); } catch {} };
   const [musicSettings, setMusicSettings] = useState(false), [filtersOpen, setFiltersOpen] = useState(false);
-  const playback = useRoomPlayback(record, trackIndex, provider, () => { if (trackIndex < (record?.tracks?.length || 0) - 1) setTrackIndex(trackIndex + 1); });
+  const queueRef = useRef(null);
+  const playback = useRoomPlayback(record, trackIndex, provider, () => queueRef.current?.current.next(false));
   const system = useSystemNowPlaying(provider === 'system');
   const deckItem = provider === 'system' ? system.item : record;
   const effectiveSpin = provider === 'visual' ? spinning : provider === 'system' ? Boolean(system.active && system.playing) : playback.playing;
@@ -78,7 +82,14 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   const [zen, setZen] = useState(false), [pet, setPet] = useState(() => window.albumPetState || {});
   const signature = visible.map((item) => item.id).join('|'), view = shelfWindow(visible, row);
   const selected = view.items.find((item) => item.id === selectedId) || view.items[0];
-  const load = (item, index = 0) => { if (record?.id === item.id && trackIndex === index && provider !== 'visual' && !playback.playing) playback.toggle(); setRecord(item); setSelectedId(item.id); setTrackIndex(index); setSpinning(true); };
+  const load = (item, index = 0) => {
+    if (!chosenProvider.current && provider === 'visual') { const suggested = suggestProvider(item); if (suggested) { setProvider(suggested); chosenProvider.current = true; } }
+    if (record?.id === item.id && trackIndex === index && provider !== 'visual' && !playback.playing) playback.toggle(); setRecord(item); setSelectedId(item.id); setTrackIndex(index); setSpinning(true); };
+  const [player, playerRef] = usePlayerQueue({ items, record, trackIndex, setTrackIndex, loadAlbum: (item, index) => loadRef.current(item, index), playback, provider });
+  queueRef.current = playerRef;
+  usePlayerShortcuts({ playback, player, provider, record, trackIndex, toggleVisual: () => setSpinning((value) => !value) });
+  usePlaybackBroadcast({ playing: provider === 'system' ? Boolean(system.active && system.playing) : provider === 'visual' ? false : playback.playing, provider, spinning: effectiveSpin, record: deckItem, trackIndex: provider === 'system' ? 0 : trackIndex, trackTitle: provider === 'system' ? system.title : playback.actualTrack, audio: playback.audio });
+  useEffect(() => { const open = () => setMusicSettings(true); window.addEventListener('cabin-open-music-settings', open); return () => window.removeEventListener('cabin-open-music-settings', open); }, []);
   const changeRow = (next) => { const value = shelfWindow(visible, next); setRow(value.startRow); setSelectedId(value.items[0]?.id || ''); };
   useEffect(() => { setRow(0); setSelectedId(visible[0]?.id || ''); }, [signature]);
   useEffect(() => { if (record && !items.some((item) => item.id === record.id)) { setRecord(null); setSpinning(false); } }, [items]);
@@ -161,7 +172,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
     {library?.error && !personalize && !filtersOpen && <p className="room-preferences-error" role="alert">设置未保存：{library.error}</p>}
     {wallpaperError && <p className="wallpaper-error" role="alert">{wallpaperError}<button type="button" aria-label="关闭动态背景提示" onClick={() => setWallpaperError('')}>×</button></p>}
     <div ref={stage} className="cabin-stage-wrap"><RoomScene look={look} items={view.items} selectedId={selected?.id} select={setSelectedId} load={load} startRow={view.startRow} weather={weather} cat={<RoomCat petId={petId} focus={catFocus} playing={grooving} track={snapshot.current.track} reduceMotion={appearance.reduceMotion} hidden={Boolean(pet.active)}/>}>
-      <RoomTurntable item={deckItem} spinning={effectiveSpin} system={system} trackIndex={provider === 'system' ? 0 : trackIndex} style={recordStyle} items={items} load={load} toggle={() => setSpinning(!spinning)} track={setTrackIndex} eject={() => { setRecord(null); setSpinning(false); }} provider={provider} setProvider={(value) => { setProvider(value); try { localStorage.setItem('album-circle-room-player-v1', value); } catch {} }} playback={playback} desktopClient/>
+      <RoomTurntable item={deckItem} spinning={effectiveSpin} system={system} trackIndex={provider === 'system' ? 0 : trackIndex} style={recordStyle} items={items} load={load} toggle={() => setSpinning(!spinning)} track={setTrackIndex} eject={() => { setRecord(null); setSpinning(false); }} provider={provider} setProvider={chooseProvider} playback={playback} player={player} desktopClient/>
       {!visible.length && <div className="room-empty">
         <p>{loading ? '正在整理唱片…' : items.length ? '没有符合筛选的唱片。' : '木屋的唱片架，等你放上第一张。'}</p>
         {!loading && (items.length ? <button type="button" onClick={() => setFilters({ ...filters, type: 'all', box: 'all', genre: 'all', decade: 'all', provider: 'all' })}>清除筛选</button> : <>
@@ -172,7 +183,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
       </div>}
       {view.rows > 3 && <div className="room-shelf-navigation" aria-label="唱片架浏览"><button type="button" aria-label="上一排唱片" disabled={view.startRow === 0} onClick={() => changeRow(view.startRow - 1)}><Up/></button><span>{`${view.startRow + 1}–${Math.min(view.rows, view.startRow + 3)} / ${view.rows} 排`}</span><button type="button" aria-label="下一排唱片" disabled={view.startRow >= view.maxRow} onClick={() => changeRow(view.startRow + 1)}><Down/></button><small>↑ ↓ / 滚轮浏览</small></div>}
     </RoomScene></div>
-    {selected && <div className="room-now-playing"><div className="room-selection-copy"><small>唱片架 · 双击封面放盘</small><h2 title={selected.title}>{selected.title}</h2><p>{`${selected.artist} · ${selected.year || '年份待补充'} · ${selected.tracks?.length || 0} 首曲目`}</p></div><div className="room-selection-actions"><RecordTools item={selected}/><DiscogsLink item={selected}/><button type="button" className="room-open-album" onClick={() => openRecord(selected.id)}>唱片卡片 <ArrowUpRight size={18}/></button></div></div>}
+    {selected && <div className="room-now-playing"><div className="room-selection-copy"><small>唱片架 · 双击封面放盘</small><h2 title={selected.title}>{selected.title}</h2><p>{`${selected.artist} · ${selected.year || '年份待补充'} · ${selected.tracks?.length || 0} 首曲目`}</p></div><div className="room-selection-actions">{record && record.id !== selected.id && <button type="button" className="room-queue-add" aria-pressed={player.queue.ids.includes(selected.id)} title="当前唱片放完后接着放" onClick={() => player.queue.ids.includes(selected.id) ? player.remove(selected.id) : player.enqueue(selected.id)}>{player.queue.ids.includes(selected.id) ? <><Check size={16}/>已在待播</> : <><ListBullet size={16}/>加入待播</>}</button>}<RecordTools item={selected}/><DiscogsLink item={selected}/><button type="button" className="room-open-album" onClick={() => openRecord(selected.id)}>唱片卡片 <ArrowUpRight size={18}/></button></div></div>}
     {focus && <FocusDock open={dock.open} tab={dock.tab} setTab={(tab) => saveDock({ tab })} close={() => saveDock({ open: false })}/>}
     {personalize && <RoomPersonalization look={look} petId={petId} onChange={personalizeRoom} close={() => setPersonalize(false)} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
     {musicSettings && <MusicSettings close={() => setMusicSettings(false)}/>}

@@ -1,0 +1,31 @@
+/* Music player — consumes shared tokens from src/styles/tokens.css, with
+   fallbacks so it renders even before that file is loaded. */
+.player-controls{--pl-ink:var(--px-ink,#ffe9cb);--pl-dim:var(--px-ink-dim,#c9a47a);--pl-accent:var(--px-accent,#e0ad69);--pl-accent-2:var(--px-accent-2,#7fb8a8);--pl-surface:var(--px-surface,#2e1d12);--pl-surface-2:var(--px-surface-2,#3a2416);--pl-border:var(--px-border,#8a5a32);--pl-shadow:var(--px-shadow,#0d0805);--pl-warn:var(--px-warn,#e06a4e);--pl-good:var(--px-good,#9ccf8c);--pl-unit:var(--px-unit,4px);--pl-fast:var(--px-dur-fast,120ms);--pl-med:var(--px-dur-med,240ms);--pl-ease:var(--px-ease,steps(4,end));font-family:var(--px-font-cn,inherit)}
+.player-controls .turntable-controls button{transition:transform var(--pl-fast) var(--pl-ease),background-color var(--pl-fast) var(--pl-ease)}
+.player-controls .turntable-controls button:not(:disabled):hover{transform:translateY(calc(var(--pl-unit) * -.5))}
+.player-controls .turntable-controls button:not(:disabled):active{transform:translateY(calc(var(--pl-unit) * .25))}
+.player-controls .turntable-toggle.is-busy{opacity:.85}
+.player-spin{animation:player-spin 1s steps(8,end) infinite}
+@keyframes player-spin{to{transform:rotate(360deg)}}
+.player-modes{display:inline-flex;gap:3px;margin-left:auto}
+.player-controls .turntable-controls .player-mode{position:relative;min-width:26px;height:26px;padding:0 5px;font:inherit;font-size:11px;line-height:1;color:var(--pl-dim);background:var(--pl-surface-2)}
+.player-controls .turntable-controls .player-mode[aria-pressed=true],.player-controls .turntable-controls .player-mode[aria-expanded=true]{color:var(--pl-shadow);background:var(--pl-accent-2)}
+.player-mode b{position:absolute;top:-6px;right:-6px;min-width:14px;height:14px;padding:0 3px;font-size:9px;line-height:14px;color:var(--pl-shadow);background:var(--pl-accent);box-shadow:1px 1px 0 var(--pl-shadow)}
+.player-queue{margin-top:8px;padding:6px 8px;font-size:11px;color:var(--pl-dim);background:var(--pl-surface);box-shadow:0 0 0 2px var(--pl-shadow),inset 2px 2px 0 var(--pl-border);animation:player-pop var(--pl-med) var(--pl-ease)}
+.player-queue ol{margin:0;padding:0 0 0 18px;display:grid;gap:3px;max-height:110px;overflow:auto}
+.player-queue li{display:flex;align-items:center;gap:6px;color:var(--pl-ink)}.player-queue li span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.player-queue li button{display:grid;place-items:center;padding:2px;color:var(--pl-dim);background:none;border:0;cursor:pointer}.player-queue li button:hover{color:var(--pl-warn)}
+.player-queue p{margin:0;line-height:1.5}
+.player-error{display:grid;gap:6px;margin-top:8px;padding:6px 8px;font-size:11px;line-height:1.45;color:var(--pl-ink);background:color-mix(in srgb,var(--pl-warn) 22%,var(--pl-surface));box-shadow:0 0 0 2px var(--pl-shadow),inset 3px 0 0 var(--pl-warn);animation:player-pop var(--pl-med) var(--pl-ease)}
+.player-error-actions{display:flex;gap:6px}
+.player-error button,.player-quick-source button{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font:inherit;font-size:11px;color:var(--pl-shadow);background:var(--pl-accent);border:0;box-shadow:2px 2px 0 var(--pl-shadow);cursor:pointer}
+.player-error button+button{color:var(--pl-ink);background:var(--pl-surface-2)}
+.player-error button:active,.player-quick-source button:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--pl-shadow)}
+.player-quick-source{display:grid;gap:6px;margin-top:10px;font-size:11px;color:var(--pl-dim)}.player-quick-source span{display:flex;flex-wrap:wrap;gap:6px}
+.player-quick-source button{color:var(--pl-ink);background:var(--pl-surface-2);box-shadow:0 0 0 1px var(--pl-border),2px 2px 0 var(--pl-shadow)}.player-quick-source button:hover{color:var(--pl-shadow);background:var(--pl-accent)}
+.player-volume{position:relative}
+.player-controls .player-mute{display:grid;place-items:center;padding:2px;color:var(--pl-dim);background:none;border:0;cursor:pointer}.player-controls .player-mute[aria-pressed=true]{color:var(--pl-warn)}
+.player-controls :focus-visible{outline:2px solid var(--px-focus,#ffd99c);outline-offset:2px}
+@keyframes player-pop{from{opacity:0;transform:translateY(var(--pl-unit))}}
+[data-desktop-reduce-motion=true] .player-controls *{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.player-controls *{animation:none!important;transition:none!important}}
