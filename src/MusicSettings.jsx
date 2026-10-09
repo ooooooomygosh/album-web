@@ -10,7 +10,7 @@ function UseSource({ value, provider, useSource }) {
   if (!useSource) return null;
   return provider === value ? <span className="music-source-current" aria-label={`唱机正在使用 ${SOURCE_NAMES[value]}`}>唱机在用</span> : <button type="button" className="music-source-use" onClick={() => useSource(value)}>在唱机上用</button>;
 }
-import { musicRequest } from './room-playback.mjs';
+import { musicRequest, normalizeLocalLibrary } from './room-playback.mjs';
 
 // Local folders are scanned in place; files are never copied or uploaded.
 function LocalMusicSettings() {
@@ -21,7 +21,7 @@ function LocalMusicSettings() {
   const load = async () => {
     const version = revision.current;
     try {
-      const next = await musicRequest('/local/summary');
+      const next = normalizeLocalLibrary(await musicRequest('/local/summary'));
       if (!alive.current || version !== revision.current) return;
       setSummary(next);
       if (!pending.current) {
@@ -44,7 +44,7 @@ function LocalMusicSettings() {
       if (detail.scanning) { pending.current = true; wasScanning.current = true; setBusy(true); setMessage(progress); return; }
       pending.current = false; wasScanning.current = false; setBusy(false);
       if (detail.error) setMessage(detail.error);
-      else if (detail.ok) { setSummary(detail); setMessage(complete(detail)); }
+      else if (detail.ok) { const next = normalizeLocalLibrary(detail); setSummary(next); setMessage(complete(next)); }
       else if (detail.cancelled) setMessage('');
       load();
     };
@@ -57,7 +57,7 @@ function LocalMusicSettings() {
     const controller = new AbortController(); request.current = controller;
     setBusy(true); setMessage(progress);
     try {
-      const next = await musicRequest(path, value, controller.signal);
+      const next = normalizeLocalLibrary(await musicRequest(path, value, controller.signal));
       if (alive.current && version === revision.current) { setSummary(next); setMessage(complete(next)); }
     } catch (error) {
       if (alive.current && version === revision.current) setMessage(`${error.message} 扫描可能仍在后台继续，正在检查状态。`);

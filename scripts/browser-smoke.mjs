@@ -23,7 +23,7 @@ const cover = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w
 let items = Array.from({ length: 18 }, (_, i) => ({ id: `fixture-${i}`, type: 'album', title: i === 0 ? '晨光本地唱片' : `测试唱片 ${i + 1}`, artist: 'Fixture Artist', year: '2026', cover: i === 2 ? '' : cover, source: 'manual', tracks: ['晨光', '夜雨'], trackDetails: ['abcdef0123456789', 'fedcba9876543210'].map((id, index) => ({ title: index ? '夜雨' : '晨光', source: 'local', providerId: id })), addedAt: new Date(Date.UTC(2026, 9, 8) - i * 86400000).toISOString() }));
 const wav = Buffer.alloc(44 + 22050 * 2 * 15); wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(22050, 24); wav.writeUInt32LE(44100, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
 for (let i = 0; i < (wav.length - 44) / 2; i++) wav.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * 220 / 22050) * 1200), 44 + i * 2);
-let systemPlaying = true; const systemCommands = [];
+let systemPlaying = true, localAlbumCalls = 0; const systemCommands = [];
 const screenshot = async (name) => { await page.screenshot({ path: path.join(output, name + '.png'), animations: 'disabled' }); report.screenshots.push(name + '.png'); };
 const closeDialog = () => page.keyboard.press('Escape');
 try {
@@ -50,7 +50,7 @@ try {
     if (p === '/api/search') return json({ candidates: [{ ...items[0], id: 'search-result', title: '搜索找到的专辑' }] });
     if (p === '/desktop-music/config') return json({ qqLoggedIn: false, neteaseLoggedIn: false, maURL: '', playerId: '' });
     if (p === '/desktop-music/local/summary') return json({ folders: [{ name: 'Fixture Music', path: '/fixture/music' }], albumCount: 1, trackCount: 2 });
-    if (p === '/desktop-music/local/albums') return json({ albums: [], albumCount: 0, trackCount: 0 });
+    if (p === '/desktop-music/local/albums') return json(localAlbumCalls++ % 2 ? { albums: [{ id: '0123456789abcdef', title: '残缺资料' }, null] } : {}); // malformed on purpose: {} then an album without tracks
     if (p === '/desktop-music/resolve') return json({ audioPath: '/desktop-music/local/audio/' + body.id, trial: false });
     if (p.startsWith('/desktop-music/local/audio/')) return route.fulfill({ contentType: 'audio/wav', body: wav, headers: { 'accept-ranges': 'bytes' } });
     if (p === '/desktop-music/search') return json({ candidates: [{ id: 'fixture-stream', title: '晨光', artist: 'Fixture Artist', provider: url.searchParams.get('provider'), album: 'Fixture' }] });
@@ -103,6 +103,8 @@ try {
   check('queue-adds-selected-album');
   // Album import from picked files (session playback) + pixel covers.
   await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('tab', { name: '本地音乐' }).click();
+  await page.getByRole('tab', { name: '手动填写' }).click(); await page.getByRole('tab', { name: '本地音乐' }).click(); // {} first, then a partial album
+  await page.locator('.add-results[aria-label="本地专辑"] li', { hasText: '残缺资料' }).getByText('未知歌手 · 0 首').waitFor(); check('local-music-empty-or-partial-response-renders');
   await page.getByLabel('选择音乐文件', { exact: true }).setInputFiles([{ name: '01 - Fixture Band - 晨雾.wav', mimeType: 'audio/wav', buffer: wav }, { name: '02 - Fixture Band - 夜灯.wav', mimeType: 'audio/wav', buffer: wav }]);
   const fileAlbum = page.locator('.file-import .add-results li').first(); await fileAlbum.locator('img.add-cover').waitFor(); await fileAlbum.getByText('Fixture Band · 2 首').waitFor(); await screenshot('file-import');
   await fileAlbum.getByRole('button', { name: '放上唱片架' }).click(); await page.getByText('《未命名专辑》已放上唱片架。', { exact: true }).waitFor(); await closeDialog();

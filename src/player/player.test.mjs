@@ -111,3 +111,16 @@ test('tags: filenames and grouping into ordered albums', () => {
   const yhm = albums.find((a) => a.title === '叶惠美'); assert.deepEqual(yhm.tracks.map((t) => t.title), ['以父之名', '晴天']); assert.equal(yhm.year, '2003'); assert.equal(yhm.artist, '周杰伦');
   const demos = albums.find((a) => a.title === 'Demos'); assert.equal(demos.artist, 'Me'); assert.equal(demos.tracks[0].title, 'idea');
 });
+
+test('local-music responses: {} and partial albums never crash readers', async () => {
+  const { normalizeLocalLibrary, normalizeLocalAlbum, localAlbumItem } = await import('../room-playback.mjs');
+  for (const raw of [{}, null, undefined, 'oops', { albums: null, folders: 'x' }]) {
+    const lib = normalizeLocalLibrary(raw);
+    assert.deepEqual(lib.albums, []); assert.deepEqual(lib.folders, []); assert.equal(lib.albumCount, 0); assert.equal(lib.trackCount, 0);
+  }
+  const lib = normalizeLocalLibrary({ albums: [{ id: 'a', title: '残缺' }, null, { id: 'b', tracks: [{ id: 't', title: '歌' }, null, 5] }, { title: 'no id' }], folders: [{ name: 'M', path: '/m' }, {}] });
+  assert.deepEqual(lib.albums.map((a) => [a.id, a.tracks.length]), [['a', 0], ['b', 1]]); assert.equal(lib.trackCount, 1); assert.equal(lib.albumCount, 2); assert.equal(lib.folders.length, 1);
+  assert.equal(normalizeLocalAlbum(null), null);
+  const item = localAlbumItem({ id: 'a' }); assert.deepEqual(item.tracks, []); assert.deepEqual(item.trackDetails, []); assert.equal(item.title, '未命名专辑');
+  assert.doesNotThrow(() => localAlbumItem(undefined));
+});

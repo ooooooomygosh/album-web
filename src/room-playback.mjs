@@ -29,9 +29,26 @@ export async function musicRequest(path, value, signal) {
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); }
 }
 
+// The local-music service may answer with `{}` (no index yet, older desktop
+// build, scan in progress) or with partial entries. Everything the UI reads
+// from it goes through here, so missing arrays never crash a render.
+const list = (value) => Array.isArray(value) ? value : [];
+const count = (value, fallback) => Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : fallback;
+export function normalizeLocalAlbum(album) {
+  if (!album || typeof album !== 'object') return null;
+  const tracks = list(album.tracks).filter((track) => track && typeof track === 'object').map((track) => ({ ...track, title: String(track.title || track.name || '未命名曲目') }));
+  return { ...album, id: String(album.id || ''), title: String(album.title || '未命名专辑'), artist: String(album.artist || '未知歌手'), tracks };
+}
+export function normalizeLocalLibrary(value) {
+  const raw = value && typeof value === 'object' ? value : {};
+  const albums = list(raw.albums).map(normalizeLocalAlbum).filter((album) => album && album.id);
+  return { ...raw, albums, folders: list(raw.folders).filter((folder) => folder && typeof folder.path === 'string'), albumCount: count(raw.albumCount, albums.length), trackCount: count(raw.trackCount, albums.reduce((sum, album) => sum + album.tracks.length, 0)) };
+}
+
 // Builds a collection item from a scanned local album. Track ids let the
 // turntable play the exact files; the cover stays local unless replaced.
-export function localAlbumItem(album) {
+export function localAlbumItem(value) {
+  const album = normalizeLocalAlbum(value) || normalizeLocalAlbum({});
   return { type: 'album', title: album.title, artist: album.artist, year: album.year || '', cover: album.cover || '', label: '本地音乐', platforms: ['本地文件'], source: 'local-music',
     tracks: album.tracks.slice(0, 60).map((track) => track.title), externalIds: { localAlbum: album.id },
     trackDetails: album.tracks.slice(0, 60).map((track, index) => ({ title: track.title, trackNumber: index + 1, lengthMillis: (track.duration || 0) * 1000, source: 'local', providerId: track.id })) };

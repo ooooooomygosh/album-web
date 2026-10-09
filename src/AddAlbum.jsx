@@ -3,7 +3,7 @@ import { Search, Plus, Check, FolderOpen, Disc3, Loading } from './icons';
 import Dialog from './Dialog';
 import { buildSearchInput } from './music-search.mjs';
 import { addItem } from './collection-api.mjs';
-import { localAlbumItem, musicRequest } from './room-playback.mjs';
+import { localAlbumItem, musicRequest, normalizeLocalLibrary } from './room-playback.mjs';
 import { desktopCommand, useDesktopAppearance } from './desktop-client';
 import FileImport from './player/FileImport';
 import { generatedCover } from './player/pixel-cover.mjs';
@@ -66,7 +66,7 @@ function CatalogSearch({ initialQuery, onAdded, added }) {
 function LocalImport({ items, onAdded }) {
   const desktop = useDesktopAppearance().client;
   const [state, setState] = useState(null), [busy, setBusy] = useState(''), [message, setMessage] = useState('');
-  const load = async () => { try { setState(await musicRequest('/local/albums')); } catch (error) { setState({ error: error.message, albums: [] }); } };
+  const load = async () => { try { setState(normalizeLocalLibrary(await musicRequest('/local/albums'))); } catch (error) { setState({ error: error.message, albums: [] }); } };
   useEffect(() => {
     load();
     const receive = (event) => { if (event.detail?.scanning) setMessage('正在扫描音乐文件…'); if (event.detail?.ok) { setMessage(''); load(); } if (event.detail?.error) setMessage(event.detail.error); };
