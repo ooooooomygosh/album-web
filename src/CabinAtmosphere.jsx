@@ -33,7 +33,7 @@ export default function CabinAtmosphere({ look, weather }) {
   const root = useRef(null), snow = useRef(null), fire = useRef(null), light = useRef(null);
   const geometry = ATMOSPHERE[look] || ATMOSPHERE.warm;
   useEffect(() => {
-    const element = root.current, pixel = look === 'pixel';
+    const element = root.current, pixel = look === 'pixel' || look === 'warm'; // every room is pixel art now
     const snowContext = prepare(snow.current, geometry.window, pixel), fireContext = prepare(fire.current, geometry.fire, pixel);
     if (!snowContext || !fireContext) { element.dataset.motion = 'unavailable'; return; }
     const renderFire = createFirePainter(pixel);

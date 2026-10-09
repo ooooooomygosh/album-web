@@ -3,7 +3,6 @@
    isometric deck + cabinet become a compact pixel "radio" panel docked
    bottom-left, clear of the window and the shelf. Player markup is untouched. */
 .cabin-scene-art { image-rendering: pixelated; }
-[data-room-look='warm'] .cabin-scene-art { image-rendering: auto; }
 
 .room-turntable { left: 16px; bottom: 16px; top: auto; width: 272px; filter: none !important; }
 .wallpaper-room .room-turntable { bottom: 16px; }

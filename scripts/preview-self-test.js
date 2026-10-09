@@ -42,7 +42,7 @@
         if (document.querySelector('.focus-dock-close')) await click('收起专注工具');
         pass('fixture room mounted');
         await click('布置小屋');
-        for (const [id, name] of [['pixel', '像素小屋'], ['warm', '写实小屋'], ['forest', '林间书屋'], ['seaside', '海边慢屋'], ['starlight', '星夜阁楼']]) {
+        for (const [id, name] of [['pixel', '像素小屋'], ['warm', '琥珀小屋'], ['forest', '林间书屋'], ['seaside', '海边慢屋'], ['starlight', '星夜阁楼']]) {
           await click('选择场景 ' + name); await wait(() => document.querySelector('.cabin-scene')?.dataset.roomLook === id, id); pass('scene ' + id);
           if (['pixel', 'warm'].includes(id)) {
             const layer = await wait(() => document.querySelector('.cabin-atmosphere[data-motion=reduced]'), id + ' clean artwork loads', 25000);

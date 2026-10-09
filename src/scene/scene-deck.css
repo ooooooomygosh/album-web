@@ -7,7 +7,6 @@
 [data-room-look='starlight'] .scene-deck { left: calc(528 / 1448 * 100%); top: calc(103 / 1086 * 100%); }
 .scene-deck-sprite { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; image-rendering: pixelated; }
 .scene-deck-shadow { opacity: .35; }
-[data-room-look='warm'] .scene-deck-sprite { filter: saturate(.9) brightness(.92); }
 
 /* Record drops onto the platter in four frames, then the lamp sheen orbits. */
 .scene-deck-record { animation: deck-record-seat 320ms steps(4, end) both; }
