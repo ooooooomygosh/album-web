@@ -1,3 +1,5 @@
+import { scheduleMusicBrainz } from './musicbrainz-scheduler.mjs';
+
 // Album and song search: iTunes Search, with track lists and MusicBrainz /
 // Cover Art Archive enrichment. Runs inside the desktop client.
 function json(res, status, payload) {
@@ -126,14 +128,18 @@ async function tracksForAlbum(collectionId, country, signal) {
   const data = await response.json();
   return (data.results || [])
     .filter((item) => item.wrapperType === 'track' && item.trackName)
-    .sort((a, b) => (a.trackNumber || 0) - (b.trackNumber || 0))
-    .map((item) => item.trackName)
-    .slice(0, 24);
+    .sort((a, b) => (a.discNumber || 1) - (b.discNumber || 1) || (a.trackNumber || 0) - (b.trackNumber || 0))
+    .map((item, index) => ({
+      title: item.trackName, position: String(index + 1),
+      discNumber: Number(item.discNumber || 1), trackNumber: Number(item.trackNumber || index + 1),
+      lengthMillis: Number(item.trackTimeMillis || 0), providerId: String(item.trackId || ''),
+      source: 'iTunes Search'
+    }));
 }
 
 function mbHeaders() {
   return {
-    'User-Agent': 'FlowCabin/1.7 (https://github.com/ooooooomygosh/album-web)'
+    'User-Agent': 'FlowCabin/1.7.0 (https://github.com/ooooooomygosh/album-web)'
   };
 }
 
@@ -149,7 +155,7 @@ async function musicBrainzSearchRelease(candidate, signal) {
     apiUrl.searchParams.set('query', query || `release:"${candidate.title}"`);
     apiUrl.searchParams.set('fmt', 'json');
     apiUrl.searchParams.set('limit', '8');
-    const response = await fetch(apiUrl, { signal, headers: mbHeaders() });
+    const response = await scheduleMusicBrainz(() => fetch(apiUrl, { signal, headers: mbHeaders() }), signal);
     if (!response.ok) continue;
     const data = await response.json().catch(() => ({}));
     allReleases = [...allReleases, ...(data.releases || [])];
@@ -188,7 +194,7 @@ async function musicBrainzReleaseDetails(releaseId, signal) {
   const apiUrl = new URL(`https://musicbrainz.org/ws/2/release/${releaseId}`);
   apiUrl.searchParams.set('fmt', 'json');
   apiUrl.searchParams.set('inc', 'recordings+media+artist-credits+labels+release-groups');
-  const response = await fetch(apiUrl, { signal, headers: mbHeaders() });
+  const response = await scheduleMusicBrainz(() => fetch(apiUrl, { signal, headers: mbHeaders() }), signal);
   if (!response.ok) return null;
   return response.json();
 }
@@ -235,7 +241,7 @@ async function enrichWithMusicBrainz(candidate, signal) {
     ...candidate,
     cover: candidate.cover || caaCover,
     coverSource: candidate.cover ? 'iTunes Search' : caaCover ? 'Cover Art Archive' : '',
-    tracks: trackDetails.map((track) => track.title).slice(0, 80),
+    tracks: trackDetails.map((track) => track.title),
     trackDetails,
     source: 'iTunes Search + MusicBrainz',
     externalIds: {
@@ -252,7 +258,7 @@ async function enrichWithMusicBrainz(candidate, signal) {
     metadataCompleteness: {
       ...(candidate.metadataCompleteness || {}),
       hasTracks: true,
-      trackCountMatches: true,
+      trackCountMatches: candidate.expectedTrackCount ? trackDetails.length === Number(candidate.expectedTrackCount) : Boolean(trackDetails.length),
       sourcesUsed: [...new Set([...(candidate.metadataCompleteness?.sourcesUsed || []), 'MusicBrainz'])]
     }
   };
@@ -269,19 +275,23 @@ export default async function handler(req, res) {
   const requestedType = String(req.query.type || 'all').toLowerCase();
   if (!term) return json(res, 400, { error: 'Missing term' });
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  const searchController = new AbortController();
+  const searchTimeout = setTimeout(() => searchController.abort(), 9000);
+  const searchSignal = AbortSignal.any([controller.signal, searchController.signal]);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
 
     const countries = /[\u3400-\u9fff]/.test(term) ? ['CN', 'HK', 'TW', 'US'] : ['US', 'CN', 'HK'];
     const types = requestedType === 'song' || requestedType === 'album' ? [requestedType] : ['song', 'album'];
     const batches = await Promise.allSettled(
-      countries.flatMap((country) => types.map((type) => itunesSearchByType(term, country, type, controller.signal)))
+      countries.flatMap((country) => types.map((type) => itunesSearchByType(term, country, type, searchSignal)))
     );
     let rows = batches.flatMap((batch) => (batch.status === 'fulfilled' ? batch.value : []));
 
-    if (requestedType === 'album') {
-      const songBatches = await Promise.allSettled(countries.map((country) => itunesSearchByType(term, country, 'song', controller.signal)));
+    // Direct album results take priority; only broaden via songs when none exist.
+    if (requestedType === 'album' && !rows.length) {
+      const songBatches = await Promise.allSettled(countries.map((country) => itunesSearchByType(term, country, 'song', searchSignal)));
       const albumIdsByCountry = new Map();
       for (const { item, country } of songBatches.flatMap((batch) => (batch.status === 'fulfilled' ? batch.value : []))) {
         if (!item.collectionId) continue;
@@ -290,12 +300,12 @@ export default async function handler(req, res) {
         albumIdsByCountry.set(country, existing);
       }
       const lookupBatches = await Promise.allSettled(
-        [...albumIdsByCountry.entries()].map(([country, ids]) => albumLookup(ids, country, controller.signal))
+        [...albumIdsByCountry.entries()].map(([country, ids]) => albumLookup(ids, country, searchSignal))
       );
       rows = [...rows, ...lookupBatches.flatMap((batch) => (batch.status === 'fulfilled' ? batch.value : []))];
     }
 
-    clearTimeout(timeout);
+    clearTimeout(searchTimeout);
     if (!rows.length) throw new Error('iTunes returned no candidates');
 
     const seen = new Set();
@@ -366,16 +376,17 @@ export default async function handler(req, res) {
           const { country, ...publicCandidate } = candidate;
           return publicCandidate;
         }
-        const tracks = await tracksForAlbum(candidate.collectionId, candidate.country, controller.signal).catch(() => []);
+        const trackDetails = await tracksForAlbum(candidate.collectionId, candidate.country, controller.signal).catch(() => []);
+        const tracks = trackDetails.map((track) => track.title);
         const { country, ...publicCandidate } = candidate;
         const withTracks = {
           ...publicCandidate,
           tracks,
-          trackDetails: tracks.map((title, trackIndex) => ({ title, position: String(trackIndex + 1), discNumber: 1, trackNumber: trackIndex + 1, source: 'iTunes Search' })),
+          trackDetails,
           metadataCompleteness: {
             ...publicCandidate.metadataCompleteness,
             hasTracks: Boolean(tracks.length),
-            trackCountMatches: publicCandidate.expectedTrackCount ? tracks.length >= Number(publicCandidate.expectedTrackCount) : Boolean(tracks.length)
+            trackCountMatches: publicCandidate.expectedTrackCount ? tracks.length === Number(publicCandidate.expectedTrackCount) : Boolean(tracks.length)
           },
           context: tracks.length
             ? `来自 iTunes ${country} 曲库的专辑候选，可确认封面、艺人、年份和 ${tracks.length} 首曲目后放上唱片架。`
@@ -386,10 +397,14 @@ export default async function handler(req, res) {
     );
 
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-    return json(res, 200, { provider: 'iTunes Search', candidates: enriched });
+    const incomplete = enriched.some((candidate) => candidate.type === 'album' && !candidate.metadataCompleteness.trackCountMatches);
+    return json(res, 200, { provider: 'iTunes Search', candidates: enriched, warnings: incomplete ? ['部分专辑曲目尚未读取完整，请核对版本或稍后重试。'] : [] });
   } catch (error) {
     const message = error.name === 'AbortError' ? 'iTunes search timed out' : error.message;
     return json(res, 502, { error: message });
+  } finally {
+    clearTimeout(searchTimeout);
+    clearTimeout(timeout);
   }
 }
 

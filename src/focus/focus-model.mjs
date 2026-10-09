@@ -2,11 +2,13 @@
 // transition receives `now`, so hidden or throttled windows stay accurate.
 export const FOCUS_PREFIX = 'album-circle-focus-v1:';
 export const MAX_FOCUS_BYTES = 512000;
+export const MAX_NOTE_LENGTH = 8000;
+export const normalizeNotes = (value) => typeof value === 'string' ? value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').slice(0, MAX_NOTE_LENGTH) : '';
 export const PHASES = ['idle', 'focus', 'shortBreak', 'longBreak'];
 export const PHASE_LABELS = { idle: '准备开始', focus: '专注中', shortBreak: '短休息', longBreak: '长休息' };
-const MINUTE = 60000, DAY = 86400000;
+const MINUTE = 60000;
 
-export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false });
+export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false, hideSeconds: false, catSkin: 'orange' });
 // Rewards follow the Chill Pulse idea of unlocking cosy extras by working.
 export const UNLOCKS = Object.freeze([
   { id: 'snow', kind: 'weather', level: 1, name: '雪夜窗景' },
@@ -27,14 +29,14 @@ export function normalizeSettings(value = {}) {
   return {
     focusMin: clamp(v.focusMin, 1, 180, DEFAULT_SETTINGS.focusMin), shortMin: clamp(v.shortMin, 1, 60, DEFAULT_SETTINGS.shortMin),
     longMin: clamp(v.longMin, 1, 90, DEFAULT_SETTINGS.longMin), longEvery: clamp(v.longEvery, 2, 8, DEFAULT_SETTINGS.longEvery),
-    autoBreak: v.autoBreak !== false, autoFocus: v.autoFocus === true, notify: v.notify !== false, chime: v.chime !== false, autoSound: v.autoSound === true
+    autoBreak: v.autoBreak !== false, autoFocus: v.autoFocus === true, notify: v.notify !== false, chime: v.chime !== false, autoSound: v.autoSound === true, hideSeconds: v.hideSeconds === true, catSkin: v.catSkin === 'black' ? 'black' : 'orange'
   };
 }
-function normalizeTimer(value = {}) {
+function normalizeTimer(value = {}, settings = DEFAULT_SETTINGS) {
   const v = value && typeof value === 'object' ? value : {};
   const phase = PHASES.includes(v.phase) ? v.phase : 'idle';
   if (phase === 'idle') return { phase, endsAt: 0, remaining: 0, paused: false, startedAt: 0, round: clamp(v.round, 0, 1e6, 0), taskId: text(v.taskId, 40) };
-  return { phase, endsAt: clamp(v.endsAt, 0, 9e15, 0), remaining: clamp(v.remaining, 0, 180 * MINUTE, 0), paused: v.paused === true, startedAt: clamp(v.startedAt, 0, 9e15, 0), round: clamp(v.round, 0, 1e6, 0), taskId: text(v.taskId, 40) };
+  return { phase, duration: clamp(v.duration, 1, 180 * MINUTE, phaseDuration(settings, phase)), endsAt: clamp(v.endsAt, 0, 9e15, 0), remaining: clamp(v.remaining, 0, 180 * MINUTE, 0), paused: v.paused === true, startedAt: clamp(v.startedAt, 0, 9e15, 0), round: clamp(v.round, 0, 1e6, 0), taskId: text(v.taskId, 40) };
 }
 function normalizeTask(value) {
   if (!value || typeof value !== 'object' || !text(value.text, 120)) return null;
@@ -54,8 +56,9 @@ export function normalizeFocus(value = {}) {
   const pick = (value, kind, fallback) => unlocked.has(value) && UNLOCKS.find((item) => item.id === value)?.kind === kind ? value : fallback;
   return {
     version: 1,
+    notes: normalizeNotes(v.notes),
     settings: normalizeSettings(v.settings),
-    timer: normalizeTimer(v.timer),
+    timer: normalizeTimer(v.timer, normalizeSettings(v.settings)),
     tasks: (Array.isArray(v.tasks) ? v.tasks : []).map(normalizeTask).filter(Boolean).slice(0, 200),
     sessions: (Array.isArray(v.sessions) ? v.sessions : []).map(normalizeSession).filter(Boolean).slice(-2000),
     rewards: { fish: clamp(rewards.fish, 0, 1e9, 0), xp, equipped: { accessory: pick(equipped.accessory, 'accessory', ''), weather: pick(equipped.weather, 'weather', 'snow') } }
@@ -73,7 +76,8 @@ export function remainingMs(timer, now) {
   if (!timer || timer.phase === 'idle') return 0;
   return timer.paused ? timer.remaining : Math.max(0, timer.endsAt - now);
 }
-export function formatClock(ms) {
+export function formatClock(ms, hideSeconds = false) {
+  if (hideSeconds) return `${Math.max(0, Math.ceil(ms / MINUTE))} 分钟`;
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
@@ -82,7 +86,7 @@ export function nextBreak(state) { return (state.timer.round + 1) % state.settin
 export function startPhase(state, phase, now, taskId = state.timer.taskId) {
   const duration = phaseDuration(state.settings, phase);
   if (!duration) return { ...state, timer: { ...state.timer, phase: 'idle', endsAt: 0, remaining: 0, paused: false, startedAt: 0 } };
-  return { ...state, timer: { ...state.timer, phase, endsAt: now + duration, remaining: duration, paused: false, startedAt: now, taskId: taskId || '' } };
+  return { ...state, timer: { ...state.timer, phase, duration, endsAt: now + duration, remaining: duration, paused: false, startedAt: now, taskId: taskId || '' } };
 }
 export function pause(state, now) {
   if (state.timer.phase === 'idle' || state.timer.paused) return state;
@@ -103,7 +107,7 @@ function finish(state, now, completed) {
   const { timer } = state; let next = { ...state };
   const event = { type: 'phase-end', phase: timer.phase, completed, reward: 0, at: now };
   if (timer.phase === 'focus') {
-    const duration = phaseDuration(state.settings, 'focus');
+    const duration = timer.duration || phaseDuration(state.settings, 'focus');
     // Paused time is excluded: the session is the worked span ending now.
     const worked = completed ? duration : Math.max(0, duration - remainingMs(timer, now));
     if (worked >= MINUTE) next.sessions = [...state.sessions, { start: now - worked, end: now, taskId: timer.taskId, completed }].slice(-2000);
@@ -160,7 +164,14 @@ export function moveTask(state, taskId, toIndex) {
   const tasks = [...state.tasks], [task] = tasks.splice(from, 1); tasks.splice(Math.max(0, Math.min(tasks.length, toIndex)), 0, task);
   return { ...state, tasks };
 }
-export function clearDone(state) { return { ...state, tasks: state.tasks.filter((task) => !task.done) }; }
+export function selectTask(state, taskId, toggle = false) {
+  const selected = state.tasks.some((task) => task.id === taskId) ? taskId : '';
+  return { ...state, timer: { ...state.timer, taskId: toggle && state.timer.taskId === selected ? '' : selected } };
+}
+export function clearDone(state) {
+  const tasks = state.tasks.filter((task) => !task.done);
+  return { ...state, tasks, timer: tasks.some((task) => task.id === state.timer.taskId) ? state.timer : { ...state.timer, taskId: '' } };
+}
 
 export function dayKey(time) {
   const date = new Date(time);
@@ -173,7 +184,8 @@ export function minutesByDay(sessions) {
   for (const session of sessions) {
     let cursor = session.start;
     while (cursor < session.end) {
-      const boundary = startOfDay(cursor) + DAY, until = Math.min(boundary, session.end), key = dayKey(cursor);
+      const tomorrow = new Date(startOfDay(cursor)); tomorrow.setDate(tomorrow.getDate() + 1);
+      const until = Math.min(tomorrow.getTime(), session.end), key = dayKey(cursor);
       days.set(key, (days.get(key) || 0) + (until - cursor) / MINUTE);
       cursor = until;
     }
@@ -209,5 +221,5 @@ export function equip(state, kind, value) {
 // Compact read-only form shared with the wallpaper and desktop pet windows.
 export function focusSnapshot(state, now) {
   const task = state.tasks.find((item) => item.id === state.timer.taskId);
-  return { phase: state.timer.phase, paused: state.timer.paused, remaining: remainingMs(state.timer, now), endsAt: state.timer.paused ? 0 : state.timer.endsAt, round: state.timer.round, task: task?.text || '', fish: state.rewards.fish, level: levelInfo(state.rewards.xp).level, accessory: state.rewards.equipped.accessory, weather: state.rewards.equipped.weather };
+  return { hideSeconds: state.settings.hideSeconds, catSkin: state.settings.catSkin, phase: state.timer.phase, paused: state.timer.paused, remaining: remainingMs(state.timer, now), endsAt: state.timer.paused ? 0 : state.timer.endsAt, round: state.timer.round, task: task?.text || '', fish: state.rewards.fish, level: levelInfo(state.rewards.xp).level, accessory: state.rewards.equipped.accessory, weather: state.rewards.equipped.weather };
 }

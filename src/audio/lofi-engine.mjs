@@ -39,6 +39,10 @@ export function composeSection(seed) {
   return { seed, key: NOTE_NAMES[key], bpm, chords, drums, melody, bars: 16 };
 }
 
+// Tone shares one transport. Track only players that actually started so a
+// late, cancelled factory cannot stop its active replacement.
+const activePlayers = new Set();
+
 // Lazily loads Tone.js so the main bundle stays small until music is wanted.
 export async function createLofiPlayer({ onSection } = {}) {
   const Tone = await import('tone');
@@ -57,7 +61,6 @@ export async function createLofiPlayer({ onSection } = {}) {
   const crackle = new Tone.Noise('pink').connect(crackleHigh);
   const transport = Tone.getTransport();
   let section = composeSection((Math.random() * 2 ** 31) | 0), step = 0;
-  transport.bpm.value = section.bpm; transport.swing = .32; transport.swingSubdivision = '16n';
   onSection?.(section);
   const loop = new Tone.Loop((time) => {
     const bar = Math.floor(step / 16), inBar = step % 16, chord = section.chords[bar % 4];
@@ -73,16 +76,24 @@ export async function createLofiPlayer({ onSection } = {}) {
       transport.bpm.rampTo(section.bpm, 2); Tone.getDraw().schedule(() => onSection?.(section), time);
     }
   }, '16n');
-  let volume = .55, duck = 1, disposed = false;
+  let volume = .55, duck = 1, disposed = false, started = false;
+  const identity = {};
   const applyVolume = () => out.gain.rampTo(volume * volume * duck, .6);
   return {
     get section() { return section; },
-    start() { if (disposed) return; crackle.start(); loop.start(0); transport.start(); applyVolume(); },
+    start() { if (disposed || started) return; started = true; activePlayers.add(identity); transport.bpm.value = section.bpm; transport.swing = .32; transport.swingSubdivision = '16n'; crackle.start(); loop.start(0); transport.start(); applyVolume(); },
     setVolume(value) { volume = value; applyVolume(); },
     setDuck(value) { duck = value ? .25 : 1; applyVolume(); },
     dispose() {
-      if (disposed) return; disposed = true; out.gain.rampTo(0, .3);
-      setTimeout(() => { transport.stop(); transport.cancel(); loop.dispose(); crackle.stop(); [keys, lead, bass, kick, snare, hat, crackle, snareBand, hatHigh, crackleHigh, crackleLevel, space, tape, out].forEach((node) => node.dispose()); }, 400);
+      if (disposed) return; disposed = true;
+      // Cancel only this player's scheduled loop. A stale async player must
+      // never stop/cancel the shared transport of its replacement.
+      loop.dispose();
+      if (started) {
+        crackle.stop(); activePlayers.delete(identity);
+        if (activePlayers.size === 0) transport.stop();
+      }
+      [keys, lead, bass, kick, snare, hat, crackle, snareBand, hatHigh, crackleHigh, crackleLevel, space, tape, out].forEach((node) => node.dispose());
     }
   };
 }

@@ -1,0 +1,100 @@
+{
+  "url": "https://album-circle-199q12u6x-homings-projects-d78a7226.vercel.app/",
+  "viewport": {
+    "width": 960,
+    "height": 600
+  },
+  "systemReducedMotion": false,
+  "animated": {
+    "fixtureReducedMotion": false,
+    "uniqueFrames": 4,
+    "samples": [
+      {
+        "at": "2026-10-08T17:12:27.589Z",
+        "hash": "c8d222019d4ad493820aadd7c8cd40ff417ac05e8e7198c1e2ee6497ec6dffa1"
+      },
+      {
+        "at": "2026-10-08T17:12:27.656Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:27.723Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:27.788Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:27.856Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:27.922Z",
+        "hash": "ccbfb22976b7f020dc4ddd144cdc269af14e8a07584245aca4882b7f2bbb333b"
+      },
+      {
+        "at": "2026-10-08T17:12:27.989Z",
+        "hash": "ccbfb22976b7f020dc4ddd144cdc269af14e8a07584245aca4882b7f2bbb333b"
+      },
+      {
+        "at": "2026-10-08T17:12:28.056Z",
+        "hash": "ccbfb22976b7f020dc4ddd144cdc269af14e8a07584245aca4882b7f2bbb333b"
+      },
+      {
+        "at": "2026-10-08T17:12:28.122Z",
+        "hash": "ccbfb22976b7f020dc4ddd144cdc269af14e8a07584245aca4882b7f2bbb333b"
+      },
+      {
+        "at": "2026-10-08T17:12:28.188Z",
+        "hash": "8f5380e89ba15c9d53dc5a5808021d969c9d8422553df807defd1768aae40110"
+      }
+    ]
+  },
+  "reduced": {
+    "fixtureReducedMotion": "true",
+    "uniqueFrames": 1,
+    "samples": [
+      {
+        "at": "2026-10-08T17:12:43.487Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.550Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.618Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.686Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.751Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.818Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.901Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:43.983Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:44.052Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      },
+      {
+        "at": "2026-10-08T17:12:44.101Z",
+        "hash": "b229174ee90356badce6248a209e6c9a0b4d94d2d9bd26e3638f37ba00a45ee9"
+      }
+    ]
+  }
+}

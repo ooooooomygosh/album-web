@@ -1,11 +1,21 @@
 import { BrowserWindow, session, type Session, type Cookie } from 'electron'
-import { openExternalSafely } from './safe-open'
 import type { LoginResult, OkResult } from '../../src/types/ipc'
 
 const NETEASE_LOGIN_PARTITION = 'persist:simplemusic-netease-login'
 const NETEASE_LOGIN_URL = 'https://music.163.com/#/login'
 const QQ_LOGIN_PARTITION = 'persist:simplemusic-qqmusic-login'
 const QQ_LOGIN_URL = 'https://y.qq.com/n/ryqq/profile'
+
+// Flow Cabin modifications: restrict navigation, reject partial/expired sessions, cancel login on logout.
+const activeFlows = new Map<string, () => void>()
+const generations = new Map<string, number>()
+function allowedLoginURL(value: string, partition: string): boolean {
+  try {
+    const u = new URL(value)
+    const hosts = partition === QQ_LOGIN_PARTITION ? ['qq.com'] : ['163.com', 'netease.com']
+    return u.protocol === 'https:' && !u.username && !u.password && !u.port && hosts.some(h => u.hostname === h || u.hostname.endsWith('.' + h))
+  } catch { return false }
+}
 
 const QQ_COOKIE_PRIORITY = [
   'uin', 'qqmusic_uin', 'wxuin', 'login_type', 'qm_keyst', 'qqmusic_key', 'p_skey', 'skey',
@@ -64,7 +74,7 @@ function isNeteaseCookieDomain(domain: string): boolean {
 function buildCookieHeaderFor(cookies: Cookie[], allowed: (domain: string) => boolean, priority: string[]): string {
   const picked = new Map<string, string>()
   for (const c of cookies) {
-    if (!c?.name || !allowed(c.domain ?? '')) continue
+    if (!c?.name || !allowed(c.domain ?? '') || (c.expirationDate != null && c.expirationDate > 0 && c.expirationDate <= Date.now() / 1000)) continue
     picked.set(c.name, c.value ?? '')
   }
   const ordered: Array<[string, string]> = []
@@ -101,9 +111,13 @@ interface LoginFlowOptions {
 }
 
 function runLoginFlow(opts: LoginFlowOptions): Promise<LoginResult> {
+  activeFlows.get(opts.partition)?.()
+  const generation = (generations.get(opts.partition) || 0) + 1
+  generations.set(opts.partition, generation)
   const cookieSession = session.fromPartition(opts.partition)
   return (async () => {
     const initial = await opts.read(cookieSession)
+    if (generations.get(opts.partition) !== generation) return { ok: false, cancelled: true }
     if (opts.hasFullLogin(initial)) return { ok: true, cookie: initial, reused: true }
 
     return new Promise<LoginResult>((resolve) => {
@@ -124,6 +138,7 @@ function runLoginFlow(opts: LoginFlowOptions): Promise<LoginResult> {
       const finish = (result: LoginResult) => {
         if (settled) return
         settled = true
+        activeFlows.delete(opts.partition)
         if (pollTimer) clearInterval(pollTimer)
         if (!win.isDestroyed()) win.close()
         resolve(result)
@@ -136,21 +151,26 @@ function runLoginFlow(opts: LoginFlowOptions): Promise<LoginResult> {
           console.warn('Login cookie check failed:', (e as Error).message)
         }
       }
+      activeFlows.set(opts.partition, () => finish({ ok: false, cancelled: true }))
+      const guardNavigation = (event: { preventDefault: () => void }, url: string) => {
+        if (!allowedLoginURL(url, opts.partition)) event.preventDefault()
+      }
+      win.webContents.on('will-navigate', guardNavigation)
+      win.webContents.on('will-redirect', guardNavigation)
       win.webContents.setWindowOpenHandler(({ url }) => {
-        // 登录窗加载的是音乐平台页面，弹窗目标不可信：http(s) 就地导航，
-        // 其余协议交白名单判断，file:// 等能拉起本地程序的一律丢弃。
-        if (/^https?:\/\//i.test(url)) win.loadURL(url).catch(() => {})
-        else openExternalSafely(url)
+        if (allowedLoginURL(url, opts.partition)) win.loadURL(url).catch(() => {})
         return { action: 'deny' }
       })
       win.webContents.on('did-finish-load', () => void check())
       win.on('ready-to-show', () => win.show())
       win.on('closed', async () => {
         if (settled) return
+        settled = true
+        activeFlows.delete(opts.partition)
         if (pollTimer) clearInterval(pollTimer)
         try {
           const cookie = await opts.read(cookieSession)
-          resolve(opts.hasLogin(cookie) ? { ok: true, cookie } : { ok: false, cancelled: true, message: '登录窗口已关闭' })
+          resolve(generations.get(opts.partition) === generation && opts.hasFullLogin(cookie) ? { ok: true, cookie } : { ok: false, cancelled: true, message: opts.hasLogin(cookie) ? '登录尚未取得播放凭据，请重新连接平台。' : '登录窗口已关闭' })
         } catch (e) {
           resolve({ ok: false, error: (e as Error).message || '登录窗口已关闭' })
         }
@@ -190,6 +210,8 @@ export function openQQLogin(owner: BrowserWindow | null): Promise<LoginResult> {
 }
 
 async function clearSession(partition: string): Promise<OkResult> {
+  generations.set(partition, (generations.get(partition) || 0) + 1)
+  activeFlows.get(partition)?.()
   await session
     .fromPartition(partition)
     .clearStorageData({ storages: ['cookies', 'localstorage', 'indexdb', 'cachestorage'] })

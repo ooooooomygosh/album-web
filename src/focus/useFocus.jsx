@@ -41,20 +41,31 @@ export function FocusProvider({ userId, children }) {
   const apply = (change) => {
     const time = Date.now(), previous = current.current, result = change(previous, time);
     const next = result && result.state ? result.state : result;
-    commit(next); setNow(time);
+    if (!commit(next)) return previous;
+    setNow(time);
     if (next.timer.phase === 'focus' && (previous.timer.phase !== 'focus' || previous.timer.startedAt !== next.timer.startedAt)) window.dispatchEvent(new CustomEvent('album-focus-start', { detail: { phase: 'focus', autoSound: next.settings.autoSound } }));
     if (result?.event) announce(result.event);
     return next;
   };
+  // A user can click immediately after wake, before the first interval fires.
+  // Settle the expired phase first rather than pausing/skipping a finished round.
+  const applyTimer = (change) => apply((state, time) => {
+    const elapsed = model.tick(state, time);
+    return elapsed.event ? elapsed : change(state, time);
+  });
   useEffect(() => {
     const running = state.timer.phase !== 'idle' && !state.timer.paused;
     if (!running) return;
-    const timer = setInterval(() => {
+    const advance = () => {
       const time = Date.now(); setNow(time);
       const result = model.tick(current.current, time);
-      if (result.event) { commit(result.state); announce(result.event); }
-    }, 500);
-    return () => clearInterval(timer);
+      if (result.event && commit(result.state)) announce(result.event);
+    };
+    advance();
+    const timer = setInterval(advance, 500);
+    window.addEventListener('focus', advance);
+    document.addEventListener('visibilitychange', advance);
+    return () => { clearInterval(timer); window.removeEventListener('focus', advance); document.removeEventListener('visibilitychange', advance); };
   }, [state.timer.phase, state.timer.paused, state.timer.endsAt]);
   useEffect(() => {
     const sync = (event) => { if (event.key !== key) return; const next = model.readFocus(localStorage, userId); current.current = next; setState(next); setNow(Date.now()); };
@@ -65,25 +76,26 @@ export function FocusProvider({ userId, children }) {
     // Commands from the desktop pet and tray arrive through the native shell.
     const receive = (event) => {
       const command = event.detail?.command;
-      if (command === 'focus-start') apply((s, t) => s.timer.phase === 'idle' ? model.startPhase(s, 'focus', t) : model.resume(s, t));
-      else if (command === 'focus-pause') apply((s, t) => model.pause(s, t));
-      else if (command === 'focus-toggle') apply((s, t) => model.toggle(s, t));
-      else if (command === 'focus-skip') apply((s, t) => model.skip(s, t));
+      if (command === 'focus-start') applyTimer((s, t) => s.timer.phase === 'idle' ? model.startPhase(s, 'focus', t) : model.resume(s, t));
+      else if (command === 'focus-pause') applyTimer((s, t) => model.pause(s, t));
+      else if (command === 'focus-toggle') applyTimer((s, t) => model.toggle(s, t));
+      else if (command === 'focus-skip') applyTimer((s, t) => model.skip(s, t));
     };
     window.addEventListener('album-companion-command', receive);
     return () => window.removeEventListener('album-companion-command', receive);
   }, []);
   const actions = {
-    toggle: () => { if (current.current.settings.notify && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch?.(() => {}); return apply(model.toggle); },
-    start: (phase = 'focus', taskId) => apply((s, t) => model.startPhase(s, phase, t, taskId)),
-    skip: () => apply(model.skip), reset: () => apply((s) => model.reset(s)),
+    toggle: () => { if (current.current.settings.notify && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch?.(() => {}); return applyTimer(model.toggle); },
+    start: (phase = 'focus', taskId) => applyTimer((s, t) => model.startPhase(s, phase, t, taskId)),
+    skip: () => applyTimer(model.skip), reset: () => apply((s) => model.reset(s)),
     settings: (change) => apply((s) => ({ ...s, settings: model.normalizeSettings({ ...s.settings, ...change }) })),
     addTask: (text) => apply((s, t) => model.addTask(s, text, t)),
     updateTask: (id, change) => apply((s, t) => model.updateTask(s, id, change, t)),
     removeTask: (id) => apply((s) => model.removeTask(s, id)),
     moveTask: (id, index) => apply((s) => model.moveTask(s, id, index)),
     clearDone: () => apply(model.clearDone),
-    selectTask: (id) => apply((s) => ({ ...s, timer: { ...s.timer, taskId: s.timer.taskId === id ? '' : id } })),
+    saveNotes: (notes) => apply((s) => ({ ...s, notes: model.normalizeNotes(notes) })),
+    selectTask: (id, toggle = false) => apply((s) => model.selectTask(s, id, toggle)),
     equip: (kind, value) => apply((s) => model.equip(s, kind, value)),
     replace: (value) => commit({ ...model.normalizeFocus(value), timer: current.current.timer })
   };

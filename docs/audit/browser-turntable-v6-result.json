@@ -1,0 +1,37 @@
+{
+  "url": "https://album-circle-69p2yqms2-homings-projects-d78a7226.vercel.app/",
+  "viewport": {
+    "width": 960,
+    "height": 600
+  },
+  "beforeDrag": {
+    "height": 335.015625,
+    "width": 172.796875,
+    "x": 14.390625,
+    "y": 150.984375
+  },
+  "afterDrag": {
+    "height": 335.015625,
+    "width": 172.796875,
+    "x": 174.390625,
+    "y": 129
+  },
+  "reloadState": {
+    "pet": "bunny",
+    "rect": {
+      "height": 278.515625,
+      "width": 172.796875,
+      "x": 174.390625,
+      "y": 129
+    },
+    "scene": "forest"
+  },
+  "resetState": {
+    "x": 14.390625,
+    "y": 207.484375
+  },
+  "resetReload": {
+    "x": 14.390625,
+    "y": 207.484375
+  }
+}

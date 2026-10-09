@@ -56,10 +56,6 @@
 .turntable-console{position:relative;padding:12px;border:1px solid #d4a46b55;border-radius:6px;background:linear-gradient(130deg,#302418f5,#21180ff2);box-shadow:0 2px 0 #2f1b0e,inset 0 1px #ffe5b71f}
 .room-turntable.is-drop-target .turntable-stage:after{content:'';position:absolute;inset:0;border:2px dashed #ffe6a9;border-radius:12px;background:#ffe1a014;pointer-events:none}
 .cabin-pixel .room-turntable{box-shadow:none;filter:drop-shadow(7px 10px 0 #140c09b0)}.cabin-pixel .turntable-deck,.cabin-pixel .turntable-console,.cabin-pixel .turntable-body-front,.cabin-pixel .turntable-foot{border-radius:0}.cabin-pixel .turntable-deck{background:repeating-linear-gradient(0deg,#795031 0 7px,#9b693a 7px 14px,#aa7843 14px 21px);box-shadow:inset 0 0 0 4px #211b17,inset 0 0 0 7px #c78c50}.cabin-pixel .turntable-side-cabinet{background:repeating-linear-gradient(90deg,#7d4b28 0 13px,#91582d 13px 19px,#6b4024 19px 23px)}.cabin-pixel .turntable-tonearm{filter:drop-shadow(4px 5px 0 #0007)}.cabin-pixel .turntable-speed-knob{box-shadow:2px 4px 0 #302214}.cabin-pixel .turntable-console{border-width:2px;background:#302217}
-.cabin-fire-glow{position:absolute;right:0;top:48%;width:17%;height:34%;pointer-events:none;background:radial-gradient(ellipse at right,#ff991423,transparent 68%);mix-blend-mode:screen;animation:cabin-flicker 3s ease-in-out infinite alternate}
-@keyframes cabin-flicker{0%,100%{opacity:.25}20%{opacity:.8}45%{opacity:.45}65%{opacity:1}}
-.cabin-snow{position:absolute;left:13.15%;top:15.9%;width:14.7%;height:25%;pointer-events:none;background-image:radial-gradient(circle,#fff9 1px,transparent 2px),radial-gradient(circle,#fff8 1px,transparent 1.8px);background-size:37px 61px,73px 49px;opacity:.45;animation:cabin-snowfall 6s linear infinite;clip-path:polygon(0 0,46% 0,46% 45%,0 45%,0 0,0 55%,46% 55%,46% 100%,0 100%,0 55%,54% 55%,100% 55%,100% 100%,54% 100%,54% 55%,54% 45%,100% 45%,100% 0,54% 0,54% 45%)}
-@keyframes cabin-snowfall{to{background-position:5px 61px,-8px 49px}}
 [data-desktop-reduce-motion=true] .cabin-room *,[data-desktop-reduce-motion=true] .wallpaper-room *{animation:none!important;transition:none!important}
 .wallpaper-room{position:fixed;inset:0;background:#38200f;color:#ffe9c6;overflow:hidden}.wallpaper-room .room-turntable{bottom:17%}.wallpaper-caption{position:absolute;bottom:24px;left:25%;right:24px;color:#f5d8a6;text-shadow:0 2px 8px #000;font-size:14px;letter-spacing:.05em}
 
@@ -69,3 +65,16 @@
 @media(max-width:1300px){.cabin-room .room-now-playing{left:25%;padding:11px}.cabin-room .room-selection-actions{flex-wrap:wrap;max-width:260px}.cabin-room .room-selection-actions a,.cabin-room .room-selection-actions button{font-size:11px;padding:6px 8px}.room-turntable{left:1.5%;width:22%;min-width:185px;padding:10px}.turntable-heading>small{display:none}.room-shelf-navigation{right:8px}.cabin-toolbar>span{max-width:180px}}
 @media(max-height:750px){.room-turntable{bottom:19%;width:18%;min-width:165px;padding:9px}.turntable-deck{margin:8px 0}.turntable-copy>strong{font-size:12px}.turntable-artist{font-size:10px}.turntable-track{margin:7px 0 3px;font-size:10px}.turntable-controls{margin-top:7px;gap:4px}.turntable-controls button{padding:5px}.turntable-controls select{font-size:10px;padding:5px}.cabin-room .room-now-playing{padding:9px 14px;bottom:8px}.room-shelf-navigation small{display:none}.cabin-room .cabin-toolbar{top:78px}}
 @media(max-height:750px){.room-turntable{max-height:none;overflow:visible}.turntable-stage{aspect-ratio:1.7}.turntable-side-cabinet{padding:8px 6px 12px}.turntable-console{padding:8px;max-height:clamp(92px,calc(81vh - var(--room-header-bottom,85px) - 190px),320px);overflow:auto;scrollbar-width:thin;scrollbar-color:#b48753 #352518}.turntable-console>*{max-width:100%}.turntable-status{overflow-wrap:anywhere}.wallpaper-room .turntable-console{max-height:240px}}
+/* Only the heading moves the furniture; playback, selects and album drops keep their own gestures. */
+.turntable-drag-handle{display:flex;align-items:center;gap:5px;border:0;padding:3px 0;background:none;color:inherit;font:inherit;cursor:grab;touch-action:none;user-select:none}
+.room-turntable[data-moving=true] .turntable-drag-handle{cursor:grabbing}
+.turntable-drag-handle:focus-visible{outline:2px solid #ffe5a4;outline-offset:3px}
+.wallpaper-error{display:flex;align-items:center;gap:12px;overflow-wrap:anywhere}
+.wallpaper-error button{margin-left:auto;flex:none;border:0;background:none;color:inherit;font-size:20px;cursor:pointer}
+.room-drag-record{position:fixed;left:-1000px;top:0;width:96px;height:96px;pointer-events:none}
+.room-drag-record>.custom-vinyl{position:absolute;inset:0;width:100%;height:100%}
+.room-drag-record>.room-drag-label{position:absolute;inset:35%;border-radius:50%;overflow:hidden}
+
+/* Snow fallback for original illustrated scenes without a hearth. */
+.cabin-snow{position:absolute;left:13.15%;top:15.9%;width:14.7%;height:25%;pointer-events:none;background-image:radial-gradient(circle,#fff9 1px,transparent 2px),radial-gradient(circle,#fff8 1px,transparent 1.8px);background-size:37px 61px,73px 49px;opacity:.45;animation:cabin-snowfall 6s linear infinite;clip-path:polygon(0 0,46% 0,46% 45%,0 45%,0 0,0 55%,46% 55%,46% 100%,0 100%,0 55%,54% 55%,100% 55%,100% 100%,54% 100%,54% 55%,54% 45%,100% 45%,100% 0,54% 0,54% 45%)}
+@keyframes cabin-snowfall{to{background-position:5px 61px,-8px 49px}}

@@ -39,6 +39,30 @@ test('restricted audio and unexpected URLs cannot produce playable sources', asy
   assert.equal((await request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' })).status, 502);
   const restricted = await (await request('/resolve', { provider: 'netease', id: '12345' })).json(); assert.match(restricted.error, /权限/);
 });
+test('QQ resolves a validated mirror when the preferred CDN is outside the audio boundary', async (t) => {
+  let proxiedURL;
+  const { request } = await fixture(t, {
+    handleQQSongUrl: async () => ({ url: 'http://aqqmusic.tc.qq.com/test.mp3?vkey=SECRET', playable: true, trial: false, quality: '128k MP3', candidates: [
+      { url: 'http://aqqmusic.tc.qq.com/test.mp3?vkey=SECRET' },
+      { url: 'http://127.0.0.1/private' },
+      { url: 'https://sjy6.stream.qqmusic.qq.com/test.mp3?vkey=SECRET', trial: true, quality: 'AAC/M4A' }
+    ] }),
+    audioProxyHeadersFor: (url, range) => { proxiedURL = url; return { Range: range }; }
+  });
+  const response = await request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' });
+  assert.equal(response.status, 200); const result = await response.json();
+  assert.equal(result.trial, true); assert.equal(result.quality, 'AAC/M4A'); assert.equal(JSON.stringify(result).includes('SECRET'), false);
+  const audio = await request(result.audioPath.slice('/desktop-music'.length));
+  assert.equal(audio.status, 200); assert.equal(await audio.text(), 'audio bytes');
+  assert.equal(proxiedURL, 'https://sjy6.stream.qqmusic.qq.com/test.mp3?vkey=SECRET');
+});
+test('QQ mirror fallback rejects every unsafe candidate and restricted upstream results', async (t) => {
+  const unsafe = [null, { url: 'http://127.0.0.1/private' }, { url: 'https://qqmusic.qq.com.evil.test/a' }, { url: 'https://x:y@sjy6.stream.qqmusic.qq.com/a' }, { url: 'https://sjy6.stream.qqmusic.qq.com/a', playable: false }];
+  const { request } = await fixture(t, { handleQQSongUrl: async () => ({ url: 'http://aqqmusic.tc.qq.com/a', playable: true, candidates: unsafe }) });
+  assert.equal((await request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' })).status, 502);
+  const restricted = await fixture(t, { handleQQSongUrl: async () => ({ url: 'http://aqqmusic.tc.qq.com/a', playable: false, message: '需要平台权限', candidates: [{ url: 'https://sjy6.stream.qqmusic.qq.com/a' }] }) });
+  assert.match((await (await restricted.request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' })).json()).error, /权限/);
+});
 test('search preserves version metadata and cached results avoid repeated upstream calls', async (t) => {
   let count = 0; const { request } = await fixture(t, { handleQQSearch: async () => { count++; return [{ mid: '001n4C3p1yv0FU', name: '以父之名', artists: [{ name: '周杰伦' }], album: { name: '叶惠美' } }]; } });
   const result = await (await request('/search?provider=qq&query=test')).json(); await request('/search?provider=qq&query=test');
@@ -66,4 +90,26 @@ test('small-window shelf stays between the top controls and album footer', async
 test('audio identifiers come from original QQ track IDs, other catalogs require version selection', async () => {
   const { exactTrack } = await import('../../src/room-playback.mjs'); const item = { tracks: ['原曲名'], trackDetails: [{ providerId: '001n4C3p1yv0FU' }] };
   assert.equal(exactTrack(item, 0, 'qq').id, '001n4C3p1yv0FU'); assert.equal(exactTrack(item, 0, 'netease'), null); assert.equal(exactTrack({ tracks: ['原曲名'] }, 0, 'qq'), null);
+  item.trackDetails[0].mediaMid = '0025nWDH4PCVfs'; assert.equal(exactTrack(item, 0, 'qq').mediaMid, '0025nWDH4PCVfs');
+  item.trackDetails[0].mediaMid = 'invalid/path'; assert.equal(exactTrack(item, 0, 'qq').mediaMid, '');
+});
+test('NetEase resolution passes server-verified identity without inventing entitlement', async (t) => {
+  let received;
+  const { service, request } = await fixture(t, {
+    getNeteaseLoginInfo: async (cookie) => { assert.match(cookie, /LOGIN_SECRET/); return { loggedIn: true, userId: 42, isVip: false }; },
+    handleSongUrl: async (_id, info, _quality, cookie) => { received = { info, cookie }; return { playable: false, message: '需要平台权限' }; }
+  });
+  await service.login('netease'); await request('/resolve', { provider: 'netease', id: '12345' });
+  assert.equal(received.info.userId, 42); assert.equal(received.info.isVip, false); assert.match(received.cookie, /LOGIN_SECRET/);
+});
+test('logout during NetEase account verification prevents a later playback request', async (t) => {
+  let verify, entered, calls = 0;
+  const ready = new Promise(resolve => { entered = resolve; });
+  const { service, request } = await fixture(t, {
+    getNeteaseLoginInfo: () => { entered(); return new Promise(resolve => { verify = resolve; }); },
+    handleSongUrl: async () => { calls++; return { playable: false }; }
+  });
+  await service.login('netease'); const pending = request('/resolve', { provider: 'netease', id: '12345' });
+  await ready; await service.logout('netease'); verify({ loggedIn: true, userId: 42 });
+  assert.equal((await pending).status, 502); assert.equal(calls, 0);
 });

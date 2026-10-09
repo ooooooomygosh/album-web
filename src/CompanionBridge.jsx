@@ -13,6 +13,7 @@ export default function CompanionBridge() {
       const { focus: f, sound: s } = latest.current, room = window.albumRoomSnapshot?.() || null;
       return {
         room,
+        petId: room?.petId || 'cat',
         focus: f ? focusSnapshot(f.state, Date.now()) : null,
         sound: s ? { enabled: s.enabled, lofi: s.lofiState === 'playing' } : null,
         playing: Boolean(room?.grooving || (s?.lofiState === 'playing')),

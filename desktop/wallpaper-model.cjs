@@ -7,6 +7,8 @@ function item(value) {
   if (!value || typeof value !== 'object' || !string(value.id)) return null;
   return { id: string(value.id), title: string(value.title), artist: string(value.artist), type: value.type === 'song' ? 'song' : 'album', cover: safeCover(value.cover), tracks: Array.isArray(value.tracks) ? value.tracks.slice(0, 500).map((track) => string(typeof track === 'string' ? track : track?.title)).filter(Boolean) : [] };
 }
+const PETS = ['cat', 'chick', 'bunny', 'bear', 'fox'], LOOKS = ['warm', 'pixel', 'forest', 'seaside', 'starlight'];
+const petId = (value) => PETS.includes(value) ? value : 'cat';
 const PHASES = ['idle', 'focus', 'shortBreak', 'longBreak'], WEATHERS = ['snow', 'clear', 'rain', 'starry'], ACCESSORIES = ['', 'headphones', 'scarf', 'beanie'];
 const bounded = (value, max) => Number.isFinite(value) ? Math.max(0, Math.min(max, Math.round(value))) : 0;
 // Focus state shown by the wallpaper and the desktop pet: no task history.
@@ -14,17 +16,17 @@ function cleanFocus(value) {
   if (!value || typeof value !== 'object') return null;
   return { phase: PHASES.includes(value.phase) ? value.phase : 'idle', paused: value.paused === true, remaining: bounded(value.remaining, 4 * 3600000), endsAt: bounded(value.endsAt, 9e15),
     round: bounded(value.round, 1e6), task: string(value.task, 120), fish: bounded(value.fish, 1e9), level: bounded(value.level, 1e4),
-    accessory: ACCESSORIES.includes(value.accessory) ? value.accessory : '', weather: WEATHERS.includes(value.weather) ? value.weather : 'snow' };
+    hideSeconds: value.hideSeconds === true, catSkin: value.catSkin === 'black' ? 'black' : 'orange', accessory: ACCESSORIES.includes(value.accessory) ? value.accessory : '', weather: WEATHERS.includes(value.weather) ? value.weather : 'snow' };
 }
 function cleanCompanion(value) {
   if (!value || typeof value !== 'object') return null;
-  return { focus: cleanFocus(value.focus), playing: value.playing === true, track: string(value.track, 200), reduceMotion: value.reduceMotion === true };
+  return { petId: petId(value.petId), focus: cleanFocus(value.focus), playing: value.playing === true, track: string(value.track, 200), reduceMotion: value.reduceMotion === true };
 }
 const colour = (value, fallback) => /^#[\da-f]{6}$/i.test(value || '') ? value : fallback;
 function cleanSnapshot(value) {
-  if (!value || typeof value !== 'object' || !['warm', 'pixel'].includes(value.look)) return null;
+  if (!value || typeof value !== 'object' || !LOOKS.includes(value.look)) return null;
   const record = item(value.record), style = value.recordStyle || {}, tracks = record?.tracks.length || 0;
-  return { look: value.look, roomName: string(value.roomName, 120), startRow: Number.isSafeInteger(value.startRow) ? Math.max(0, Math.min(100000, value.startRow)) : 0,
+  return { look: value.look, petId: petId(value.petId), roomName: string(value.roomName, 120), startRow: Number.isSafeInteger(value.startRow) ? Math.max(0, Math.min(100000, value.startRow)) : 0,
     items: Array.isArray(value.items) ? value.items.slice(0, 12).map(item).filter(Boolean) : [], selectedId: string(value.selectedId), record,
     recordStyle: { base: colour(style.base, '#16191d'), opacity: Number.isFinite(style.opacity) ? Math.max(0, Math.min(100, style.opacity)) : 100, splatter: style.splatter === true, splashes: (Array.isArray(style.splashes) && style.splashes.length ? style.splashes : ['#dba746']).slice(0, 3).map((v) => colour(v, '#dba746')) },
     spinning: Boolean(record && value.spinning === true), trackIndex: Math.max(0, Math.min(tracks - 1, Number.isSafeInteger(value.trackIndex) ? value.trackIndex : 0)), reduceMotion: value.reduceMotion === true,

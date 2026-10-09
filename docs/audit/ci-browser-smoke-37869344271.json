@@ -1,0 +1,138 @@
+{
+  "source": "GitHub Actions connector: workflow metadata, job steps, decoded job log and artifact metadata",
+  "verifiedAt": "2026-10-09T01:22:54Z",
+  "repository": "ooooooomygosh/album-web",
+  "pullRequest": 5,
+  "headCommit": "3b2f70d3875af19ed1277cac28d1c2d2c5a83959",
+  "workflow": {
+    "runId": 37869344271,
+    "jobId": 113623570123,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/ooooooomygosh/album-web/actions/runs/37869344271"
+  },
+  "results": {
+    "desktopNode": {
+      "tests": 148,
+      "passed": 148,
+      "failed": 0
+    },
+    "audioLifecycle": {
+      "tests": 16,
+      "passed": 16,
+      "failed": 0
+    },
+    "productionBuild": "success",
+    "browserSmoke": {
+      "passed": 23,
+      "checks": [
+        {
+          "name": "renderer-mounts-with-offline-collection",
+          "passed": true
+        },
+        {
+          "name": "viewport-1440x900",
+          "passed": true
+        },
+        {
+          "name": "viewport-960x600",
+          "passed": true
+        },
+        {
+          "name": "all-five-scenes-and-pets-select-and-persist",
+          "passed": true
+        },
+        {
+          "name": "collection-create-manual",
+          "passed": true
+        },
+        {
+          "name": "collection-update-notes-and-delete",
+          "passed": true
+        },
+        {
+          "name": "catalog-search-fixture",
+          "passed": true
+        },
+        {
+          "name": "actual-generated-wav-decodes-and-plays",
+          "passed": true
+        },
+        {
+          "name": "local-next-track-resolves-exact-id",
+          "passed": true
+        },
+        {
+          "name": "system-source-and-transport-mocked",
+          "passed": true
+        },
+        {
+          "name": "music-settings-offline-account-and-local-status",
+          "passed": true
+        },
+        {
+          "name": "focus-tasks-create-and-complete",
+          "passed": true
+        },
+        {
+          "name": "quick-notes-save-local-text",
+          "passed": true
+        },
+        {
+          "name": "focus-timer-completes-and-records-session",
+          "passed": true
+        },
+        {
+          "name": "backup-exports-collection-and-focus",
+          "passed": true
+        },
+        {
+          "name": "backup-rejects-malformed-input",
+          "passed": true
+        },
+        {
+          "name": "backup-import-merges-new-album",
+          "passed": true
+        },
+        {
+          "name": "album-wall-paints-and-downloads-real-png",
+          "passed": true
+        },
+        {
+          "name": "zen-mode-keyboard",
+          "passed": true
+        },
+        {
+          "name": "companion-snapshot-carries-selected-pet-and-room",
+          "passed": true
+        },
+        {
+          "name": "wallpaper-renderer-all-scenes-mocked-snapshot",
+          "passed": true
+        },
+        {
+          "name": "pet-renderer-all-species-and-keyboard-poke-mocked-bridge",
+          "passed": true
+        },
+        {
+          "name": "deleted-albums-do-not-receive-late-autosaves",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "artifact": {
+    "id": 11589263956,
+    "name": "browser-smoke",
+    "files": 27,
+    "sizeBytes": 11897315,
+    "sha256": "92612ac568979c6f69dab82e496e85f11419db1cad9ccf99c9c6fcf3b9997429",
+    "url": "https://github.com/ooooooomygosh/album-web/actions/runs/37869344271/artifacts/11589263956",
+    "expiresAt": "2026-10-23T01:22:00Z"
+  },
+  "limitations": [
+    "Browser smoke uses isolated fixtures; it does not validate real accounts or native macOS/Windows desktop integration.",
+    "Hosted Chromium passes; local execution-environment Chromium launch restriction remains local.",
+    "V5/V6 preview snapshots are historical and do not cover every change in this commit."
+  ]
+}

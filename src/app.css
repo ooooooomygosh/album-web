@@ -138,3 +138,21 @@ a{color:var(--amber-2)}
 
 @media (max-width:1100px){.app-actions .pixel-button span,.cabin-toolbar-group:not(.zen-keep) button span{display:none}.app-actions .pixel-button.is-primary span{display:inline}}
 @media (max-width:760px){.record-card{grid-template-columns:1fr}.record-card-sleeve{max-width:260px}.add-manual-grid{grid-template-columns:1fr}.backup-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* Toolbar groups may wrap as a whole, but never clip reachable controls. */
+.cabin-room .cabin-toolbar > .cabin-toolbar-group{max-width:none;overflow:visible;flex:0 0 auto}
+.cabin-room .cabin-toolbar button:focus-visible{outline:2px solid #f2d49c;outline-offset:3px}
+
+/* Illustrated rooms use a softer material palette; pixel cabin keeps its crisp frame. */
+.app:has(.cabin-room:not(.cabin-pixel)) .app-titlebar{background:linear-gradient(#1c2428ee,#1c2428d9);border-bottom:1px solid #e6d5b32b;box-shadow:0 5px 18px #0002;backdrop-filter:blur(14px)}
+.app:has(.cabin-room:not(.cabin-pixel)) .pixel-button{border-width:1px;border-radius:7px;box-shadow:none}
+.cabin-room:not(.cabin-pixel) .cabin-toolbar-group{background:#1d2529db;border:1px solid #e6d5b340;border-radius:10px;box-shadow:0 4px 15px #0002;backdrop-filter:blur(12px);padding:4px}
+.cabin-room:not(.cabin-pixel) .cabin-toolbar button{border-radius:6px;color:#eee4d4}
+.cabin-room:not(.cabin-pixel) .room-now-playing{background:#1d2529e0;border:1px solid #e6d5b338;border-radius:12px;box-shadow:0 5px 20px #0002;backdrop-filter:blur(12px)}
+.cabin-room:not(.cabin-pixel) .room-selection-actions :is(button,a){border-width:1px;border-radius:6px;box-shadow:none;background:#ffffff08;color:#eee4d4}
+.cabin-room:not(.cabin-pixel) .room-selection-actions .room-open-album{background:var(--amber);color:#20272a}
+.cabin-room:not(.cabin-pixel) .room-shelf-navigation{background:#1d2529d9;border:1px solid #e6d5b338;border-radius:12px;box-shadow:0 4px 16px #0002}
+.cabin-room:not(.cabin-pixel) .room-shelf-navigation button{border-radius:6px;border:1px solid #e6d5b338;background:#ffffff0a}
+@media (prefers-reduced-transparency: reduce){.cabin-room:not(.cabin-pixel) :is(.cabin-toolbar-group,.room-now-playing,.room-shelf-navigation){background:#1d2529;backdrop-filter:none}}
+
+.room-preferences-error{position:absolute;z-index:25;left:18px;right:18px;top:130px;padding:10px 14px;border:1px solid #dfbd87;border-radius:8px;background:#4a3029f2;color:#fff0d2;font-size:12px}

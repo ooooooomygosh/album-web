@@ -2,7 +2,9 @@ Simple Music upstream: https://github.com/Yyyangshenghao/simple-music
 Pinned commit: da4db22e8e15cf400ff23fc261686ae73a4f8197
 License: GPL-3.0-only (LICENSE retained in this directory).
 Copied modules: server/lib/qq-client.ts, netease-client.ts, cookie.ts, http.ts;
-electron/modules/login-manager.ts, safe-open.ts. Modules are unmodified.
+electron/modules/login-manager.ts, safe-open.ts. Server modules and safe-open.ts are unmodified.
+Flow Cabin modifies login-manager.ts: HTTPS provider navigation allowlist, expired-cookie filtering,
+full playback-ticket requirement, and cancellation/generation guards for logout and overlapping login.
 Album Circle's original music-service.cjs and room playback interface adapt these modules.
 Build: npm ci in the main source and desktop; npm --prefix desktop run build:music.
 The generated music-upstream.cjs and music-login.cjs remove diagnostic console calls.

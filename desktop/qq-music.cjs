@@ -49,7 +49,7 @@ function songCandidate(row) {
     source: 'QQ 音乐', confidenceLabel: 'QQ 曲库关键词候选',
     cover: coverFor(album.mid, album.pmid), coverSource: 'QQ 音乐',
     externalId: song.mid, externalIds: { qqSongMid: song.mid, qqAlbumMid: album.mid || '' },
-    tracks: [title], trackDetails: [{ title, discNumber: Number(song.index_cd || 0) + 1, trackNumber: Number(song.index_album || 1), lengthMillis: Number(song.interval || 0) * 1000, source: 'QQ 音乐' }],
+    tracks: [title], trackDetails: [{ title, discNumber: Number(song.index_cd || 0) + 1, trackNumber: Number(song.index_album || 1), lengthMillis: Number(song.interval || 0) * 1000, source: 'QQ 音乐', providerId: song.mid, mediaMid: validMid(song.file?.media_mid) ? song.file.media_mid : '' }],
     trackViewUrl: url, collectionViewUrl: validMid(album.mid) ? `https://y.qq.com/n/ryqq/albumDetail/${album.mid}` : '',
     providerLinks: [
       { provider: 'qqMusic', type: 'track', url, providerId: song.mid, confidence: 'exact', source: 'qq' },
@@ -154,7 +154,7 @@ function createQQMusic(fetcher) {
       for (const row of rows) {
         const song = row.songInfo || row;
         if (song.album?.mid && song.album.mid !== mid) throw new Error('QQ 返回了其他专辑的曲目，已停止匹配。');
-        tracks.push({ title: song.title || song.name || '', position: String(tracks.length + 1), discNumber: Number(song.index_cd || 0) + 1, trackNumber: Number(song.index_album || tracks.length + 1), lengthMillis: Number(song.interval || 0) * 1000, source: 'QQ 音乐', providerId: song.mid || '' });
+        tracks.push({ title: song.title || song.name || '', position: String(tracks.length + 1), discNumber: Number(song.index_cd || 0) + 1, trackNumber: Number(song.index_album || tracks.length + 1), lengthMillis: Number(song.interval || 0) * 1000, source: 'QQ 音乐', providerId: song.mid || '', mediaMid: validMid(song.file?.media_mid) ? song.file.media_mid : '' });
       }
       if (tracks.length >= total || rows.length < 100) break;
     }

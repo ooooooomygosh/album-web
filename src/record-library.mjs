@@ -1,3 +1,5 @@
+import { normalizeRoomSceneId } from './scene-catalog.mjs';
+import { normalizePetId } from './pet/pet-catalog.mjs';
 // Local personal preferences. This module never writes to the shared room API.
 export const LIBRARY_PREFIX = 'album-circle-library-v1-';
 export const MAX_LIBRARY_BYTES = 768000;
@@ -14,11 +16,19 @@ export function normalizeStyle(value = {}) {
   if (!value || typeof value !== 'object') value = {};
   const colours = Array.isArray(value.splashes) ? value.splashes.slice(0, 3) : hex.test(value.splash) ? [value.splash] : DEFAULT_RECORD_STYLE.splashes;
   return {
+    ...(value.autoBase === true ? { autoBase: true } : {}),
     base: hex.test(value.base) ? value.base.toLowerCase() : DEFAULT_RECORD_STYLE.base,
     opacity: Number.isFinite(Number(value.opacity)) ? Math.max(0, Math.min(100, Math.round(Number(value.opacity)))) : 100,
     splatter: value.splatter === true,
     splashes: colours.length ? colours.map((colour, index) => hex.test(colour) ? colour.toLowerCase() : DEFAULT_RECORD_STYLE.splashes[index]) : [...DEFAULT_RECORD_STYLE.splashes]
   };
+}
+// Legacy saved styles remain manual. Only an explicit flag follows cover colour.
+// Resolved display styles omit the flag so snapshots/read-only renderers use
+// the sampled colour directly without starting their own artwork request.
+export function resolveRecordStyle(value, coverBase = DEFAULT_RECORD_STYLE.base) {
+  const automatic = !value || value.autoBase === true;
+  return normalizeStyle({ ...value, ...(automatic ? { base: coverBase } : {}), autoBase: false });
 }
 export function genreList(value) {
   const list = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[,，;；、\n]/) : [];
@@ -50,7 +60,8 @@ export function normalizeLibrary(value = {}) {
       ids.add(box.id); names.add(name.toLowerCase());
       return [{ id: box.id, name, keys: [...new Set((Array.isArray(box.keys) ? box.keys : []).filter((key) => typeof key === 'string' && /^(qq|itunes|item|name):/.test(key) && key.length <= 260))].slice(0, 2000) }];
     });
-    out.rooms[roomId] = { boxes, look: raw.look === 'warm' ? 'warm' : 'pixel' };
+    out.rooms[roomId] = { boxes, look: normalizeRoomSceneId(raw.look), petId: normalizePetId(raw.petId) };
+    if (Number.isFinite(raw.turntable?.x) && Number.isFinite(raw.turntable?.y)) out.rooms[roomId].turntable = { x: Math.max(0, Math.min(1, raw.turntable.x)), y: Math.max(0, Math.min(1, raw.turntable.y)) };
   }
   return out;
 }

@@ -1,0 +1,48 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit, production build, and browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix desktop ci --no-audit --no-fund
+      - name: Build desktop music adapter
+        run: npm --prefix desktop run build:music
+      - name: Run unit tests and production build
+        run: npm run check
+      - name: Install Chromium
+        working-directory: desktop
+        run: npx playwright install --with-deps chromium
+      - name: Run browser smoke tests
+        run: npm run test:browser
+      - name: Save browser test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke
+          path: desktop/test-results/browser/
+          if-no-files-found: warn
+          retention-days: 14

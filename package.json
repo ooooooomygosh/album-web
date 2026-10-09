@@ -12,7 +12,11 @@
     "desktop:dev": "npm --prefix desktop start",
     "desktop:test": "npm --prefix desktop test",
     "desktop:dist": "npm --prefix desktop run dist",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "test": "npm run desktop:test && node --test src/audio/lifecycle.test.mjs",
+    "test:browser": "node scripts/browser-smoke.mjs",
+    "check": "npm test && npm run build",
+    "qa": "npm run check && npm --prefix desktop run build:music && npm run test:browser"
   },
   "dependencies": {
     "@heroicons/react": "2.2.0",

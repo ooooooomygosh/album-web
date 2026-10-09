@@ -1,8 +1,11 @@
+import RoomPersonalization from './RoomPersonalization';
+import { getRoomScene } from './scene-catalog.mjs';
+import { normalizePetId } from './pet/pet-catalog.mjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Up, Down, ArrowUpRight, Grid3X3, Settings, External, Music2, Eye, EyeSlash, Heart, Plus } from './icons';
 import DiscogsLink from './DiscogsLink';
-import { RecordBoxControls, RecordTools, useRecordLibrary } from './RecordLibrary';
-import { albumKey, matchesLibraryFilters, normalizeStyle } from './record-library.mjs';
+import { RecordBoxControls, RecordTools, useRecordLibrary, useRecordStyle } from './RecordLibrary';
+import { matchesLibraryFilters } from './record-library.mjs';
 import { desktopCommand, useDesktopAppearance } from './desktop-client';
 import RoomScene from './RoomScene';
 import RoomTurntable from './RoomTurntable';
@@ -40,6 +43,8 @@ function useShelfFilters(items) {
 export default function CabinRoom({ items, loading, openRecord, openAdd }) {
   const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'pixel';
   const appearance = useDesktopAppearance();
+  const petId = normalizePetId(library?.data.rooms[library.roomId]?.petId);
+  const [personalize, setPersonalize] = useState(false);
   const { filters, setFilters, visible } = useShelfFilters(items);
   const [row, setRow] = useState(0), [selectedId, setSelectedId] = useState(visible[0]?.id || '');
   const [record, setRecord] = useState(null), [spinning, setSpinning] = useState(false), [trackIndex, setTrackIndex] = useState(0);
@@ -50,6 +55,13 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
   const deckItem = provider === 'system' ? system.item : record;
   const effectiveSpin = provider === 'visual' ? spinning : provider === 'system' ? Boolean(system.active && system.playing) : playback.playing;
   const [wallpaper, setWallpaper] = useState(() => window.albumRoomWallpaperState || {});
+  const [wallpaperError, setWallpaperError] = useState('');
+  useEffect(() => {
+    setWallpaperError(wallpaper.error || '');
+    if (!wallpaper.error) return;
+    const timer = setTimeout(() => setWallpaperError(''), 5000);
+    return () => clearTimeout(timer);
+  }, [wallpaper]);
   const stage = useRef(null), wheel = useRef({ amount: 0, time: 0 }), snapshot = useRef(null);
   const focus = useFocus(), sound = useSoundscape();
   const [dock, setDock] = useState(() => readJSON('album-circle-focus-dock-v1', { open: false, tab: 'timer' }));
@@ -97,30 +109,30 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
     const element = stage.current;
     return () => { document.removeEventListener('keydown', keydown); element.removeEventListener('wheel', onWheel); };
   }, [view.startRow, view.maxRow, signature]);
-  const recordStyle = record ? normalizeStyle(library?.data.styles[albumKey(record)]) : undefined;
+  const recordStyle = useRecordStyle(deckItem);
   const catFocus = focus ? focusSnapshot(focus.state, focus.now) : {}, weather = catFocus.weather || 'snow';
   const nowTrack = provider === 'visual' ? '' : provider === 'system' ? (system.active ? system.title : '') : playback.actualTrack || (record && playback.playing ? record.tracks?.[trackIndex] || record.title : '');
   const grooving = effectiveSpin || sound?.lofiState === 'playing';
-  snapshot.current = { look, roomName: '心流小屋', weather, accessory: catFocus.accessory || '', grooving, track: typeof nowTrack === 'string' ? nowTrack : '', startRow: view.startRow, items: view.items.map(snapshotItem), selectedId: selected?.id || '', record: snapshotItem(deckItem), recordStyle, spinning: effectiveSpin, trackIndex: provider === 'system' ? 0 : trackIndex, reduceMotion: appearance.reduceMotion, statusText: provider === 'visual' ? (record ? spinning ? '展示中 · 无音频' : '旋转已暂停 · 无音频' : '等待放盘 · 无音频') : provider === 'system' ? system.statusText : playback.statusText, actualTrack: provider === 'system' ? system.title || '' : playback.actualTrack || '', provider };
+  snapshot.current = { look, petId, roomName: getRoomScene(look).label, weather, accessory: catFocus.accessory || '', grooving, track: typeof nowTrack === 'string' ? nowTrack : '', startRow: view.startRow, items: view.items.map(snapshotItem), selectedId: selected?.id || '', record: snapshotItem(deckItem), recordStyle, spinning: effectiveSpin, trackIndex: provider === 'system' ? 0 : trackIndex, reduceMotion: appearance.reduceMotion, statusText: provider === 'visual' ? (record ? spinning ? '展示中 · 无音频' : '旋转已暂停 · 无音频' : '等待放盘 · 无音频') : provider === 'system' ? system.statusText : playback.statusText, actualTrack: provider === 'system' ? system.title || '' : playback.actualTrack || '', provider };
   useEffect(() => {
     const getter = () => snapshot.current; window.albumRoomSnapshot = getter;
     const receive = (event) => { window.albumRoomWallpaperState = event.detail; setWallpaper(event.detail || {}); };
     window.addEventListener('album-room-wallpaper', receive);
     return () => { if (window.albumRoomSnapshot === getter) delete window.albumRoomSnapshot; window.removeEventListener('album-room-wallpaper', receive); };
   }, []);
-  const setLook = (value) => library?.update((old) => ({ ...old, rooms: { ...old.rooms, [library.roomId]: { ...(old.rooms[library.roomId] || {}), look: value } } }));
+  const personalizeRoom = (patch) => library?.update((old) => ({ ...old, rooms: { ...old.rooms, [library.roomId]: { ...(old.rooms[library.roomId] || {}), ...patch } } }));
   const filtered = visible.length !== items.length;
-  return <div className={`listening-room cabin-room cabin-${look}`}>
+  return <div className={`listening-room cabin-room cabin-${look}`} style={{ '--amber': getRoomScene(look).style.accent }}>
     <nav className="cabin-toolbar" aria-label="小屋工具">
       {focus && <span className="zen-keep cabin-toolbar-group"><FocusBadge onClick={() => saveDock({ open: !dock.open })}/><button type="button" aria-pressed={zen} title="沉浸模式 · Z" onClick={() => setZen(!zen)}>{zen ? <><Eye size={17}/><span>退出沉浸</span></> : <><EyeSlash size={17}/><span>沉浸</span></>}</button></span>}
       <span className="cabin-toolbar-group">
-        <button type="button" aria-expanded={filtersOpen} className={filtered ? 'is-active' : ''} onClick={() => setFiltersOpen(!filtersOpen)}><Settings size={17}/><span>筛选与唱片盒{filtered ? ` · ${visible.length}` : ''}</span></button>
-        <button type="button" title={look === 'pixel' ? '切换写实风格' : '切换像素风格'} onClick={() => setLook(look === 'pixel' ? 'warm' : 'pixel')}><Grid3X3 size={17}/><span>{look === 'pixel' ? '切换写实风格' : '切换像素风格'}</span></button>
-        <button type="button" onClick={() => setMusicSettings(true)}><Music2 size={17}/><span>音源设置</span></button>
+        <button type="button" aria-label="筛选与唱片盒" title="筛选与唱片盒" aria-expanded={filtersOpen} className={filtered ? 'is-active' : ''} onClick={() => setFiltersOpen(!filtersOpen)}><Settings size={17}/><span>筛选与唱片盒{filtered ? ` · ${visible.length}` : ''}</span></button>
+        <button type="button" aria-label="布置小屋" title="布置小屋" onClick={() => setPersonalize(true)}><Grid3X3 size={17}/><span>布置小屋</span></button>
+        <button type="button" aria-label="音源设置" title="音源设置" onClick={() => setMusicSettings(true)}><Music2 size={17}/><span>音源设置</span></button>
       </span>
       <span className="cabin-toolbar-group">
-        <button type="button" aria-pressed={Boolean(pet.active)} onClick={() => desktopCommand(pet.active ? 'pet-stop' : 'pet-start')}><Heart size={17}/><span>{pet.active ? '让小猫回家' : '小猫出门'}</span></button>
-        <button type="button" disabled={wallpaper.busy} onClick={() => desktopCommand(wallpaper.active ? 'wallpaper-stop' : 'wallpaper-start')}><External size={17}/><span>{wallpaper.busy ? '正在应用桌面…' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'}</span></button>
+        <button type="button" aria-label={petId === 'cat' ? (pet.active ? '让小猫回家' : '小猫出门') : (pet.active ? '让伙伴回家' : '伙伴出门')} title={pet.active ? '让伙伴回家' : '伙伴出门'} aria-pressed={Boolean(pet.active)} onClick={() => desktopCommand(pet.active ? 'pet-stop' : 'pet-start')}><Heart size={17}/><span>{petId === 'cat' ? (pet.active ? '让小猫回家' : '小猫出门') : (pet.active ? '让伙伴回家' : '伙伴出门')}</span></button>
+        <button type="button" aria-label={wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'} title={wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'} onClick={() => desktopCommand(wallpaper.active || wallpaper.busy ? 'wallpaper-stop' : 'wallpaper-start')}><External size={17}/><span>{wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'}</span></button>
       </span>
     </nav>
     {filtersOpen && <section className="shelf-filters" aria-label="筛选与唱片盒">
@@ -130,14 +142,16 @@ export default function CabinRoom({ items, loading, openRecord, openAdd }) {
       </div>
       <RecordBoxControls items={items} filters={filters} setFilters={(change) => setFilters((old) => ({ ...old, ...(typeof change === 'function' ? change(old) : change) }))} count={visible.length}/>
     </section>}
-    {wallpaper.error && <p className="wallpaper-error" role="alert">{wallpaper.error}</p>}
-    <div ref={stage} className="cabin-stage-wrap"><RoomScene look={look} items={view.items} selectedId={selected?.id} select={setSelectedId} load={load} startRow={view.startRow} weather={weather} cat={<RoomCat focus={catFocus} playing={grooving} track={snapshot.current.track} reduceMotion={appearance.reduceMotion} hidden={Boolean(pet.active)}/>}>
+    {library?.error && !personalize && !filtersOpen && <p className="room-preferences-error" role="alert">设置未保存：{library.error}</p>}
+    {wallpaperError && <p className="wallpaper-error" role="alert">{wallpaperError}<button type="button" aria-label="关闭动态背景提示" onClick={() => setWallpaperError('')}>×</button></p>}
+    <div ref={stage} className="cabin-stage-wrap"><RoomScene look={look} items={view.items} selectedId={selected?.id} select={setSelectedId} load={load} startRow={view.startRow} weather={weather} cat={<RoomCat petId={petId} focus={catFocus} playing={grooving} track={snapshot.current.track} reduceMotion={appearance.reduceMotion} hidden={Boolean(pet.active)}/>}>
       <RoomTurntable item={deckItem} spinning={effectiveSpin} system={system} trackIndex={provider === 'system' ? 0 : trackIndex} style={recordStyle} items={items} load={load} toggle={() => setSpinning(!spinning)} track={setTrackIndex} eject={() => { setRecord(null); setSpinning(false); }} provider={provider} setProvider={(value) => { setProvider(value); try { localStorage.setItem('album-circle-room-player-v1', value); } catch {} }} playback={playback} desktopClient/>
       {!visible.length && <div className="room-empty"><p>{loading ? '正在整理唱片…' : items.length ? '没有符合筛选的唱片。' : '木屋的唱片架，等你放上第一张。'}</p>{!loading && (items.length ? <button type="button" onClick={() => setFilters({ ...filters, type: 'all', box: 'all', genre: 'all', decade: 'all', provider: 'all' })}>清除筛选</button> : <button type="button" onClick={() => openAdd()}><Plus size={16}/>添加第一张专辑</button>)}</div>}
       <div className="room-shelf-navigation" aria-label="唱片架浏览"><button type="button" aria-label="上一排唱片" disabled={view.startRow === 0} onClick={() => changeRow(view.startRow - 1)}><Up/></button><span>{view.rows ? `${view.startRow + 1}–${Math.min(view.rows, view.startRow + 3)} / ${view.rows} 排` : '空唱片架'}</span><button type="button" aria-label="下一排唱片" disabled={view.startRow >= view.maxRow} onClick={() => changeRow(view.startRow + 1)}><Down/></button><small>↑ ↓ / 滚轮浏览</small></div>
     </RoomScene></div>
     <div className="room-now-playing"><div className="room-selection-copy"><small>ON THE SHELF · 唱片架</small><h2 title={selected?.title}>{selected?.title || '你的唱片收藏'}</h2><p>{selected ? `${selected.artist} · ${selected.year || '年份待补充'} · ${selected.tracks?.length || 0} 首曲目` : '添加专辑后，双击或拖拽放盘。'}</p></div><div className="room-selection-actions">{selected && <><RecordTools item={selected}/><DiscogsLink item={selected}/><button type="button" className="room-open-album" onClick={() => openRecord(selected.id)}>唱片卡片 <ArrowUpRight size={18}/></button></>}</div></div>
     {focus && <FocusDock open={dock.open} tab={dock.tab} setTab={(tab) => saveDock({ tab })} close={() => saveDock({ open: false })}/>}
+    {personalize && <RoomPersonalization look={look} petId={petId} onChange={personalizeRoom} close={() => setPersonalize(false)} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
     {musicSettings && <MusicSettings close={() => setMusicSettings(false)}/>}
   </div>;
 }

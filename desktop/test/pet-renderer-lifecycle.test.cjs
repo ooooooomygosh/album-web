@@ -1,0 +1,110 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const flush = async () => { await new Promise(resolve => setImmediate(resolve)); };
+function fakeClock(initial = 0) {
+  let time = initial, id = 0;
+  const jobs = new Map();
+  return {
+    now: () => time,
+    setTimer: (fn, delay) => { const key = ++id; jobs.set(key, { fn, at: time + delay }); return key; },
+    clearTimer: key => jobs.delete(key),
+    jobs,
+    advance: end => { while (true) { const job = [...jobs].sort((a, b) => a[1].at - b[1].at)[0]; if (!job || job[1].at > end) break; time = job[1].at; jobs.delete(job[0]); job[1].fn(); } time = end; },
+    delayNextUntil: end => { time = end; const job = [...jobs][0]; jobs.delete(job[0]); job[1].fn(); },
+  };
+}
+test('animation wakes only at pose cadence and stops cleanly', async () => {
+  const { startPetAnimation } = await import('../../src/pet/pet-animation.mjs');
+  const { FPS, frameAt } = await import('../../src/pet/pet-model.mjs');
+  for (const [pose, fps] of Object.entries(FPS)) {
+    const clock = fakeClock(), frames = [];
+    const stop = startPetAnimation({ pose, onFrame: index => frames.push([clock.now(), index]), ...clock });
+    assert.deepEqual(frames, [[0, 0]]);
+    clock.advance(10000);
+    assert.equal(frames.length, 1 + fps * 10, pose);
+    for (const [time, frame] of frames) assert.equal(frame, frameAt(pose, time));
+    assert.equal(clock.jobs.size, 1);
+    stop(); assert.equal(clock.jobs.size, 0);
+    clock.advance(12000); assert.equal(frames.length, 1 + fps * 10);
+  }
+});
+test('reduced motion draws once without any timer', async () => {
+  const { startPetAnimation } = await import('../../src/pet/pet-animation.mjs');
+  const clock = fakeClock(9876), frames = [];
+  const stop = startPetAnimation({ pose: 'celebrate', reduceMotion: true, onFrame: n => frames.push(n), ...clock });
+  clock.advance(100000); assert.deepEqual(frames, [0]); assert.equal(clock.jobs.size, 0); stop();
+});
+test('late timers skip missed frames without drift or a catch-up burst', async () => {
+  const { startPetAnimation } = await import('../../src/pet/pet-animation.mjs');
+  const clock = fakeClock(100), frames = [];
+  const stop = startPetAnimation({ pose: 'groove', onFrame: n => frames.push(n), ...clock });
+  clock.delayNextUntil(2830);
+  assert.deepEqual(frames, [0, 3]);
+  assert.equal([...clock.jobs.values()][0].at, 3000);
+  clock.advance(3000); assert.deepEqual(frames, [0, 3, 0]); stop();
+});
+test('initial snapshot failure is handled and later broadcasts recover', async () => {
+  const { subscribePetSnapshot } = await import('../../src/pet/pet-snapshot.mjs');
+  let broadcast, removed = false; const values = [];
+  const stop = subscribePetSnapshot({ getSnapshot: () => Promise.reject(new Error('IPC teardown')), onSnapshot: fn => { broadcast = fn; return () => { removed = true; }; } }, value => values.push(value));
+  await flush(); assert.deepEqual(values, []);
+  broadcast({ companion: { petId: 'chick' } }); assert.equal(values[0].companion.petId, 'chick');
+  stop(); assert.equal(removed, true); broadcast({ companion: { petId: 'cat' } }); assert.equal(values.length, 1);
+});
+test('a newer live snapshot wins over a stale initial reply', async () => {
+  const { subscribePetSnapshot } = await import('../../src/pet/pet-snapshot.mjs');
+  let broadcast, resolve; const values = [];
+  const initial = new Promise(done => { resolve = done; });
+  const stop = subscribePetSnapshot({ getSnapshot: () => initial, onSnapshot: fn => { broadcast = fn; } }, value => values.push(value));
+  broadcast({ companion: { petId: 'fox' } }); resolve({ companion: { petId: 'cat' } });
+  await flush(); assert.deepEqual(values, [{ companion: { petId: 'fox' } }]); stop();
+});
+test('unmount ignores pending snapshot completion; missing or throwing APIs are safe', async () => {
+  const { subscribePetSnapshot } = await import('../../src/pet/pet-snapshot.mjs');
+  let resolve; const values = [], initial = new Promise(done => { resolve = done; });
+  const stop = subscribePetSnapshot({ getSnapshot: () => initial }, v => values.push(v));
+  stop(); resolve({ size: 300 }); await flush(); assert.deepEqual(values, []);
+  subscribePetSnapshot(undefined, () => assert.fail('no snapshot expected'))();
+  subscribePetSnapshot({ getSnapshot: () => { throw new Error('renderer reload'); } }, () => assert.fail('no snapshot expected'))();
+  await flush();
+});
+
+test('disabled lifecycle creates no animation work and can resume at the current frame', async () => {
+  const { startPetAnimation } = await import('../../src/pet/pet-animation.mjs');
+  const clock = fakeClock(1250), frames = [];
+  const disabled = startPetAnimation({ pose: 'groove', enabled: false, onFrame: n => frames.push(n), ...clock });
+  clock.advance(2000); assert.deepEqual(frames, []); assert.equal(clock.jobs.size, 0); disabled();
+  const enabled = startPetAnimation({ pose: 'groove', enabled: true, onFrame: n => frames.push(n), ...clock });
+  assert.deepEqual(frames, [0]); assert.equal(clock.jobs.size, 1); enabled(); assert.equal(clock.jobs.size, 0);
+});
+
+test('motion reconciles initial focus, visibility, desktop exemptions, OS preference and cleanup', async () => {
+  const { readPetMotion, subscribePetMotion } = await import('../../src/pet/pet-motion.mjs');
+  const target = extra => Object.assign(new EventTarget(), extra);
+  const media = target({ matches: false }), win = target({ matchMedia: () => media });
+  const doc = target({ hidden: false, hasFocus: () => false }), values = [];
+  assert.deepEqual(readPetMotion(win, doc, media), { visible: false, reduced: false });
+  const stop = subscribePetMotion(v => values.push(v), win, doc);
+  assert.equal(values.at(-1).visible, false, 'mount respects initial unfocused main window');
+  win.dispatchEvent(new Event('focus')); assert.equal(values.at(-1).visible, true);
+  win.dispatchEvent(new Event('blur')); assert.equal(values.at(-1).visible, false);
+  for (const bridge of ['albumPet', 'albumWallpaper']) {
+    win[bridge] = {}; win.dispatchEvent(new Event('blur')); assert.equal(values.at(-1).visible, true);
+    doc.hidden = true; doc.dispatchEvent(new Event('visibilitychange')); assert.equal(values.at(-1).visible, false);
+    doc.hidden = false; doc.dispatchEvent(new Event('visibilitychange')); assert.equal(values.at(-1).visible, true);
+    delete win[bridge];
+  }
+  media.matches = true; media.dispatchEvent(new Event('change')); assert.equal(values.at(-1).reduced, true);
+  const count = values.length; stop(); win.dispatchEvent(new Event('focus')); doc.dispatchEvent(new Event('visibilitychange')); media.dispatchEvent(new Event('change'));
+  assert.equal(values.length, count);
+});
+
+test('live snapshots keep species and cat cosmetics independent without stale rollback', async () => {
+  const { subscribePetSnapshot } = await import('../../src/pet/pet-snapshot.mjs');
+  let broadcast, resolve; const values = [];
+  const stop = subscribePetSnapshot({ getSnapshot: () => new Promise(r => { resolve = r; }), onSnapshot: fn => { broadcast = fn; } }, v => values.push(v));
+  await flush();
+  broadcast({ companion: { petId: 'bunny', focus: { petId: 'bunny', catSkin: 'black' } } });
+  resolve({ companion: { petId: 'cat', focus: { catSkin: 'orange' } } }); await flush();
+  assert.equal(values.length, 1); assert.equal(values[0].companion.petId, 'bunny'); assert.equal(values[0].companion.focus.catSkin, 'black'); stop();
+});

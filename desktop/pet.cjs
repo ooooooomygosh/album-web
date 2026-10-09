@@ -33,20 +33,28 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
   }
   async function start() {
     if (window) { window.showInactive(); return; }
-    const created = new BrowserWindow({ ...defaultBounds(), title: '心流小屋 · 桌宠小猫', frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, show: false,
+    const created = new BrowserWindow({ ...defaultBounds(), title: '心流小屋 · 桌宠伙伴', frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, show: false,
       webPreferences: { preload: path.join(__dirname, 'pet-preload.cjs'), partition: 'album-circle-pet', sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, backgroundThrottling: false, spellcheck: false } });
     window = created;
-    created.setAlwaysOnTop(true, 'floating'); created.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
-    if (!(await created.webContents.session.protocol.isProtocolHandled('album-desktop'))) registerProtocol(created.webContents.session.protocol);
-    created.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    created.webContents.on('will-navigate', (event) => event.preventDefault());
-    created.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
-    created.webContents.session.setPermissionCheckHandler(() => false);
-    created.on('closed', () => { if (window === created) { window = null; poller.stop(); announce(); } });
-    created.setIgnoreMouseEvents(true, { forward: true });
-    try { await created.loadURL(URL); } catch (error) { log('pet-load-failed', error.message); }
-    if (window !== created) return;
-    created.showInactive(); poller.start(); announce(); log('pet-started');
+    try {
+      created.setAlwaysOnTop(true, 'floating'); created.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+      if (!(await created.webContents.session.protocol.isProtocolHandled('album-desktop'))) registerProtocol(created.webContents.session.protocol);
+      if (window !== created || created.isDestroyed()) return;
+      created.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      created.webContents.on('will-navigate', (event) => event.preventDefault());
+      created.webContents.on('will-frame-navigate', (event) => event.preventDefault());
+      created.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+      created.webContents.session.setPermissionCheckHandler(() => false);
+      created.on('closed', () => { if (window === created) { window = null; poller.stop(); announce(); } });
+      created.setIgnoreMouseEvents(true, { forward: true });
+      await created.loadURL(URL);
+      if (window !== created) return;
+      created.showInactive(); poller.start(); announce(); log('pet-started');
+    } catch (error) {
+      log('pet-load-failed', error.message);
+      if (window === created) stop();
+      throw error;
+    }
   }
   function stop() { const old = window; window = null; poller.stop(); if (old && !old.isDestroyed()) old.destroy(); announce(); }
   function resize(size) {
@@ -63,7 +71,7 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
       { type: 'separator' },
       { label: '大小', submenu: Object.keys(SIZES).map((key) => ({ label: { S: '小', M: '中', L: '大' }[key], type: 'radio', checked: prefs.size === key, click: () => resize(key) })) },
       { label: '打开小屋', click: restoreMain },
-      { label: '让小猫回家', click: stop }
+      { label: '让伙伴回家', click: stop }
     ]).popup({ window });
   }
   ipcMain.handle('pet:snapshot', (event) => { if (!validSender(event)) throw new Error('Unknown pet sender'); return payload(); });

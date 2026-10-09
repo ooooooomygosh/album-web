@@ -1,32 +1,26 @@
 import React, { useEffect, useRef } from 'react';
-import { catFrame, drawFrame, SIZE } from './cat-sprites.mjs';
-import { frameAt } from './pet-model.mjs';
+import { cachedPetFrame, drawPetFrame, petOpaqueAt, SIZE } from './pet-sprites.mjs';
+import { getPet, normalizePetId } from './pet-catalog.mjs';
+import { useCatMotion } from './useCatMotion';
+import { startPetAnimation } from './pet-animation.mjs';
 
-const cache = new Map();
-export function cachedFrame(pose, index, accessory) {
-  const key = `${pose}:${index}:${accessory}`;
-  if (!cache.has(key)) cache.set(key, catFrame(pose, index, accessory));
-  return cache.get(key);
-}
-// True when the sprite pixel under a point (0..1 relative) is painted.
-export function opaqueAt(pose, index, accessory, rx, ry) {
-  const x = Math.floor(rx * SIZE), y = Math.floor(ry * SIZE);
-  return x >= 0 && y >= 0 && x < SIZE && y < SIZE && Boolean(cachedFrame(pose, index, accessory)[y][x]);
-}
-
-export default function PixelCat({ pose = 'idle', accessory = '', reduceMotion = false, className = '', label = '像素小猫', onFrame, ...props }) {
-  const canvas = useRef(null), state = useRef({ pose, accessory, frame: -1 });
-  state.current.pose = pose; state.current.accessory = accessory;
+// Preserve the original cat-only signatures for existing callers.
+export const cachedFrame = (pose, index, accessory, petId = 'cat') => cachedPetFrame(petId, pose, index, accessory);
+export const opaqueAt = (pose, index, accessory, rx, ry, petId = 'cat') => petOpaqueAt(petId, pose, index, accessory, rx, ry);
+export function useReducedPetMotion(requested = false) { return useCatMotion(requested).reduced; }
+export default function PixelCat({ petId = 'cat', skin = 'orange', pose = 'idle', accessory = '', reduceMotion = false, className = '', label, onFrame, ...props }) {
+  const id = normalizePetId(petId), motion = useCatMotion(reduceMotion);
+  const catSkin = id === 'cat' && skin === 'black' ? 'black' : 'orange';
+  const canvas = useRef(null), onFrameRef = useRef(onFrame);
+  onFrameRef.current = onFrame;
   useEffect(() => {
-    const context = canvas.current.getContext('2d'); context.imageSmoothingEnabled = false;
-    let raf, last = '';
-    const draw = (time) => {
-      const { pose: p, accessory: a } = state.current, index = reduceMotion ? 0 : frameAt(p, time), key = `${p}:${index}:${a}`;
-      if (key !== last) { drawFrame(context, cachedFrame(p, index, a), 1); last = key; state.current.frame = index; onFrame?.(index); }
-      if (!reduceMotion) raf = requestAnimationFrame(draw);
-    };
-    draw(performance.now());
-    return () => cancelAnimationFrame(raf);
-  }, [reduceMotion, pose, accessory]);
-  return <canvas ref={canvas} className={`pixel-cat ${className}`} width={SIZE} height={SIZE} role="img" aria-label={label} data-pose={pose} data-accessory={accessory} {...props}/>;
+    const context = canvas.current?.getContext('2d');
+    if (!context) return;
+    context.imageSmoothingEnabled = false;
+    return startPetAnimation({ pose, enabled: motion.visible, reduceMotion: motion.reduced, onFrame: (index) => {
+      drawPetFrame(context, cachedPetFrame(id, pose, index, accessory), id, 1, catSkin);
+      onFrameRef.current?.(index);
+    } });
+  }, [motion.reduced, motion.visible, pose, accessory, id, catSkin]);
+  return <canvas ref={canvas} className={`pixel-cat ${className}`} width={SIZE} height={SIZE} role="img" aria-label={label || `像素${getPet(id).species} · ${getPet(id).name}`} data-reduced-motion={motion.reduced} data-motion-enabled={motion.visible} data-skin={id === 'cat' ? catSkin : undefined} data-pet-id={id} data-pose={pose} data-accessory={accessory} {...props}/>;
 }

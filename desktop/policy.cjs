@@ -19,7 +19,7 @@ function isSiteUrl(value) {
 function isShellUrl(value) {
   const url = parseUrl(value);
   return Boolean(url && url.protocol === 'album-desktop:' && url.hostname === 'shell'
-    && !url.username && !url.password && url.pathname === '/index.html');
+    && !url.username && !url.password && !url.port && url.pathname === '/index.html');
 }
 
 function isExternalUrl(value) {

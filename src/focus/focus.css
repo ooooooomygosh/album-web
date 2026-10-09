@@ -80,3 +80,9 @@
 .focus-dock input[type=checkbox]{appearance:auto;flex:none;width:16px;height:16px;min-width:0;min-height:0;margin:0;padding:0;border:0;box-shadow:none}
 .focus-check{justify-content:flex-start;text-align:left}
 .cabin-room .cabin-toolbar-actions{min-width:0;overflow-x:auto;scrollbar-width:none}
+
+.focus-dock :is(button,input,select):focus-visible{outline:2px solid #ffe0a8;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.focus-rounds .is-active{animation:none}.focus-progress span{transition:none}}
+
+.focus-notes{display:grid;gap:10px}.focus-notes p{margin:0;color:#d3b58f;font-size:12px;line-height:1.6}.focus-notes label{display:grid;gap:6px}.focus-notes textarea{width:100%;min-height:180px;resize:vertical;box-sizing:border-box;font:inherit;line-height:1.6;color:#ffe9cb;background:#3e281a;border:1px solid #9c7048;padding:8px}.focus-notes small{color:#c9a47a}.focus-notes textarea:focus-visible{outline:2px solid #ffe0a8;outline-offset:3px}
+.focus-clock-unit{display:block;text-align:center;color:#cbb79a;font-size:12px;margin:0 0 8px}

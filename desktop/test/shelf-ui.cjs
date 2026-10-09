@@ -2,7 +2,7 @@
 // The cabin shelf: twelve records per view, both looks, filters, the record
 // card (notes, play from a track, remove) and adding an album from the catalog.
 const { _electron } = require('playwright'), fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
-const { mountFixture, albums } = require('./ui-fixture.cjs');
+const { mountFixture, albums, chooseRoomScene } = require('./ui-fixture.cjs');
 const desktop = path.resolve(__dirname, '..'), output = path.join(desktop, 'test-results'); fs.mkdirSync(output, { recursive: true });
 const env = { ...process.env, ALBUM_DESKTOP_TEST_PROFILE: path.join(output, `shelf-ui-profile-${Date.now()}`) }; delete env.ELECTRON_RUN_AS_NODE;
 const executablePath = process.env.ALBUM_QA_EXE || path.join(desktop, 'node_modules/electron/dist/electron.exe');
@@ -17,9 +17,9 @@ let app, site;
   await mountFixture(app, site, { items });
   assert.equal(await site.locator('.room-record').count(), 12); assert.match(await site.locator('.app-brand small').innerText(), /14 张唱片/);
   assert.equal(await site.locator('.cabin-scene').getAttribute('data-room-look'), 'pixel');
-  await site.getByRole('button', { name: '切换写实风格' }).click(); await site.locator('.cabin-warm').waitFor();
+  await chooseRoomScene(site, 'warm');
   assert.equal(await site.locator('.cabin-scene-art').getAttribute('src'), '/room-scenes/warm-cabin.png');
-  await site.getByRole('button', { name: '切换像素风格' }).click(); await site.locator('.cabin-pixel').waitFor(); check('twelve-records-and-both-cabin-looks');
+  await chooseRoomScene(site, 'pixel'); check('twelve-records-and-both-cabin-looks');
   await site.getByRole('button', { name: '下一排唱片' }).click(); assert.equal(await site.locator('.room-record').count(), 10);
   await site.getByRole('button', { name: '上一排唱片' }).click(); assert.equal(await site.locator('.room-record').count(), 12); check('shelf-rows-keep-every-album-reachable');
 

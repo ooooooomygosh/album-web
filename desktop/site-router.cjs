@@ -12,6 +12,11 @@ const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inl
 const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.txt': 'text/plain' };
 const TRUSTED_COVERS = ['y.gtimg.cn', 'coverartarchive.org', 'archive.org'];
 
+function isTrustedCover(image) {
+  const host = TRUSTED_COVERS.some((host) => image.hostname === host || image.hostname.endsWith(`.${host}`)) || /^is[1-5]-ssl\.mzstatic\.com$/.test(image.hostname);
+  return host && image.protocol === 'https:' && !image.username && !image.password && !image.port;
+}
+
 function createSiteRouter({ webRoot, forward, qq, music, collection, catalog, getAppearance = () => ({}) }) {
   const files = new Map();
   function list(directory, prefix = '') {
@@ -48,10 +53,18 @@ function createSiteRouter({ webRoot, forward, qq, music, collection, catalog, ge
     if (request.method === 'GET' && url.pathname === '/desktop-image') {
       let image;
       try { image = new URL(url.searchParams.get('url')); } catch { return new Response('Invalid cover', { status: 400 }); }
-      const allowed = TRUSTED_COVERS.some((host) => image.hostname === host || image.hostname.endsWith(`.${host}`)) || /^is[1-5]-ssl\.mzstatic\.com$/.test(image.hostname);
-      if (!allowed || image.protocol !== 'https:' || image.username || image.password || image.port) return new Response('Unsupported cover host', { status: 400 });
+      if (!isTrustedCover(image)) return new Response('Unsupported cover host', { status: 400 });
       try {
-        const response = await forward(new Request(image.href, { credentials: 'omit', signal: AbortSignal.timeout(18000) }));
+        // Validate every redirect before making the next request, not just its first URL.
+        const signal = AbortSignal.timeout(18000); let response;
+        for (let redirects = 0; redirects <= 5; redirects++) {
+          response = await forward(new Request(image.href, { credentials: 'omit', redirect: 'manual', signal }));
+          if (![301, 302, 303, 307, 308].includes(response.status)) break;
+          const location = response.headers.get('location'); await response.body?.cancel();
+          if (!location || redirects === 5) return new Response('Cover unavailable', { status: 502 });
+          image = new URL(location, image.href);
+          if (!isTrustedCover(image)) return new Response('Unsupported cover redirect', { status: 400 });
+        }
         const type = response.headers.get('content-type')?.split(';')[0];
         if (!response.ok || !/^image\/(png|jpeg|webp|gif|avif)$/.test(type || '')) return new Response('Cover unavailable', { status: 502 });
         const reader = response.body.getReader(), chunks = []; let bytes = 0;

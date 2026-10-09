@@ -25,30 +25,22 @@ __export(login_manager_exports, {
   openQQLogin: () => openQQLogin
 });
 module.exports = __toCommonJS(login_manager_exports);
-var import_electron2 = require("electron");
-
-// vendor/simple-music/electron/modules/safe-open.ts
 var import_electron = require("electron");
-var ALLOWED_PROTOCOLS = /* @__PURE__ */ new Set(["http:", "https:", "mailto:"]);
-function isExternallyOpenable(rawUrl) {
-  try {
-    return ALLOWED_PROTOCOLS.has(new URL(rawUrl).protocol);
-  } catch {
-    return false;
-  }
-}
-function openExternalSafely(rawUrl) {
-  if (!isExternallyOpenable(rawUrl)) {
-    return;
-  }
-  import_electron.shell.openExternal(rawUrl).catch((e) => void 0);
-}
-
-// vendor/simple-music/electron/modules/login-manager.ts
 var NETEASE_LOGIN_PARTITION = "persist:simplemusic-netease-login";
 var NETEASE_LOGIN_URL = "https://music.163.com/#/login";
 var QQ_LOGIN_PARTITION = "persist:simplemusic-qqmusic-login";
 var QQ_LOGIN_URL = "https://y.qq.com/n/ryqq/profile";
+var activeFlows = /* @__PURE__ */ new Map();
+var generations = /* @__PURE__ */ new Map();
+function allowedLoginURL(value, partition) {
+  try {
+    const u = new URL(value);
+    const hosts = partition === QQ_LOGIN_PARTITION ? ["qq.com"] : ["163.com", "netease.com"];
+    return u.protocol === "https:" && !u.username && !u.password && !u.port && hosts.some((h) => u.hostname === h || u.hostname.endsWith("." + h));
+  } catch {
+    return false;
+  }
+}
 var QQ_COOKIE_PRIORITY = [
   "uin",
   "qqmusic_uin",
@@ -120,7 +112,7 @@ function isNeteaseCookieDomain(domain) {
 function buildCookieHeaderFor(cookies, allowed, priority) {
   const picked = /* @__PURE__ */ new Map();
   for (const c of cookies) {
-    if (!c?.name || !allowed(c.domain ?? "")) continue;
+    if (!c?.name || !allowed(c.domain ?? "") || c.expirationDate != null && c.expirationDate > 0 && c.expirationDate <= Date.now() / 1e3) continue;
     picked.set(c.name, c.value ?? "");
   }
   const ordered = [];
@@ -140,14 +132,18 @@ async function readNeteaseCookie(s) {
   return buildCookieHeaderFor(await s.cookies.get({}), isNeteaseCookieDomain, NETEASE_COOKIE_PRIORITY);
 }
 function runLoginFlow(opts) {
-  const cookieSession = import_electron2.session.fromPartition(opts.partition);
+  activeFlows.get(opts.partition)?.();
+  const generation = (generations.get(opts.partition) || 0) + 1;
+  generations.set(opts.partition, generation);
+  const cookieSession = import_electron.session.fromPartition(opts.partition);
   return (async () => {
     const initial = await opts.read(cookieSession);
+    if (generations.get(opts.partition) !== generation) return { ok: false, cancelled: true };
     if (opts.hasFullLogin(initial)) return { ok: true, cookie: initial, reused: true };
     return new Promise((resolve) => {
       let settled = false;
       let pollTimer = null;
-      const win = new import_electron2.BrowserWindow({
+      const win = new import_electron.BrowserWindow({
         width: opts.width,
         height: opts.height,
         minWidth: 760,
@@ -162,6 +158,7 @@ function runLoginFlow(opts) {
       const finish = (result) => {
         if (settled) return;
         settled = true;
+        activeFlows.delete(opts.partition);
         if (pollTimer) clearInterval(pollTimer);
         if (!win.isDestroyed()) win.close();
         resolve(result);
@@ -173,20 +170,27 @@ function runLoginFlow(opts) {
         } catch (e) {
         }
       };
+      activeFlows.set(opts.partition, () => finish({ ok: false, cancelled: true }));
+      const guardNavigation = (event, url) => {
+        if (!allowedLoginURL(url, opts.partition)) event.preventDefault();
+      };
+      win.webContents.on("will-navigate", guardNavigation);
+      win.webContents.on("will-redirect", guardNavigation);
       win.webContents.setWindowOpenHandler(({ url }) => {
-        if (/^https?:\/\//i.test(url)) win.loadURL(url).catch(() => {
+        if (allowedLoginURL(url, opts.partition)) win.loadURL(url).catch(() => {
         });
-        else openExternalSafely(url);
         return { action: "deny" };
       });
       win.webContents.on("did-finish-load", () => void check());
       win.on("ready-to-show", () => win.show());
       win.on("closed", async () => {
         if (settled) return;
+        settled = true;
+        activeFlows.delete(opts.partition);
         if (pollTimer) clearInterval(pollTimer);
         try {
           const cookie = await opts.read(cookieSession);
-          resolve(opts.hasLogin(cookie) ? { ok: true, cookie } : { ok: false, cancelled: true, message: "\u767B\u5F55\u7A97\u53E3\u5DF2\u5173\u95ED" });
+          resolve(generations.get(opts.partition) === generation && opts.hasFullLogin(cookie) ? { ok: true, cookie } : { ok: false, cancelled: true, message: opts.hasLogin(cookie) ? "\u767B\u5F55\u5C1A\u672A\u53D6\u5F97\u64AD\u653E\u51ED\u636E\uFF0C\u8BF7\u91CD\u65B0\u8FDE\u63A5\u5E73\u53F0\u3002" : "\u767B\u5F55\u7A97\u53E3\u5DF2\u5173\u95ED" });
         } catch (e) {
           resolve({ ok: false, error: e.message || "\u767B\u5F55\u7A97\u53E3\u5DF2\u5173\u95ED" });
         }
@@ -223,7 +227,9 @@ function openQQLogin(owner) {
   });
 }
 async function clearSession(partition) {
-  await import_electron2.session.fromPartition(partition).clearStorageData({ storages: ["cookies", "localstorage", "indexdb", "cachestorage"] });
+  generations.set(partition, (generations.get(partition) || 0) + 1);
+  activeFlows.get(partition)?.();
+  await import_electron.session.fromPartition(partition).clearStorageData({ storages: ["cookies", "localstorage", "indexdb", "cachestorage"] });
   return { ok: true };
 }
 var clearNeteaseLogin = () => clearSession(NETEASE_LOGIN_PARTITION);

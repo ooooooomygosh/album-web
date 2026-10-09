@@ -1,22 +1,41 @@
 import { wallGeometry, normalizeWall } from './album-wall-model.mjs';
 const cache = new Map();
+async function fetchCoverBlob(value) {
+  // Local and inline artwork is read directly; catalog artwork uses the existing desktop proxy.
+  const url = new URL(value, window.location.href);
+  const target = url.protocol === 'data:' || url.origin === window.location.origin ? value : `/desktop-image?url=${encodeURIComponent(value)}`;
+  const response = await fetch(target, { credentials: 'omit', signal: AbortSignal.timeout(18000) });
+  if (!response.ok) return null;
+  const blob = await response.blob();
+  return blob.type.startsWith('image/') && blob.size <= 8 * 1024 * 1024 ? blob : null;
+}
 export async function loadWallCover(value) {
   if (!value) return null;
   if (!cache.has(value)) cache.set(value, (async () => {
     try {
-      // Local and inline artwork is read directly; catalog artwork goes through the desktop cover proxy.
-      const url = new URL(value, window.location.href);
-      const target = url.protocol === 'data:' || url.origin === window.location.origin ? value : `/desktop-image?url=${encodeURIComponent(value)}`;
-      const response = await fetch(target, { credentials: 'omit', signal: AbortSignal.timeout(18000) });
-      if (!response.ok) return null;
-      const blob = await response.blob();
-      if (!blob.type.startsWith('image/') || blob.size > 8 * 1024 * 1024) return null;
-      return await createImageBitmap(blob);
+      const blob = await fetchCoverBlob(value);
+      return blob ? await createImageBitmap(blob) : null;
     } catch { return null; }
   })());
-  // Bound decoded artwork memory. Current selection keeps its own references.
+  // Full-resolution artwork belongs to wall export/preview only.
   if (cache.size > 150) { const first = cache.keys().next().value; cache.delete(first); }
   return cache.get(value);
+}
+// Shelf colour sampling never populates the full-resolution wall cache.
+// The temporary resized bitmap is always released, even if canvas readback fails.
+export async function readCoverPixels(value) {
+  if (!value) return null;
+  let image;
+  try {
+    const blob = await fetchCoverBlob(value);
+    if (!blob) return null;
+    image = await createImageBitmap(blob, { resizeWidth: 48, resizeHeight: 48, resizeQuality: 'low' });
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 48;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0, 48, 48);
+    return context.getImageData(0, 0, 48, 48).data;
+  } catch { return null; }
+  finally { image?.close(); }
 }
 function wrap(context, text, width) {
   const lines = []; let line = '';
