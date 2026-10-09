@@ -13,7 +13,7 @@ export default function StudyWriting() {
   const hand = useRef(null), [ready, setReady] = useState(false);
   useEffect(() => {
     let alive = true;
-    const images = ['/room-scenes/night-study-clean.png', '/room-scenes/night-study-hands.png'].map((src) => {
+    const images = ['/room-scenes/night-study-clean-pixel.png', '/room-scenes/night-study-hands-pixel.png'].map((src) => {
       const image = new Image(); image.src = src; return image.decode();
     });
     Promise.all(images).then(() => { if (alive) setReady(true); }).catch(() => {});
@@ -39,7 +39,7 @@ export default function StudyWriting() {
   }, [ready, reduceMotion]);
   // Original supplied artwork remains visible if either generated asset is missing.
   return ready ? <div className="study-writing" aria-hidden="true" data-animation={reduceMotion ? 'still' : 'writing-and-spin'}>
-    <img className="study-clean-plate" src="/room-scenes/night-study-clean.png" alt="" draggable="false"/>
+    <img className="study-clean-plate" src="/room-scenes/night-study-clean-pixel.png" alt="" draggable="false"/>
     <span ref={hand} className="study-writing-hand" data-pose="0" style={reduceMotion ? { backgroundPosition: '0% 0%' } : undefined}/>
   </div> : null;
 }

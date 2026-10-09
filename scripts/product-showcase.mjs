@@ -76,7 +76,7 @@ try {
   await page.getByRole('button', { name: '布置小屋', exact: true }).click();
   await page.locator('.scene-choice img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
   for (const name of ['奶糖', '蛋挞', '棉花', '可可', '枫糖']) await fits(page.locator('.pet-choice strong', { hasText: name }));
-  await fits(page.getByRole('button', { name: '回到小屋', exact: true })); check('five-scene-thumbnails-and-all-partner-names-visible');
+  await fits(page.getByRole('button', { name: '回到小屋', exact: true })); check('six-scene-thumbnails-and-all-partner-names-visible');
   await shot('personalization', true); await page.getByRole('button', { name: '回到小屋' }).click();
   await page.locator('.room-cat').click(); await page.locator('.room-cat-bubble').waitFor(); check('partner-poke-shows-response');
   await page.keyboard.press('z'); assert(await page.evaluate(() => document.documentElement.classList.contains('room-zen'))); await shot('immersive'); await page.keyboard.press('Escape'); check('immersive-enter-and-exit');
@@ -86,7 +86,7 @@ try {
     await page.getByRole('button', { name: '布置小屋', exact: true }).click(); await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click(); await page.getByRole('button', { name: '回到小屋' }).click(); await shot(`scene-${scene.id}-960x600`);
     for (const name of ['布置小屋', '音源设置', '添加专辑']) await fits(page.getByRole('button', { name, exact: true }));
   }
-  check('all-five-scenes-compact-controls-fit');
+  check('all-six-scenes-compact-controls-fit');
   if (process.env.SHOWCASE_TOUR === '1') {
     const tour = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-CN', reducedMotion: 'no-preference', recordVideo: { dir: evidence, size: { width: 1280, height: 800 } } });
     await tour.route('**/*', routeHandler);

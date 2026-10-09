@@ -43,7 +43,7 @@ function useShelfFilters(items) {
 }
 
 export default function CabinRoom({ items, loading, openRecord, openAdd, firstVisit = false, guideRequest = 0, notify }) {
-  const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'night-study';
+  const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'pixel';
   const appearance = useDesktopAppearance();
   const petId = normalizePetId(library?.data.rooms[library.roomId]?.petId);
   const [personalize, setPersonalize] = useState(false);

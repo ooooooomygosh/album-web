@@ -6,7 +6,7 @@ const catalog = import('../../src/scene-catalog.mjs');
 
 test('six stable scene IDs preserve legacy looks and normalize invalid settings', async () => {
   const { ROOM_SCENES, ROOM_SCENE_IDS, getRoomScene, normalizeRoomSceneId } = await catalog;
-  assert.deepEqual(ROOM_SCENE_IDS, ['night-study', 'pixel', 'warm', 'forest', 'seaside', 'starlight']);
+  assert.deepEqual(ROOM_SCENE_IDS, ['pixel', 'warm', 'night-study', 'forest', 'seaside', 'starlight']);
   assert.equal(new Set(ROOM_SCENES.map((scene) => scene.art)).size, 6);
   for (const scene of ROOM_SCENES) {
     assert.equal(getRoomScene(scene.id), scene);

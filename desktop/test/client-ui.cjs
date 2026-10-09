@@ -21,8 +21,8 @@ async function launch() {
 const check = (value) => report.checks.push(value);
 (async () => {
   await launch();
-  await site.locator('.cabin-night-study').waitFor(); assert.match(await site.locator('.app-brand small').innerText(), /0 张唱片/);
-  await site.locator('.room-empty', { hasText: '等你放上第一张' }).waitFor(); check('fresh-start-opens-the-night-study-without-an-account');
+  await site.locator('.cabin-pixel').waitFor(); assert.match(await site.locator('.app-brand small').innerText(), /0 张唱片/);
+  await site.locator('.room-empty', { hasText: '等你放上第一张' }).waitFor(); check('fresh-start-opens-the-pixel-cabin-without-an-account');
   await site.getByRole('button', { name: '添加专辑', exact: true }).click();
   const add = site.getByRole('dialog', { name: '添加专辑' }); await add.getByRole('tab', { name: '手动填写' }).click();
   await add.getByLabel('专辑名').fill('本地验证专辑'); await add.getByLabel('歌手').fill('离线歌手'); await add.getByLabel('曲目').fill('第一首\n第二首');

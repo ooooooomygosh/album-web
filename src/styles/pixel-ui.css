@@ -169,3 +169,20 @@ html[data-desktop-reduce-motion='true'] .room-record:hover, html[data-desktop-re
 .cabin-atmosphere,
 .wallpaper-room { overflow: hidden; overflow: clip; }
 .cabin-scene.room-scene { overscroll-behavior: none; }
+
+/* 月夜书桌 in the pixel direction: pixel view + clean plate + hand atlas share one
+   48-colour palette and the 4px art grid (scripts/art/pixelate-night-study.py).
+   Boxes are snapped to that grid; shadows are hard offsets, no blur. */
+.cabin-scene[data-room-look=night-study] :is(.study-clean-plate, .study-writing-hand) { image-rendering: pixelated; }
+.cabin-scene[data-room-look=night-study] .study-clean-plate { clip-path: polygon(19.337% 45.672%, 26.796% 45.672%, 26.796% 54.512%, 19.337% 54.512%); }
+.cabin-scene[data-room-look=night-study] .study-writing-hand { left: 17.956%; top: 44.199%; width: 9.392%; height: 12.523%; filter: none; }
+.cabin-scene[data-room-look=night-study] .room-record { box-shadow: 4px 4px 0 #100902b0, inset 0 0 0 2px #e4ba8133; }
+.cabin-scene[data-room-look=night-study] .room-record:after { background: #130a06; box-shadow: inset 0 8px 0 -4px #140a0899, inset -6px 0 0 -3px #140a0866; }
+.cabin-scene[data-room-look=night-study] .study-writing-hand { background-image: url('/room-scenes/night-study-hands-pixel.png'); }
+/* The desk scene has no free surface outside the toolbar/console/footer safe areas
+   (cabinet top sits under the toolbar), so the console alone is the turntable here. */
+.cabin-scene[data-room-look=night-study] .scene-deck { display: none; }
+/* Every scene is pixel now: shelf paging uses the pixel chrome everywhere. */
+.cabin-room.cabin-room .room-shelf-navigation { background: #27170bf0; border: 2px solid #d4a46b88; border-radius: 0; box-shadow: 4px 4px 0 #0d0805aa; }
+.cabin-room.cabin-room .room-shelf-navigation button { border-radius: 0; border: 2px solid #deb57055; background: #7c542d; }
+.cabin-night-study .room-shelf-navigation { right: 4px; }
