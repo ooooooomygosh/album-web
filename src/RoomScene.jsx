@@ -22,14 +22,24 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
       const rect = viewport.current.getBoundingClientRect();
       // Hidden bars (Zen mode) report empty boxes and must not shrink the room.
       const box = (element) => element && element.getClientRects().length ? element.getBoundingClientRect() : null;
-      const zen = document.documentElement.classList.contains('room-zen') || document.documentElement.dataset.desktopFullscreen === 'true', bar = box(toolbar), top = box(header), foot = box(footer);
+      const zen = document.documentElement.classList.contains('room-zen') || document.documentElement.dataset.desktopFullscreen === 'true', bar = box(toolbar), top = box(header), foot = box(room?.querySelector('.room-now-playing'));
       const safeArea = room && !zen ? { top: Math.max(bar?.bottom || 0, top?.bottom || 0) - rect.top + 12, bottom: foot ? rect.bottom - foot.top + 12 : 12 } : undefined;
+      // An open focus panel is an obstruction like the footer: right-docked → right inset, bottom sheet → bottom inset.
+      const panel = safeArea && box(room.querySelector('.focus-dock'));
+      if (panel && panel.left > rect.left + rect.width / 2) safeArea.right = rect.right - panel.left + 12;
+      else if (panel && panel.top > rect.top + rect.height / 2) safeArea.bottom = Math.max(safeArea.bottom, rect.bottom - panel.top + 12);
+      // The turntable console docked on the left edge is an obstruction too (it can be dragged elsewhere).
+      const deck = safeArea && box(room.querySelector('.room-turntable'));
+      if (deck && deck.right < rect.left + rect.width * .4) safeArea.left = deck.right - rect.left + 12;
       setGeometry(roomGeometry(rect.width, rect.height, safeArea, { ...scene.geometry, band: scene.band }));
     };
     let frame;
     const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); });
-    [viewport.current, toolbar, footer, header].filter(Boolean).forEach((element) => observer.observe(element)); update();
-    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+    [viewport.current, toolbar, footer, header, room?.querySelector('.room-turntable')].filter(Boolean).forEach((element) => observer.observe(element)); update();
+    // Footer and focus panel mount/unmount as direct children of the room.
+    const mounts = new MutationObserver(() => { room.querySelectorAll(':scope > .room-now-playing, :scope > .focus-dock').forEach((element) => observer.observe(element)); cancelAnimationFrame(frame); frame = requestAnimationFrame(update); });
+    if (room) mounts.observe(room, { childList: true });
+    return () => { observer.disconnect(); mounts.disconnect(); cancelAnimationFrame(frame); };
   }, [scene, Boolean(selectedId)]); // the footer (.room-now-playing) only exists once a record is selected
   // Fallback for engines without overflow:clip: the stage never keeps a scroll offset.
   const pinStage = (event) => { const el = event.currentTarget; if (el.scrollTop || el.scrollLeft) { el.scrollTop = 0; el.scrollLeft = 0; } };

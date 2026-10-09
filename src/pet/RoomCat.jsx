@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PixelCat from './PixelCat';
 import PetLife from './PetLife';
+import CatBubble from './CatBubble';
+import { useCatPlacement } from './useCatPlacement';
 import { useCatMotion } from './useCatMotion';
 import { getPet } from './pet-catalog.mjs';
 import { bubbleText, celebrateUntil, petPose, pokeLine, catStroll } from './pet-model.mjs';
@@ -39,11 +41,12 @@ export default function RoomCat({ focus, playing, track, reduceMotion, petId = '
     ['pointermove', 'keydown', 'wheel'].forEach((name) => window.addEventListener(name, mark, { passive: true }));
     return () => ['pointermove', 'keydown', 'wheel'].forEach((name) => window.removeEventListener(name, mark));
   }, [interactive, hidden]);
-  const pet = getPet(petId);
+  const pet = getPet(petId), catRef = useRef(null), bubbleRef = useRef(null);
+  useCatPlacement(catRef, bubbleRef, !hidden);
   const cat = useCatBehaviour({ focus, playing, track, petId: pet.id, lastActivity: interactive ? activity : 0, reduceMotion, hidden });
   if (hidden) return null;
-  const body = <><PetLife pose={cat.pose} pokedAt={cat.pokedAt} reduced={cat.reduced}><PixelCat petId={pet.id} pose={cat.pose} accessory={focus?.accessory || ''} skin={focus?.catSkin} reduceMotion={cat.reduced} style={{ transform: `translateX(${cat.x}px)` }} label={`像素${pet.species} · ${pet.name} · ${{ idle: '发呆', groove: '跟着音乐摇摆', celebrate: '庆祝', walk: '散步', sleep: '睡觉', focus: '陪你专注' }[cat.pose]}`}/></PetLife>{cat.bubble && <span className="room-cat-bubble" role="status">{cat.bubble}</span>}</>;
+  const body = <><PetLife pose={cat.pose} pokedAt={cat.pokedAt} reduced={cat.reduced}><PixelCat petId={pet.id} pose={cat.pose} accessory={focus?.accessory || ''} skin={focus?.catSkin} reduceMotion={cat.reduced} style={{ transform: `translateX(${cat.x}px)` }} label={`像素${pet.species} · ${pet.name} · ${{ idle: '发呆', groove: '跟着音乐摇摆', celebrate: '庆祝', walk: '散步', sleep: '睡觉', focus: '陪你专注' }[cat.pose]}`}/></PetLife>{cat.bubble && <CatBubble ref={bubbleRef} text={cat.bubble}/>}</>;
   return interactive
-    ? <button type="button" className="room-cat" title={`点一下，摸摸${pet.name}`} aria-label={`摸摸${pet.species}${pet.name}`} data-pet-id={pet.id} onClick={cat.poke}>{body}</button>
-    : <div className="room-cat" data-pet-id={pet.id}>{body}</div>;
+    ? <button ref={catRef} type="button" className="room-cat" title={`点一下，摸摸${pet.name}`} aria-label={`摸摸${pet.species}${pet.name}`} data-pet-id={pet.id} onClick={cat.poke}>{body}</button>
+    : <div ref={catRef} className="room-cat" data-pet-id={pet.id}>{body}</div>;
 }

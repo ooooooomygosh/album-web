@@ -163,26 +163,40 @@ try {
   await page.locator('.room-record').nth(5).evaluate(el => { el.focus(); el.scrollIntoView({ block: 'start', inline: 'start' }); }); await page.waitForTimeout(100);
   const stageAfter = await stage(); assert.deepEqual(stageAfter.scrolled, [], 'room must not keep a scroll offset'); assert.equal(stageAfter.scrollY, 0); assert.equal(stageAfter.canvas, stageBefore.canvas, 'room canvas must not move or zoom'); assert.equal(stageAfter.rack, stageBefore.rack, 'shelf must not move');
   await screenshot('cabin-1280x800-after-dblclick'); check('room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800');
-  // Every scene at common laptop/desktop sizes: deck + all record cells on screen, never under toolbar or panels.
+  // Every scene at common laptop/desktop sizes: deck + record cells on screen and never under toolbar/panels,
+  // also with the focus panel open; the cat's bubble never covers a record cell or a panel.
+  const layoutIssues = (state) => page.evaluate((state) => {
+    const rects = s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden').map(e => ({ name: String(e.className).split(' ')[0], r: e.getBoundingClientRect() }));
+    const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation, .focus-dock'), cells = [...rects('.room-record-slot'), ...rects('.scene-deck')], bubbles = rects('.room-cat-bubble');
+    const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, out = [];
+    if (!document.querySelector('.room-now-playing')) out.push('footer missing');
+    for (const t of [...cells, ...bubbles]) {
+      if (t.r.left < -1 || t.r.top < -1 || t.r.right > innerWidth + 1 || t.r.bottom > innerHeight + 1) out.push(`${state}: ${t.name} off screen`);
+      for (const o of [...panels, ...(t.name === 'room-cat-bubble' ? cells : [])]) if (hit(t.r, o.r)) out.push(`${state}: ${t.name} under ${o.name}`);
+    }
+    return out;
+  }, state);
+  await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '番茄钟' }).click();
+  const startFocus = page.getByRole('button', { name: '开始专注', exact: true }); if (await startFocus.count()) await startFocus.click();
+  await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.locator('.room-cat-bubble').waitFor();
   for (const scene of ROOM_SCENES) {
     await page.setViewportSize({ width: 1440, height: 900 }); await page.getByRole('button', { name: '布置小屋', exact: true }).click(); await page.getByRole('button', { name: `选择场景 ${scene.label}`, exact: true }).click(); await page.getByRole('button', { name: '回到小屋', exact: true }).click();
     for (const [width, height] of [[1280, 720], [1280, 800], [1366, 768], [1440, 900], [1920, 1080]]) {
-      await page.setViewportSize({ width, height }); await page.waitForTimeout(150);
-      const issues = await page.evaluate(() => {
-        const rects = s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length).map(e => ({ name: String(e.className).split(' ')[0], r: e.getBoundingClientRect() }));
-        const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation'), targets = [...rects('.room-record-slot'), ...rects('.scene-deck')];
-        const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, out = [];
-        if (!document.querySelector('.room-now-playing')) out.push('footer missing');
-        for (const t of targets) {
-          if (t.r.left < -1 || t.r.top < -1 || t.r.right > innerWidth + 1 || t.r.bottom > innerHeight + 1) out.push(`${t.name} off screen`);
-          for (const panel of panels) if (hit(t.r, panel.r)) out.push(`${t.name} under ${panel.name}`);
-        }
-        return out;
-      });
-      assert.deepEqual(issues, [], `${scene.id} ${width}x${height}: deck and record cells must be fully visible`);
+      await page.setViewportSize({ width, height }); await page.waitForTimeout(700);
+      const issues = await layoutIssues('bubble');
+      await page.locator('.focus-badge').click(); await page.locator('.focus-dock').waitFor(); await page.waitForTimeout(700); issues.push(...await layoutIssues('focus panel'));
+      await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.waitForTimeout(150);
+      assert.deepEqual(issues, [], `${scene.id} ${width}x${height}: deck, record cells and cat bubble must be clear`);
     }
   }
-  await page.close(); page = mainPage; check('every-scene-deck-and-record-cells-clear-of-toolbar-and-panels-at-5-viewports');
+  check('every-scene-deck-cells-and-cat-bubble-clear-of-toolbar-panels-and-focus-panel-at-5-viewports');
+  // Immersive: console fully hidden, steps back in when the pointer comes near it.
+  await page.setViewportSize({ width: 1280, height: 800 }); await page.mouse.move(1200, 120); await page.keyboard.press('z'); await page.waitForTimeout(400);
+  const deckBox = await page.locator('.room-turntable').boundingBox(), deckStyle = () => page.locator('.room-turntable').evaluate(e => [getComputedStyle(e).opacity, getComputedStyle(e).visibility, getComputedStyle(e).pointerEvents].join(' '));
+  assert.equal(await deckStyle(), '0 hidden none', 'immersive console must be fully hidden');
+  await page.mouse.move(deckBox.x + deckBox.width / 2, deckBox.y + 10); await page.waitForTimeout(400); assert.equal(await deckStyle(), '1 visible auto', 'console returns when the pointer is near');
+  await page.mouse.move(1200, 120); await page.waitForTimeout(400); assert.equal(await deckStyle(), '0 hidden none'); await page.keyboard.press('Escape'); check('immersive-console-hidden-and-revealed-near-pointer');
+  await page.close(); page = mainPage; 
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
   check('deleted-albums-do-not-receive-late-autosaves');

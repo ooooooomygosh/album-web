@@ -196,3 +196,26 @@ html[data-desktop-reduce-motion='true'] .room-record:hover, html[data-desktop-re
    left of the cabinet (art x≈812), centred on the middle row — never on a record. */
 .cabin-night-study .room-shelf-navigation { right: auto; left: calc(var(--scene-x) + 812px * var(--scene-k)); top: calc(var(--scene-y) + 471px * var(--scene-k)); translate: -100% -50%; }
 .room-focus-open.cabin-night-study .room-shelf-navigation { right: auto; }
+
+/* Cat bubble placement (CatBubble.jsx): offset vars, tail follows the side. */
+.room-cat-bubble { translate: calc(-50% + var(--bubble-dx, 0px)) calc(-4px + var(--bubble-dy, 0px)); transition: translate var(--px-dur-fast) steps(2, end); }
+.room-cat-bubble[data-side='left']::after, .room-cat-bubble[data-side='right']::after { top: 50%; translate: 0 -50%; width: 6px; height: 8px;
+  background: linear-gradient(#3b2a20 0 0) 0 2px / 2px 4px no-repeat, linear-gradient(#3b2a20 0 0) 2px 2px / 2px 4px no-repeat; }
+.room-cat-bubble[data-side='right']::after { left: -10px; }
+.room-cat-bubble[data-side='left']::after { left: calc(100% + 4px); }
+@media (prefers-reduced-motion: reduce) { .room-cat-bubble { transition: none; } }
+html[data-desktop-reduce-motion='true'] .room-cat-bubble { transition: none; }
+.room-cat-bubble:not([data-side='left']):not([data-side='right'])::after { left: calc(50% - var(--bubble-dx, 0px)); }
+
+/* The stage re-fits when the focus panel opens/closes: stepped, like a camera
+   nudging along the pixel grid. Reduced motion jumps. */
+.cabin-scene-canvas { transition: left 240ms steps(4, end), top 240ms steps(4, end), width 240ms steps(4, end), height 240ms steps(4, end); }
+.cabin-night-study .room-shelf-navigation { transition: left 240ms steps(4, end), top 240ms steps(4, end); }
+@media (prefers-reduced-motion: reduce) { .cabin-scene-canvas, .cabin-night-study .room-shelf-navigation { transition: none; } }
+html[data-desktop-reduce-motion='true'] :is(.cabin-scene-canvas, .cabin-night-study .room-shelf-navigation) { transition: none; }
+
+/* Room cat spot (useCatPlacement): floor x, or perched on the console top. */
+.room-cat { left: var(--cat-x, 25%); transition: left 320ms steps(4, end); }
+.room-cat[data-perch='console'] { bottom: var(--cat-bottom); z-index: 21; }
+@media (prefers-reduced-motion: reduce) { .room-cat { transition: none; } }
+html[data-desktop-reduce-motion='true'] .room-cat { transition: none; }

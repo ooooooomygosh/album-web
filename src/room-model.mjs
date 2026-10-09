@@ -12,9 +12,12 @@ export function roomGeometry(width, height, safeArea, geometry = SHELF.warm) {
   // the shelf-top deck where a scene has one. Short windows shrink the art to fit.
   const shelfTop = geometry.band?.top ?? (lastBottom > 701 ? geometry.rows[0][0] : 200);
   const shelfBottom = geometry.band?.bottom ?? Math.max(701, lastBottom);
-  const scale = safeArea ? Math.min(coverScale, Math.max(100, height - safeTop - safeBottom) / (shelfBottom - shelfTop)) : coverScale;
+  const safeLeft = Math.max(0, safeArea?.left || 0), safeRight = Math.max(0, safeArea?.right || 0);
+  const bandLeft = geometry.band?.left ?? geometry.columns[0][0], bandRight = geometry.band?.right ?? geometry.columns.at(-1)[0] + geometry.columns.at(-1)[1];
+  const scale = safeArea ? Math.min(coverScale, Math.max(100, height - safeTop - safeBottom) / (shelfBottom - shelfTop), Math.max(100, width - safeLeft - safeRight) / (bandRight - bandLeft)) : coverScale;
   const artWidth = ROOM_SIZE.width * scale, artHeight = ROOM_SIZE.height * scale;
-  const left = artWidth < width ? (width - artWidth) / 2 : Math.max(width - artWidth, Math.min(0, width / 2 - 774 * scale));
+  let left = artWidth < width ? (width - artWidth) / 2 : Math.max(width - artWidth, Math.min(0, width / 2 - 774 * scale));
+  if (safeArea) left = Math.max(safeLeft - bandLeft * scale, Math.min(left, width - safeRight - bandRight * scale));
   let top = Math.max(height - artHeight, Math.min(0, height / 2 - 448 * scale));
   if (safeArea) top = Math.max(safeTop - shelfTop * scale, Math.min(top, height - safeBottom - shelfBottom * scale));
   return { width: artWidth, height: artHeight, left, top };
