@@ -110,7 +110,7 @@ function createLocalMusic({ directory, loadParser = () => import('music-metadata
       if (!index.folders.includes(resolved)) { if (index.folders.length >= LIMITS.folders) throw new Error(`最多添加 ${LIMITS.folders} 个音乐文件夹。`); index.folders = [...index.folders, resolved]; folderRevision++; }
       return this.rescan();
     },
-    removeFolder(folderPath) { index.folders = index.folders.filter((folder) => folder !== folderPath); folderRevision++; return this.rescan(); },
+    removeFolder(folderPath) { const resolved = canonical(folderPath); index.folders = index.folders.filter((folder) => folder !== resolved); folderRevision++; return this.rescan(); },
     rescan() { if (!scanning) scanning = scan().then(() => { scanning = null; return summary(); }, (error) => { scanning = null; throw error; }); return scanning; },
     track(id) { if (!ID.test(id || '')) return null; const track = tracksById.get(id);
       if (!track) return null;

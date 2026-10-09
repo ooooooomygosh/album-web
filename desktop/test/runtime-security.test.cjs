@@ -73,6 +73,14 @@ test('indexed local audio cannot follow a replaced symlink outside the chosen fo
   const complete = await library.addFolder(folder); assert.equal(complete.scanning, false); const id = library.albums()[0].tracks[0].id;
   assert.ok(library.track(id)); fs.unlinkSync(file); fs.symlinkSync(other, file); assert.equal(library.track(id), null);
 });
+test('local folder removal accepts the selected alias after canonical indexing', async (t) => {
+  const { directory } = fixture(t), folder = path.join(directory, 'music'), alias = path.join(directory, 'selected-music');
+  fs.mkdirSync(folder); fs.writeFileSync(path.join(folder, 'song.mp3'), 'audio'); fs.symlinkSync(folder, alias, 'junction');
+  const library = createLocalMusic({ directory, loadParser: async () => async () => ({ common: { title: 'Track' }, format: {} }) });
+  await library.addFolder(alias); assert.equal(library.summary().trackCount, 1);
+  await library.removeFolder(alias); assert.equal(library.summary().trackCount, 0); assert.equal(library.summary().folders.length, 0);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, 'local-music.json'))).albums, []);
+});
 test('malformed saved library recovers safely and refuses empty folder selection', async (t) => {
   const { directory } = fixture(t); fs.writeFileSync(path.join(directory, 'local-music.json'), JSON.stringify({ folders: [], albums: [null] }));
   const library = createLocalMusic({ directory }); assert.equal(library.summary().trackCount, 0);

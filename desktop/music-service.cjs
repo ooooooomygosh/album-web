@@ -58,9 +58,12 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     else throw new Error('不支持此音乐来源。');
     if (currentRevision !== revision) throw new Error('音源设置已更改，请重新播放。');
     if (!result?.url || result.playable === false) throw new Error(result.message || '此歌曲暂时不可播放，请检查登录、会员权限或地区限制。');
-    if (!safeAudioURL(result.url)) throw new Error('音频地址不属于已支持的音乐平台。');
-    const streamId = crypto.randomBytes(24).toString('hex'); streams.set(streamId, { url: result.url, provider, time: Date.now() }); if (streams.size > 40) streams.delete(streams.keys().next().value);
-    return { provider, audioPath: '/desktop-music/audio/' + streamId, trial: Boolean(result.trial), quality: result.quality || '标准音质' };
+    // QQ can list a CDN outside our boundary first, followed by a supported
+    // mirror for the same track. Keep the boundary and select a validated URL.
+    const source = safeAudioURL(result.url) ? result : provider === 'qq' && Array.isArray(result.candidates) && result.candidates.find((value) => value?.playable !== false && safeAudioURL(value?.url));
+    if (!source) throw new Error('音频地址不属于已支持的音乐平台。');
+    const streamId = crypto.randomBytes(24).toString('hex'); streams.set(streamId, { url: source.url, provider, time: Date.now() }); if (streams.size > 40) streams.delete(streams.keys().next().value);
+    return { provider, audioPath: '/desktop-music/audio/' + streamId, trial: Boolean(source.trial ?? result.trial), quality: source.quality || result.quality || '标准音质' };
   }
   // Local files: byte ranges are served only for tracks in the scanned index.
   function localFile(req, res, file, type) {

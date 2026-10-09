@@ -4,7 +4,7 @@
 
 ## 已执行
 
-- `npm run check`：148 项桌面 Node 测试 + 16 项音频生命周期测试通过；Vite 生产构建通过
+- `npm run check`：151 项桌面 Node 测试 + 16 项音频生命周期测试通过（原生修复整合后，云端 Node 24.19.0）；Vite 生产构建通过
 - `npm --prefix desktop run build:music`：桌面音乐适配器重新生成成功
 - `npm --prefix desktop run build:web`：桌面三页面入口构建成功；随后相同入口继续通过生产构建
 - `git diff --check`：通过
@@ -13,9 +13,11 @@
 - V5 实际画面采样：正常动态 10 次取样出现 4 个不同帧；减少动态效果 10 次完全相同
 - 公共 QQ／iTunes 元数据接口有真实 HTTP 检查；修复后 iTunes 首两项专辑为 17/17 曲目，部分其他候选仍明确标记不完整
 
-证据：[浏览器记录](browser-validation.md)、[V6 JSON](browser-self-test-v6-result.json)、[唱机重载 JSON](browser-turntable-v6-result.json)、[动态效果 JSON](browser-pet-motion-v5-result.json)、[公共曲库检查](live-catalog-check.md)、[PR 整合说明](pr4-integration.md)。
+- macOS Apple Silicon 原生验收：五场景／五伙伴同步与选择恢复、桌宠启停、动态背景启停／取消／故障恢复、两个屏幕分别启动、真实一分钟专注通过；QQ 两首真实歌曲音频推进、暂停／继续／下一首在最小修复后通过。限定范围与未完成项见原生报告
 
-## 最新远端 CI：已通过
+证据：[macOS 原生验收](native-mac-acceptance-2026-10-09.md)、[浏览器记录](browser-validation.md)、[V6 JSON](browser-self-test-v6-result.json)、[唱机重载 JSON](browser-turntable-v6-result.json)、[动态效果 JSON](browser-pet-motion-v5-result.json)、[公共曲库检查](live-catalog-check.md)、[PR 整合说明](pr4-integration.md)。
+
+## 已记录的远端 CI：旧提交通过，原生修复新提交待验
 
 草稿 [PR #5](https://github.com/ooooooomygosh/album-web/pull/5) 的提交 `3b2f70d3875af19ed1277cac28d1c2d2c5a83959` 已完成 [GitHub Actions Checks #37869344271](https://github.com/ooooooomygosh/album-web/actions/runs/37869344271)，结论为 **success**。依据为连接器读取的运行状态、任务步骤、完整任务日志与产物元数据，不是仅观察到工作流文件。
 
@@ -32,8 +34,8 @@
 ## 尚未执行或解决
 
 - 本地执行环境仍限制 Chromium 启动；独立 Playwright 已在上述 GitHub 托管 CI 中通过，不再把本地限制等同于远端未验收
-- 真实 QQ／网易云会员账号的登录、完整播放、地区限制、重启和退出；Music Assistant 实际服务器／音箱；系统播放器真实控制
-- macOS Intel／Apple Silicon、Windows 的安装包与原生壁纸、穿透、窗口、多屏及系统权限检查
+- QQ 整曲自然结束、会员／地区覆盖、退出与旧收藏 mediaMid 自动补全；QQ 我的歌单浏览／批量导入未实现；网易云真实账号、Music Assistant 实际服务器／音箱、系统 Music／Spotify 真实控制未验收
+- macOS 桌宠真实拖动／透明透传未完成；Spaces／全屏边界、显示器热拔插未运行。macOS Intel／Apple Silicon 安装包、Windows 原生行为及系统权限检查仍未验收
 - 任意第三方插件市场／权限沙箱与官方 Apple Music、Spotify 内嵌 SDK 接入并未实现；不能把内置工具注册表或系统播放器控制冒充这些功能
 - 根目录依赖审计已清理至零；桌面依赖上次成功审计仍有 15 项告警（含依赖传播），详见[依赖审计](dependency-review.md)。有限调用路径检查不是无漏洞保证，也不以强制降级掩盖问题
 - 根项目许可与组合 GPL 模块的分发义务仍需明确；本轮不擅自重新许可

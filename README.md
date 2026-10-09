@@ -129,7 +129,7 @@ docs/           结构说明、路线图、截图
 - 确定性测试验证状态机、快照、安全边界和异常恢复；浏览器与部分 Electron 界面测试使用模拟账号、媒体服务和原生桥。
 - 云浏览器已完成场景／伙伴、收藏增删与笔记、重载和紧凑布局检查；[当前 V6 合并功能夹具预览](https://album-circle-69p2yqms2-homings-projects-d78a7226.vercel.app/) 自测于 2026-10-08 17:36–17:37 UTC 在 960×600 下通过 31/31 断言，捕获错误列表为空，含真实生成 WAV 播放、PNG 导出、实际一分钟专注、延迟封面早保存及模拟壁纸错误／取消／重试；另已人工验证唱机拖动与重载同时保留位置、场景和伙伴。[原始自测结果](docs/audit/browser-self-test-v6-result.json)与[拖动重载记录](docs/audit/browser-turntable-v6-result.json)。
 - 独立 Playwright 套件仍因本机 Chromium 启动限制未运行成功。最终伙伴动画已通过可见开关复验：正常模式的 10 次截图出现 4 个不同帧，减少动态模式的 10 次截图保持同一帧；这不是原生桌宠窗口的性能或系统集成验收。[详细证据与边界](docs/audit/browser-validation.md)。
-- macOS／Windows 原生桌宠、壁纸、系统媒体控制、安装包、真实账号完整歌曲播放：**本轮未运行真实设备验收**。现有实现不等于平台可用性已确认。
+- [macOS Apple Silicon 原生验收](docs/audit/native-mac-acceptance-2026-10-09.md)已验证五场景／伙伴同步、选择恢复、动态背景启停／取消／故障恢复、两个屏幕分别启动、真实一分钟专注，以及修复后的 QQ 两首歌曲播放进度、暂停／继续／下一首。桌宠真实拖动／透明透传未完成；Spaces、Music／Spotify 控制、整曲自然结束、会员／地区覆盖、安装包、Intel 与 Windows 仍未验收。QQ 我的歌单导入和旧收藏 mediaMid 自动补全未实现。
 - 桌面依赖仍有未解决的上游安全公告；根目录项目许可证及所组合 GPL 模块的发行义务仍需明确。不要把本分支称为安全审计通过、许可已合规或可直接正式发行。
 - 后续范围与放行条件见 [产品计划](docs/product-plan.md)；音乐接入与许可风险见 [产品审查](docs/audit/2026-10-product-review.md)。
 

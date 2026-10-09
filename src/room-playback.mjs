@@ -5,7 +5,7 @@ export function exactTrack(item, index, provider) {
   }
   if (provider !== 'qq') return null;
   const detail = item?.trackDetails?.[index], mid = detail?.providerId || (item?.type === 'song' ? item.externalIds?.qqSongMid : '');
-  return /^[a-z\d]{14}$/i.test(mid || '') ? { id: mid, provider: 'qq', title: item.tracks?.[index] || item.title, artist: item.artist } : null;
+  return /^[a-z\d]{14}$/i.test(mid || '') ? { id: mid, provider: 'qq', title: item.tracks?.[index] || item.title, artist: item.artist, mediaMid: /^[a-z\d]{14}$/i.test(detail?.mediaMid || '') ? detail.mediaMid : '' } : null;
 }
 // Metadata scans can take minutes on large folders; ordinary network calls
 // retain a short timeout. Aborting a request does not cancel a native scan.

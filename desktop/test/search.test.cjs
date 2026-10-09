@@ -36,7 +36,7 @@ function mockQQ({ wrongIdentity = false, incompleteTracks = false, failSongSearc
     }
     let data;
     if (method === 'GetAlbumDetail') data = { basicInfo: { albumMid: wrongIdentity ? 'anotherMid' : mid, albumID: 8220, albumName: '叶惠美', publishDate: '2003-07-31', pmid: `${mid}_5` }, singer: { singerList: [{ name: '周杰伦' }] }, company: { name: '杰威尔音乐有限公司' } };
-    else if (method === 'GetAlbumSongList') data = { albumMid: mid, totalNum: incompleteTracks ? 11 : 2, songList: ['以父之名', '懦夫'].map((title, index) => ({ songInfo: { title, album: { mid }, mid: `song${index}`, index_album: index + 1 } })) };
+    else if (method === 'GetAlbumSongList') data = { albumMid: mid, totalNum: incompleteTracks ? 11 : 2, songList: ['以父之名', '懦夫'].map((title, index) => ({ songInfo: { title, album: { mid }, mid: `song${index}`, file: { media_mid: `media${index}` }, index_album: index + 1 } })) };
     else throw new Error('Unexpected QQ request');
     return Response.json({ code: 0, [module]: { code: 0, data } });
   });
@@ -50,8 +50,10 @@ test('QQ album link returns only its exact provider identity, cover and ordered 
   assert.equal(album.source, 'QQ 音乐');
   assert.ok(album.cover.includes(`${mid}_5`));
   assert.deepEqual(album.tracks, ['以父之名', '懦夫']);
+  assert.deepEqual(album.trackDetails.map(track => track.mediaMid), ['media0', 'media1']);
   assert.equal(album.confidenceLabel, '链接精确定位');
-  const song = songCandidate({ mid: 'testSongMid', title: '晴天', singer: [{ name: '周杰伦' }], album: { mid, title: '叶惠美' } });
+  const song = songCandidate({ mid: 'testSongMid', title: '晴天', singer: [{ name: '周杰伦' }], album: { mid, title: '叶惠美' }, file: { media_mid: 'mediaSongMid' } });
+  assert.equal(song.trackDetails[0].providerId, 'testSongMid'); assert.equal(song.trackDetails[0].mediaMid, 'mediaSongMid');
   assert.ok(song.providerLinks.some((link) => link.type === 'album' && link.url === albumUrl && link.provider === 'qqMusic'));
   assert.ok(song.providerLinks.every((link) => link.provider === 'qqMusic'));
   await assert.rejects(mockQQ({ wrongIdentity: true }).search(new URLSearchParams({ term: albumUrl })), /编号.*不一致/);
