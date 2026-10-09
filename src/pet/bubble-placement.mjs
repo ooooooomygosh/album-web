@@ -30,7 +30,9 @@ export function chooseBubbleOffset(base, cat, obstacles, view, gap = 6) {
  * the turntable console. Keeps the current spot while it is still clear. */
 export const CAT_OBSTACLES = BUBBLE_OBSTACLES;
 const inset = (r, k) => { const dx = (r.right - r.left) * k, dy = (r.bottom - r.top) * k; return { left: r.left + dx, right: r.right - dx, top: r.top + dy, bottom: r.bottom }; };
-export function chooseCatSpot({ cat, floorTop = cat.top, bubble, obstacles, consoleRect, view, home }) {
+/** preferPerch: the cat wants to be back on the console top (immersive hover held);
+ * any clear perch spot wins over staying on the floor. */
+export function chooseCatSpot({ cat, floorTop = cat.top, bubble, obstacles, consoleRect, view, home, preferPerch = false }) {
   const w = cat.right - cat.left, h = cat.bottom - cat.top;
   const spots = [];
   for (let x = view.left + 8; x <= view.right - w - 8; x += Math.max(8, w / 4)) spots.push({ perch: false, left: x, top: floorTop });
@@ -49,6 +51,10 @@ export function chooseCatSpot({ cat, floorTop = cat.top, bubble, obstacles, cons
   const current = evaluate({ perch: Boolean(cat.perch), left: cat.left, top: cat.top });
   // A perched cat needs its perch: console visible, feet on its top edge, mostly over it.
   if (cat.perch && !(consoleRect && Math.abs(cat.top + h - consoleRect.top) <= 2 && Math.min(cat.left + w, consoleRect.right) - Math.max(cat.left, consoleRect.left) >= w / 2)) current.cost = Infinity;
+  if (preferPerch && !cat.perch && consoleRect) {
+    const perch = spots.filter((s) => s.perch).map(evaluate).filter((s) => s.cost <= Math.min(current.cost, 1)).sort((a, b) => a.cost - b.cost || a.distance - b.distance)[0];
+    if (perch) return perch;
+  }
   if (current.cost === 0) return current;
   return spots.map(evaluate).reduce((best, s) => (s.cost < best.cost - 1 || (Math.abs(s.cost - best.cost) <= 1 && s.distance < best.distance)) ? s : best, current.cost === Infinity ? { ...current, cost: Number.MAX_VALUE } : current);
 }
