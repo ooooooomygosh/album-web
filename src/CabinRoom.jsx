@@ -63,7 +63,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   const chooseProvider = (value) => { chosenProvider.current = true; setProvider(value); try { localStorage.setItem('album-circle-room-player-v1', value); } catch {} };
   const [musicSettings, setMusicSettings] = useState(false), [filtersOpen, setFiltersOpen] = useState(false);
   const queueRef = useRef(null);
-  const playback = useRoomPlayback(record, trackIndex, provider, () => queueRef.current?.current.next(false));
+  const playback = useRoomPlayback(record, trackIndex, provider, () => queueRef.current?.current.next(false), { peekNext: () => queueRef.current?.current.peekNext(), canNext: () => Boolean(queueRef.current?.current.canAdvance) });
   const system = useSystemNowPlaying(provider === 'system');
   const deckItem = provider === 'system' ? system.item : record;
   const effectiveSpin = provider === 'visual' ? spinning : provider === 'system' ? Boolean(system.active && system.playing) : playback.playing;
@@ -97,8 +97,12 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   // The album card asks the deck to play an album, optionally from a track.
   const loadRef = useRef(load); loadRef.current = load;
   useEffect(() => {
-    const play = (event) => { const item = items.find((entry) => entry.id === event.detail?.id); if (item) loadRef.current(item, Math.max(0, Number(event.detail.track) || 0)); };
-    window.addEventListener('cabin-play', play); return () => window.removeEventListener('cabin-play', play);
+    // A playlist saved a moment ago may not be in `items` yet; the event carries it.
+    const resolve = (detail) => items.find((entry) => entry.id === detail?.id) || (detail?.item?.id === detail?.id ? detail.item : null);
+    const play = (event) => { const item = resolve(event.detail); if (!item) return; if (event.detail.shuffle && !queueRef.current?.current?.queue.shuffle) queueRef.current?.current?.toggleShuffle(); loadRef.current(item, Math.max(0, Number(event.detail.track) || 0)); };
+    const enqueue = (event) => { const item = resolve(event.detail); if (item) queueRef.current?.current?.enqueue(item.id); };
+    window.addEventListener('cabin-play', play); window.addEventListener('cabin-enqueue', enqueue);
+    return () => { window.removeEventListener('cabin-play', play); window.removeEventListener('cabin-enqueue', enqueue); };
   }, [items]);
   useEffect(() => { document.documentElement.classList.toggle('room-zen', zen); document.documentElement.classList.toggle('room-focus-open', dock.open); document.documentElement.classList.toggle('room-filters-open', filtersOpen); }, [zen, dock.open, filtersOpen]);
   useEffect(() => () => document.documentElement.classList.remove('room-zen', 'room-focus-open', 'room-filters-open'), []);
@@ -166,7 +170,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
     {filtersOpen && <section className="shelf-filters" aria-label="筛选与唱片盒">
       <div className="shelf-filter-row">
         <label>排序<select aria-label="排序方式" value={filters.sort} onChange={(event) => setFilters({ ...filters, sort: event.target.value })}>{Object.entries(SORTS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>类型<select aria-label="筛选类型" value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="all">全部</option><option value="album">专辑</option><option value="song">单曲</option></select></label>
+        <label>类型<select aria-label="筛选类型" value={filters.type} onChange={(event) => setFilters({ ...filters, type: event.target.value })}><option value="all">全部</option><option value="album">专辑</option><option value="song">单曲</option><option value="playlist">歌单</option></select></label>
       </div>
       <RecordBoxControls items={items} filters={filters} setFilters={(change) => setFilters((old) => ({ ...old, ...(typeof change === 'function' ? change(old) : change) }))} count={visible.length}/>
     </section>}
@@ -184,7 +188,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
       </div>}
       {view.rows > 3 && <div className="room-shelf-navigation" aria-label="唱片架浏览"><button type="button" aria-label="上一排唱片" disabled={view.startRow === 0} onClick={() => changeRow(view.startRow - 1)}><Up/></button><span>{`${view.startRow + 1}–${Math.min(view.rows, view.startRow + 3)} / ${view.rows} 排`}</span><button type="button" aria-label="下一排唱片" disabled={view.startRow >= view.maxRow} onClick={() => changeRow(view.startRow + 1)}><Down/></button><small>↑ ↓ / 滚轮浏览</small></div>}
     </RoomScene></div>
-    {selected && <div className="room-now-playing"><div className="room-selection-copy"><small>唱片架 · 双击封面放盘</small><h2 title={selected.title}>{selected.title}</h2><p>{`${selected.artist} · ${selected.year || '年份待补充'} · ${selected.tracks?.length || 0} 首曲目`}</p></div><div className="room-selection-actions">{record && record.id !== selected.id && <button type="button" className="room-queue-add" aria-pressed={player.queue.ids.includes(selected.id)} title="当前唱片放完后接着放" onClick={() => player.queue.ids.includes(selected.id) ? player.remove(selected.id) : player.enqueue(selected.id)}>{player.queue.ids.includes(selected.id) ? <><Check size={16}/>已在待播</> : <><ListBullet size={16}/>加入待播</>}</button>}<RecordTools item={selected}/><DiscogsLink item={selected}/><button type="button" className="room-open-album" onClick={() => openRecord(selected.id)}>唱片卡片 <ArrowUpRight size={18}/></button></div></div>}
+    {selected && <div className="room-now-playing"><div className="room-selection-copy"><small>唱片架 · 双击封面放盘</small><h2 title={selected.title}>{selected.title}</h2><p>{selected.type === 'playlist' ? `歌单 · ${selected.artist} · ${selected.tracks?.length || 0} 首` : `${selected.artist} · ${selected.year || '年份待补充'} · ${selected.tracks?.length || 0} 首曲目`}</p></div><div className="room-selection-actions">{record && record.id !== selected.id && <button type="button" className="room-queue-add" aria-pressed={player.queue.ids.includes(selected.id)} title="当前唱片放完后接着放" onClick={() => player.queue.ids.includes(selected.id) ? player.remove(selected.id) : player.enqueue(selected.id)}>{player.queue.ids.includes(selected.id) ? <><Check size={16}/>已在待播</> : <><ListBullet size={16}/>加入待播</>}</button>}<RecordTools item={selected}/><DiscogsLink item={selected}/><button type="button" className="room-open-album" onClick={() => openRecord(selected.id)}>唱片卡片 <ArrowUpRight size={18}/></button></div></div>}
     {focus && <FocusDock open={dock.open} tab={dock.tab} setTab={(tab) => saveDock({ tab })} close={() => saveDock({ open: false })}/>}
     {personalize && <RoomPersonalization look={look} petId={petId} onChange={personalizeRoom} close={() => setPersonalize(false)} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
     {musicSettings && <MusicSettings close={() => setMusicSettings(false)} provider={provider} useSource={chooseProvider}/>}

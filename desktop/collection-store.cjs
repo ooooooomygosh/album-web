@@ -21,11 +21,13 @@ function normalizeItem(body = {}, previous = {}) {
   const title = text(body.title ?? previous.title, 160), artist = text(body.artist ?? previous.artist, 160);
   if (!title || !artist) throw new Error('请填写专辑名和歌手。');
   const value = { ...previous, ...body };
-  const tracks = list(value.tracks, 160, 100);
+  // Playlists carry their own per-track artist and may run longer than an album.
+  const type = ['song', 'playlist'].includes(value.type) ? value.type : 'album', trackLimit = type === 'playlist' ? 500 : 100;
+  const tracks = list(value.tracks, 160, trackLimit);
   const externalIds = value.externalIds && typeof value.externalIds === 'object' ? Object.fromEntries(Object.entries(value.externalIds).slice(0, 12).map(([key, id]) => [text(key, 40), text(id, 180)]).filter(([key, id]) => key && id)) : {};
   return {
     id: previous.id || text(body.id, 80) || 'album-' + crypto.randomBytes(8).toString('hex'),
-    type: value.type === 'song' ? 'song' : 'album',
+    type,
     title, artist,
     year: /^\d{4}$/.test(text(value.year, 16)) ? text(value.year, 4) : '',
     label: text(value.label, 120),
@@ -35,9 +37,10 @@ function normalizeItem(body = {}, previous = {}) {
     genre: text(value.genre || value.primaryGenreName, 60),
     tags: list(value.tags, 32, 12),
     tracks,
-    trackDetails: Array.isArray(value.trackDetails) ? value.trackDetails.slice(0, 100).map((track) => ({
+    trackDetails: Array.isArray(value.trackDetails) ? value.trackDetails.slice(0, trackLimit).map((track) => ({
       title: text(track?.title, 160), trackNumber: Number(track?.trackNumber) || 0, lengthMillis: Math.max(0, Number(track?.lengthMillis) || 0),
-      source: text(track?.source, 40), providerId: text(track?.providerId, 64), mediaMid: text(track?.mediaMid, 64)
+      source: text(track?.source, 40), providerId: text(track?.providerId, 64), mediaMid: text(track?.mediaMid, 64),
+      ...(text(track?.artist, 160) ? { artist: text(track.artist, 160) } : {}), ...(text(track?.album, 160) ? { album: text(track.album, 160) } : {})
     })).filter((track) => track.title) : [],
     externalIds,
     collectionId: text(value.collectionId, 60),
@@ -51,7 +54,7 @@ function normalizeItem(body = {}, previous = {}) {
 // Same album = same catalog id, QQ album, scanned local folder, or the same
 // tagged album picked as files in the browser.
 function identity(item) {
-  return item.collectionId ? 'itunes:' + item.collectionId : item.externalIds?.qqAlbumMid ? 'qq:' + item.externalIds.qqAlbumMid : item.externalIds?.localAlbum ? 'local:' + item.externalIds.localAlbum : item.externalIds?.fileAlbum ? 'file:' + item.externalIds.fileAlbum : '';
+  return item.externalIds?.playlist ? 'playlist:' + item.externalIds.playlist : item.collectionId ? 'itunes:' + item.collectionId : item.externalIds?.qqAlbumMid ? 'qq:' + item.externalIds.qqAlbumMid : item.externalIds?.localAlbum ? 'local:' + item.externalIds.localAlbum : item.externalIds?.fileAlbum ? 'file:' + item.externalIds.fileAlbum : '';
 }
 
 function readLegacy(file) {
@@ -94,7 +97,7 @@ function createCollectionStore({ directory, legacyFile = path.join(directory, 'l
     },
     update(id, patch) {
       const index = items.findIndex((item) => item.id === id); if (index < 0) throw new Error('这张专辑已经不在唱片架上了。');
-      const allowed = Object.fromEntries(Object.entries(patch || {}).filter(([key]) => ['notes', 'title', 'artist', 'year', 'cover', 'originalCover', 'tracks', 'genre', 'tags', 'label'].includes(key)));
+      const allowed = Object.fromEntries(Object.entries(patch || {}).filter(([key]) => ['notes', 'title', 'artist', 'year', 'cover', 'originalCover', 'tracks', 'trackDetails', 'genre', 'tags', 'label'].includes(key)));
       items[index] = normalizeItem(allowed, items[index]); save(); return { item: items[index] };
     },
     remove(id) { const before = items.length; items = items.filter((item) => item.id !== id); if (items.length === before) throw new Error('这张专辑已经不在唱片架上了。'); save(); return { ok: true }; },
