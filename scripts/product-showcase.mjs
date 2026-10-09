@@ -69,7 +69,7 @@ try {
   items = albums; await page.setViewportSize({ width: 1440, height: 900 }); await page.reload(); await page.locator('.room-record').first().waitFor();
   await page.waitForFunction(() => document.querySelectorAll('.pixel-artwork canvas.is-painted').length >= 12);
   await page.locator('.room-record').nth(5).dblclick(); await page.locator('.room-turntable[data-loaded-id="showcase-5"]').waitFor();
-  await page.getByText('听歌前，先选择音源。', { exact: true }).waitFor(); await shot('cabin', true);
+  await page.locator('.player-quick-source').waitFor(); await page.waitForTimeout(400); await shot('cabin', true);
   assert.equal(await page.locator('.room-shelf-navigation').count(), 0); check('twelve-albums-no-redundant-paging-and-visual-audio-hint');
   await page.locator('.focus-badge').click(); await page.getByRole('button', { name: '开始专注', exact: true }).click(); await page.locator('.focus-badge.is-running').waitFor(); await page.locator('.room-cat-bubble', { hasText: '还剩 25 分钟' }).waitFor(); await shot('focus', true);
   await page.getByRole('button', { name: '暂停', exact: true }).click(); check('focus-start-and-pause-from-visible-tool'); await page.getByRole('button', { name: '收起专注工具' }).click();
