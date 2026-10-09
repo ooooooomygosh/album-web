@@ -9,5 +9,7 @@ import './record-library.css';
 import './album-wall.css';
 import './app.css';
 import './styles/pixel-ui.css';
+import { installZenConsoleReveal } from './scene/zen-console.mjs';
 
+installZenConsoleReveal();
 createRoot(document.getElementById('root')).render(<App/>);

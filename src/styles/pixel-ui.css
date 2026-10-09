@@ -214,6 +214,13 @@ html[data-desktop-reduce-motion='true'] .room-cat-bubble { transition: none; }
 @media (prefers-reduced-motion: reduce) { .cabin-scene-canvas, .cabin-night-study .room-shelf-navigation { transition: none; } }
 html[data-desktop-reduce-motion='true'] :is(.cabin-scene-canvas, .cabin-night-study .room-shelf-navigation) { transition: none; }
 
+/* Immersive: the console is fully gone (not 8% ghost on the window art) and
+   steps back in when the pointer comes near it (CabinRoom → data-console-near). */
+.room-zen .room-turntable { opacity: 0 !important; visibility: hidden; pointer-events: none;
+  transition: opacity var(--px-dur-med) steps(3, end), visibility 0s linear var(--px-dur-med) !important; }
+.room-zen .room-turntable:focus-within, .room-zen[data-console-near='true'] .room-turntable, html.room-zen[data-console-near='true'] .room-turntable {
+  opacity: 1 !important; visibility: visible; pointer-events: auto; transition: opacity var(--px-dur-med) steps(3, end), visibility 0s !important; }
+@media (prefers-reduced-motion: reduce) { .room-zen .room-turntable { transition: none !important; } }
 /* Room cat spot (useCatPlacement): floor x, or perched on the console top. */
 .room-cat { left: var(--cat-x, 25%); transition: left 320ms steps(4, end); }
 .room-cat[data-perch='console'] { bottom: var(--cat-bottom); z-index: 21; }
