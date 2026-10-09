@@ -93,6 +93,8 @@ export function FocusProvider({ userId, children }) {
     updateTask: (id, change) => apply((s, t) => model.updateTask(s, id, change, t)),
     removeTask: (id) => apply((s) => model.removeTask(s, id)),
     moveTask: (id, index) => apply((s) => model.moveTask(s, id, index)),
+    renameTask: (id, text) => apply((s) => model.renameTask(s, id, text)),
+    preset: (id) => { const change = model.presetSettings(id); return change ? apply((s) => ({ ...s, settings: model.normalizeSettings({ ...s.settings, ...change }) })) : current.current; },
     clearDone: () => apply(model.clearDone),
     saveNotes: (notes) => apply((s) => ({ ...s, notes: model.normalizeNotes(notes) })),
     selectTask: (id, toggle = false) => apply((s) => model.selectTask(s, id, toggle)),
