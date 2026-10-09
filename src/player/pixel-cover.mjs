@@ -117,6 +117,13 @@ function gridToDataUrl(grid, palette) {
 }
 export function generatedCover(item) { return gridToDataUrl(proceduralGrid(item).grid, paletteFromDocument()); }
 
+// createImageBitmap rejects SVG; inline / same-origin art can still be drawn
+// through an <img> without tainting the canvas.
+function loadElement(src) {
+  let local = false; try { const url = new URL(src, location.href); local = ['data:', 'blob:'].includes(url.protocol) || url.origin === location.origin; } catch {}
+  if (!local) return null;
+  return new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image.naturalWidth ? Object.assign(image, { width: image.naturalWidth, height: image.naturalHeight }) : null); image.onerror = () => resolve(null); image.src = src; });
+}
 // Returns { cover, method: 'pixelated' | 'generated', reason? }. Cross-origin
 // artwork without CORS cannot be read back; we say so instead of faking it.
 export async function pixelCover(item, { source = item?.cover } = {}) {
@@ -125,7 +132,7 @@ export async function pixelCover(item, { source = item?.cover } = {}) {
   try {
     // Same path as the album wall: local/inline art directly, catalog art via
     // the desktop image proxy, so its pixels may be read back.
-    const image = await loadWallCover(source), side = Math.min(image?.width || 0, image?.height || 0);
+    const image = await loadWallCover(source) || await loadElement(source), side = Math.min(image?.width || 0, image?.height || 0);
     if (!side) throw new Error('原封面暂时无法读取。');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = GRID;
     const context = canvas.getContext('2d', { willReadFrequently: true });

@@ -29,3 +29,13 @@
 @keyframes player-pop{from{opacity:0;transform:translateY(var(--pl-unit))}}
 [data-desktop-reduce-motion=true] .player-controls *{animation:none!important;transition:none!important}
 @media(prefers-reduced-motion:reduce){.player-controls *{animation:none!important;transition:none!important}}
+/* File import (添加专辑 › 本地音乐) */
+.file-import{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:2px dashed var(--px-border,#8a5a32)}
+.file-import h3{display:flex;align-items:center;gap:6px;margin:0;font-family:var(--px-font-cn,inherit);font-size:14px;color:var(--px-ink,#ffe9cb)}
+.file-import .add-local-actions{flex-wrap:wrap;gap:8px}
+.file-import-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--px-ink-dim,#c9a47a);cursor:pointer}.file-import-toggle input{accent-color:var(--px-accent,#e0ad69)}
+.file-import-pixel{image-rendering:pixelated}
+.record-pixel-cover{display:grid;gap:8px;padding:10px;background:var(--px-surface-2,#3a2416);box-shadow:0 0 0 2px var(--px-shadow,#0d0805),inset 2px 2px 0 var(--px-border,#8a5a32);animation:player-pop var(--px-dur-med,240ms) var(--px-ease,steps(4,end))}
+.record-pixel-cover img{width:100%;max-width:220px;aspect-ratio:1;image-rendering:pixelated;box-shadow:4px 4px 0 var(--px-shadow,#0d0805)}
+.record-pixel-cover small{font-size:11px;line-height:1.5;color:var(--px-ink-dim,#c9a47a)}
+.record-pixel-cover span{display:flex;flex-wrap:wrap;gap:6px}
