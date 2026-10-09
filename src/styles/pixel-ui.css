@@ -139,3 +139,22 @@ input[type=checkbox], input[type=radio] { accent-color: var(--px-accent); }
   .pixel-button:hover:not(:disabled), .room-record:hover, .cabin-room .cabin-toolbar button:hover:not(:disabled) { translate: none !important; }
 }
 html[data-desktop-reduce-motion='true'] .room-record:hover, html[data-desktop-reduce-motion='true'] .pixel-button:hover:not(:disabled) { translate: none !important; }
+
+/* ── square corners everywhere in the chrome (pixel art has no radii) ──── */
+.record-library-controls select, .record-library-controls > button, .record-tools-button, .record-dialog button,
+.record-dialog input:not([type=checkbox]):not([type=range]):not([type=color]), .record-dialog input[type=color], .record-style-preview > img,
+.record-preview-placeholder, .record-box-membership, .record-box-albums > label, .record-box-albums img, .record-style-fields select,
+.album-wall-overlay button, .wall-project-tools a, .wall-file, .wall-options input:not([type='checkbox']):not([type='range']), .wall-options select,
+.wall-search input, .wall-search select, .wall-search > label, .wall-cover, .wall-add-order, .wall-canvas-wrap, .wall-preview-empty,
+.cabin-welcome, .welcome-scene, .welcome-scene-options button, .welcome-pet-options button, .welcome-scene-options img, .welcome-note,
+.welcome-shortcuts kbd, .cabin-welcome .pixel-button, .room-personalization, .scene-choice, .pet-choice, .room-personalization .personalization-footer .record-primary,
+.music-local-folders li, .local-album-list li, .local-album-list img, .local-album-placeholder, .cabin-room .cabin-toolbar, .wallpaper-error,
+.turntable-controls select, .turntable-source select, .turntable-matches button, .music-settings select, .room-selection-art > .showroom-artwork { border-radius: 0 !important; }
+
+/* Choice cards (scenes / companions): framed tiles that lift and lock in. */
+.scene-choice, .pet-choice { border: 2px solid #8a5a3299 !important; box-shadow: var(--px-shadow-2); transition: translate var(--px-dur-fast) steps(2, end), border-color var(--px-dur-fast) steps(2, end), box-shadow var(--px-dur-fast) steps(2, end); }
+.scene-choice:hover, .pet-choice:hover { translate: 0 -2px; border-color: var(--px-accent) !important; box-shadow: 4px 6px 0 var(--px-shadow); }
+.scene-choice:active, .pet-choice:active { translate: 1px 1px; box-shadow: var(--px-shadow-1); transition-duration: 0s; }
+.scene-choice[aria-pressed=true], .pet-choice[aria-pressed=true] { border-color: var(--px-accent-hi) !important; background: #e0ad6914 !important; box-shadow: 0 0 0 2px var(--px-shadow), var(--px-shadow-2) !important; }
+.scene-choice > img, .welcome-scene-options img, .welcome-scene img { image-rendering: pixelated; }
+.welcome-shortcuts kbd { font-family: var(--px-font-en); font-size: 8px; box-shadow: inset -2px -2px 0 #0000004d, var(--px-shadow-1); }
