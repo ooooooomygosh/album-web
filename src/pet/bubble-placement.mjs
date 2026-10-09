@@ -47,6 +47,8 @@ export function chooseCatSpot({ cat, floorTop = cat.top, bubble, obstacles, cons
     return { ...spot, cost, bubble: bubblePick, distance: Math.abs(spot.left - home) + (spot.perch ? w : 0) };
   };
   const current = evaluate({ perch: Boolean(cat.perch), left: cat.left, top: cat.top });
+  // A perched cat needs its perch: console visible, feet on its top edge, mostly over it.
+  if (cat.perch && !(consoleRect && Math.abs(cat.top + h - consoleRect.top) <= 2 && Math.min(cat.left + w, consoleRect.right) - Math.max(cat.left, consoleRect.left) >= w / 2)) current.cost = Infinity;
   if (current.cost === 0) return current;
-  return spots.map(evaluate).reduce((best, s) => (s.cost < best.cost - 1 || (Math.abs(s.cost - best.cost) <= 1 && s.distance < best.distance)) ? s : best, current);
+  return spots.map(evaluate).reduce((best, s) => (s.cost < best.cost - 1 || (Math.abs(s.cost - best.cost) <= 1 && s.distance < best.distance)) ? s : best, current.cost === Infinity ? { ...current, cost: Number.MAX_VALUE } : current);
 }

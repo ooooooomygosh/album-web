@@ -165,17 +165,32 @@ try {
   await screenshot('cabin-1280x800-after-dblclick'); check('room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800');
   // Every scene at common laptop/desktop sizes: deck + record cells on screen and never under toolbar/panels,
   // also with the focus panel open; the cat's bubble never covers a record cell or a panel.
-  const layoutIssues = (state) => page.evaluate((state) => {
+  // The cat always stands on something: the floor baseline or the (visible) console top.
+  const catHelpers = () => {
+    window.__catMoves = [];
+    new MutationObserver(() => { const m = document.querySelector('.room-cat')?.dataset.moving; if (m) window.__catMoves.push(m); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-moving'] });
+    window.__catSupport = () => {
+      const cat = document.querySelector('.room-cat'), scene = cat?.closest('.room-scene'); if (!cat || !scene) return [];
+      const c = cat.getBoundingClientRect(), s = scene.getBoundingClientRect(), floor = parseFloat(getComputedStyle(cat).getPropertyValue('--cat-floor'));
+      const deck = document.querySelector('.room-turntable'), d = deck && deck.getClientRects().length && getComputedStyle(deck).visibility !== 'hidden' ? deck.getBoundingClientRect() : null;
+      const onFloor = Math.abs(c.bottom - (s.bottom - floor)) <= 2, onConsole = d && Math.abs(c.bottom - d.top) <= 2 && Math.min(c.right, d.right) - Math.max(c.left, d.left) >= c.width / 2;
+      return onFloor || onConsole ? [] : [`cat floating (feet ${Math.round(c.bottom)}, floor ${Math.round(s.bottom - floor)}, console ${d ? Math.round(d.top) : 'hidden'})`];
+    };
+  };
+  await page.evaluate(catHelpers);
+  const catSettled = () => page.waitForFunction(() => { const c = document.querySelector('.room-cat'); return !c || !c.getAnimations().length; });
+  const layoutIssues = async (state) => { await catSettled(); return page.evaluate((state) => {
     const rects = s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden').map(e => ({ name: String(e.className).split(' ')[0], r: e.getBoundingClientRect() }));
     const panels = rects('.app-titlebar, .cabin-toolbar > *, .room-turntable, .room-now-playing, .room-shelf-navigation, .focus-dock'), cells = [...rects('.room-record-slot'), ...rects('.scene-deck')], bubbles = [...rects('.room-cat-bubble'), ...rects('.room-cat').map(c => { const k = c.r.width * .14; return { name: 'room-cat', r: { left: c.r.left + k, right: c.r.right - k, top: c.r.top + k, bottom: c.r.bottom } }; })];
     const hit = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1, out = [];
     if (!document.querySelector('.room-now-playing')) out.push('footer missing');
+    out.push(...window.__catSupport().map(x => `${state}: ${x}`));
     for (const t of [...cells, ...bubbles]) {
       if (t.r.left < -1 || t.r.top < -1 || t.r.right > innerWidth + 1 || t.r.bottom > innerHeight + 1) out.push(`${state}: ${t.name} off screen`);
       for (const o of [...panels, ...(t.name.startsWith('room-cat') ? cells : [])]) if (hit(t.r, o.r)) out.push(`${state}: ${t.name} under ${o.name}`);
     }
     return out;
-  }, state);
+  }, state); };
   await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '番茄钟' }).click();
   const startFocus = page.getByRole('button', { name: '开始专注', exact: true }); if (await startFocus.count()) await startFocus.click();
   await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.locator('.room-cat-bubble').waitFor();
@@ -194,8 +209,19 @@ try {
   await page.setViewportSize({ width: 1280, height: 800 }); await page.mouse.move(1200, 120); await page.keyboard.press('z'); await page.waitForTimeout(400);
   const deckBox = await page.locator('.room-turntable').boundingBox(), deckStyle = () => page.locator('.room-turntable').evaluate(e => [getComputedStyle(e).opacity, getComputedStyle(e).visibility, getComputedStyle(e).pointerEvents].join(' '));
   assert.equal(await deckStyle(), '0 hidden none', 'immersive console must be fully hidden');
+  await page.waitForTimeout(700); assert.deepEqual(await layoutIssues('immersive'), []); assert.equal(await page.locator('.room-cat[data-perch]').count(), 0, 'cat leaves the hidden console');
   await page.mouse.move(deckBox.x + deckBox.width / 2, deckBox.y + 10); await page.waitForTimeout(400); assert.equal(await deckStyle(), '1 visible auto', 'console returns when the pointer is near');
-  await page.mouse.move(1200, 120); await page.waitForTimeout(400); assert.equal(await deckStyle(), '0 hidden none'); await page.keyboard.press('Escape'); check('immersive-console-hidden-and-revealed-near-pointer');
+  const catSpot = () => page.locator('.room-cat').evaluate(c => `${c.dataset.spotX}/${c.dataset.perch || 'floor'}`), spotBeforeHover = await catSpot(); await page.mouse.move(1200, 120); await page.waitForTimeout(300); assert.equal(await catSpot(), spotBeforeHover, 'a brief hover must not move the cat'); await page.mouse.move(deckBox.x + deckBox.width / 2, deckBox.y + 10); await page.waitForTimeout(1200); assert.deepEqual(await layoutIssues('immersive hover'), []);
+  await page.mouse.move(1200, 120); await page.waitForTimeout(400); assert.equal(await deckStyle(), '0 hidden none'); await page.waitForTimeout(700); assert.deepEqual(await layoutIssues('immersive again'), []); await page.keyboard.press('Escape'); await page.waitForTimeout(700); assert.deepEqual(await layoutIssues('after immersive'), []);
+  assert((await page.evaluate(() => window.__catMoves)).every(m => m === 'fade'), 'reduced motion moves the cat with a fade swap only');
+  check('cat-always-on-a-surface-and-hops-off-hidden-console'); check('immersive-console-hidden-and-revealed-near-pointer');
+  { const motionPage = await context.newPage(); await motionPage.emulateMedia({ reducedMotion: 'no-preference' }); await motionPage.setViewportSize({ width: 1280, height: 800 }); await motionPage.goto(origin); await motionPage.locator('.room-record').first().waitFor(); await motionPage.evaluate(() => { document.documentElement.dataset.desktopReduceMotion = 'false'; });
+    const mainRef = page; page = motionPage; await page.evaluate(catHelpers); await page.waitForTimeout(800);
+    await page.locator('.focus-badge').click(); await page.locator('.focus-dock').waitFor(); await page.waitForTimeout(1500);
+    await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.keyboard.press('z'); await page.waitForTimeout(1500); await page.keyboard.press('Escape'); await page.waitForTimeout(1500);
+    const moves = await page.evaluate(() => window.__catMoves), media = await page.evaluate(() => `${matchMedia('(prefers-reduced-motion: reduce)').matches}/${document.documentElement.dataset.desktopReduceMotion}`);
+    assert(moves.length > 0 && moves.every(m => m === 'jump' || m === 'walk'), `cat relocations animate (got ${moves.join(',') || 'none'}; reduce ${media})`);
+    assert.deepEqual(await layoutIssues('motion'), []); await page.close(); page = mainRef; check('cat-relocation-hops-or-walks-when-motion-allowed'); }
   await page.close(); page = mainPage; 
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
