@@ -28,7 +28,7 @@ export default function CabinWelcome({ look, petId, onChange, close, finish, red
     <ol className="welcome-progress" aria-label="入门步骤">{steps.map((title, index) => <li key={title} aria-current={step === index ? 'step' : undefined}><span>{index < step ? <Check size={13}/> : index + 1}</span>{title}</li>)}</ol>
     <div className="welcome-layout">
       <div className="welcome-scene" style={{ '--welcome-accent': scene.style.accent }}>
-        <img src={scene.art} alt={scene.alt} width="1448" height="1086"/>
+        <img src={scene.view} alt={scene.alt} width="1448" height="1086"/>
         <div className="welcome-scene-caption"><span>YOUR LITTLE CORNER</span><strong>{scene.label}</strong><small>{scene.description}</small></div>
         <PixelCat petId={petId} pose={step === 2 ? 'focus' : 'idle'} reduceMotion={reduceMotion} label={`${pet.name}陪着你`}/>
       </div>
@@ -37,7 +37,7 @@ export default function CabinWelcome({ look, petId, onChange, close, finish, red
         <h3 id="welcome-heading" ref={heading} tabIndex={-1}>{['今天，想在哪里待着？', '让喜欢的音乐住进来。', '这一轮，安心做一件事。'][step]}</h3>
         {step === 0 ? <>
           <p>选一个角落，再找一位伙伴。以后随时可以在「布置小屋」里更换。</p>
-          <div className="welcome-scene-options" role="group" aria-label="入门场景">{ROOM_SCENES.map(scene => <button type="button" key={scene.id} onClick={() => onChange({ look: scene.id })} aria-label={`入门选择 ${scene.label}`} aria-pressed={look === scene.id} title={scene.label}><img src={scene.art} alt=""/><span>{scene.label}</span></button>)}</div>
+          <div className="welcome-scene-options" role="group" aria-label="入门场景">{ROOM_SCENES.map(scene => <button type="button" key={scene.id} onClick={() => onChange({ look: scene.id })} aria-label={`入门选择 ${scene.label}`} aria-pressed={look === scene.id} title={scene.label}><img src={scene.view} alt=""/><span>{scene.label}</span></button>)}</div>
           <div className="welcome-pet-options" role="group" aria-label="入门伙伴">{PETS.map(pet => <button type="button" key={pet.id} aria-label={`入门选择 ${pet.name}`} aria-pressed={petId === pet.id} onClick={() => onChange({ petId: pet.id })}><PixelCat petId={pet.id} pose="idle" reduceMotion={reduceMotion}/><span>{pet.name}</span></button>)}</div>
           {error && <p className="record-error" role="alert">选择未保存：{error}</p>}
           <small className="welcome-footnote">无需解锁，也没有喂养负担。</small>

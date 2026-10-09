@@ -1,29 +1,24 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import SceneDeck from './scene/SceneDeck';
 import { ChevronLeft, ChevronRight, Disc3, Pause, Play, X, Plus } from './icons';
-import { VinylDisc } from './RecordLibrary';
-import { ShowroomArtwork } from './RoomArtwork';
 import { ROOM_DRAG_TYPE } from './RoomScene';
 import useTurntablePosition from './useTurntablePosition';
 import { trackNames } from './room-model.mjs';
 import PlayerControls from './player/PlayerControls';
 
 export default function RoomTurntable({ item, spinning, trackIndex = 0, style, items = [], load, toggle, track, eject, readOnly = false, desktopClient = false, provider = 'visual', setProvider, playback, statusText, actualTrack, system, player }) {
-  const [dragging, setDragging] = useState(false), names = trackNames(item);
+  const [dragging, setDragging] = useState(false), names = trackNames(item), deckAnchor = useRef(null);
   const placement = useTurntablePosition(readOnly);
   const trackName = actualTrack || playback?.actualTrack || names[trackIndex] || (item ? '原始资料暂无曲目' : '双击封面，或将唱片拖到这里');
   return <aside ref={placement.ref} style={placement.style} data-moving={String(placement.moving)} className={`room-turntable ${spinning ? 'is-spinning' : ''} ${dragging ? 'is-drop-target' : ''}`} aria-label="黑胶唱机" data-loaded-id={item?.id || ''} data-spinning={String(Boolean(spinning))} onDragOver={(event) => { if (!readOnly && event.dataTransfer.types.includes(ROOM_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragging(true); } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }} onDrop={(event) => {
     event.preventDefault(); setDragging(false);
     const found = items.find((candidate) => candidate.id === event.dataTransfer.getData(ROOM_DRAG_TYPE)); if (found && !readOnly) load?.(found);
   }}>
-    <div className="turntable-stage" aria-hidden="true">
-      <div className="turntable-deck">
-        <span className="turntable-body-front"/><span className="turntable-body-right"/>
-        <span className="turntable-foot turntable-foot-left"/><span className="turntable-foot turntable-foot-right"/>
-        <div className="turntable-platter"><span className="platter-rings"/>{item && <div className="turntable-record" key={item.id}><div className="turntable-disc-rotation"><VinylDisc item={item} value={style}/><ShowroomArtwork item={item} className="turntable-label"/></div></div>}</div>
-        <div className="turntable-tonearm"><i/><span/></div><span className="turntable-indicator"/><span className="turntable-speed-knob"/>
-        <span className="turntable-brand">FLOW CABIN · 33⅓</span>
-      </div>
-    </div>
+    {/* The physical deck lives in the scene (shelf top) — see src/scene/SceneDeck.jsx. */}
+    <span ref={deckAnchor} hidden/>
+    <SceneDeck anchor={deckAnchor} item={item} spinning={spinning} vinyl={style} readOnly={readOnly} dragType={ROOM_DRAG_TYPE}
+      onActivate={() => deckAnchor.current?.closest('.room-turntable')?.querySelector('.turntable-toggle')?.click()}
+      onDropRecord={(id) => { const found = items.find((candidate) => candidate.id === id); if (found && !readOnly) load?.(found); }}/>
     <div className="turntable-side-cabinet">
       <span className="cabinet-side-face" aria-hidden="true"/><span className="cabinet-leg cabinet-leg-left" aria-hidden="true"/><span className="cabinet-leg cabinet-leg-right" aria-hidden="true"/>
       <div className="turntable-console">
