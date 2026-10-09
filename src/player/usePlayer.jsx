@@ -111,6 +111,6 @@ export function usePlaybackBroadcast({ playing, provider, spinning, record, trac
 export function suggestProvider(item) {
   const details = Array.isArray(item?.trackDetails) ? item.trackDetails : [];
   if (item?.externalIds?.fileAlbum || details.some((track) => track?.source === 'local')) return 'local';
-  if (details.some((track) => /^[a-z\d]{14}$/i.test(track?.providerId || '') && track?.source !== 'local') || /^[a-z\d]{14}$/i.test(item?.externalIds?.qqSongMid || '')) return 'qq';
+  if (details.some((track) => /^[a-z\d]{14}$/i.test(track?.providerId || '') && track?.source !== 'local') || /^[a-z\d]{14}$/i.test(item?.externalIds?.qqSongMid || '')) return 'auto'; // QQ ids first, then verified QQ / 网易云 matches
   return '';
 }

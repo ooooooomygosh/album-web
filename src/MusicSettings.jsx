@@ -4,7 +4,7 @@ import { X, Music2, FolderOpen, Trash2, Loading } from './icons';
 import { desktopCommand, useDesktopAppearance } from './desktop-client';
 import './player/player.css';
 
-const SOURCE_NAMES = { visual: '仅动画展示', qq: 'QQ 音乐', netease: '网易云音乐', ma: 'Music Assistant', local: '本地音乐', system: '系统正在播放' };
+const SOURCE_NAMES = { visual: '仅动画展示', auto: '自动匹配可播放音源', qq: 'QQ 音乐', netease: '网易云音乐', ma: 'Music Assistant', local: '本地音乐', system: '系统正在播放' };
 // "Use on the deck": one click from a connected source to hearing it.
 function UseSource({ value, provider, useSource }) {
   if (!useSource) return null;

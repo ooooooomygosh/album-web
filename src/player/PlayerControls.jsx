@@ -6,7 +6,7 @@ import './player.css';
 const clock = (seconds) => { const value = Math.max(0, Math.floor(Number(seconds) || 0)); return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`; };
 const REPEAT_LABEL = { off: '顺序播放', all: '整张循环', one: '单曲循环' };
 const REPEAT_GLYPH = { off: '→', all: '⟳', one: '⟳1' };
-export const QUICK_SOURCES = [['local', '本地音乐'], ['qq', 'QQ 音乐'], ['netease', '网易云']];
+export const QUICK_SOURCES = [['auto', '自动匹配'], ['local', '本地音乐'], ['qq', 'QQ 音乐'], ['netease', '网易云']];
 
 // The deck's transport: one obvious play button, previous / next, a small
 // 待播 stack, repeat / shuffle, progress and volume, and errors that say what

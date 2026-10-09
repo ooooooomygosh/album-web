@@ -20,7 +20,7 @@ window.addEventListener('cabin:playback', (event) => {
 | `energy` | `number` 0..1 | Loudness. RMS of an `AnalyserNode` on the deck's `<audio>`, with a fast attack and slower release. Always `0` when not playing. |
 | `estimated` | `boolean` | `true` when no analyser can be attached (Music Assistant speakers, system player, or audio that is not same-origin). `energy` is then a gentle synthetic pulse; don't treat it as a beat. |
 | `spinning` | `boolean` | The record is turning on the deck, including 仅动画展示 mode. Use this for platter and tonearm motion, and `playing` for anything that implies sound. |
-| `provider` | `string` | `visual`, `local`, `qq`, `netease`, `ma` or `system`. |
+| `provider` | `string` | `visual`, `auto`, `local`, `qq`, `netease`, `ma` or `system`. |
 | `track` | `object \| null` | `{ id, index, title, artist, album }`. `id` is the collection item id. `null` when the deck is empty. |
 | `reason` | `string` | `state` (play/pause/source/spin changed), `track` (track or record changed), or `energy` (periodic tick). |
 
