@@ -12,9 +12,11 @@
 
 <img src="docs/images/showcase/cabin.jpg" width="100%" alt="实际运行的心流小屋：雪窗、十二格唱片架、木屋唱机与像素小猫">
 
-<sub>本分支实际界面截图，使用原创示意唱片与隔离数据；没有连接平台账号，也不代表真实平台播放验收。</sub>
+<sub>实际小屋界面，展示真实专辑与公开曲库封面；使用隔离收藏，不含平台账号。[专辑与图片来源](docs/showcase-sources.md)。</sub>
 
 </div>
+
+[看一段小屋实录 →](docs/images/showcase/cabin-tour.mp4) · [看看首次使用 →](#第一次来让小屋带你走三步)
 
 ## 下载，挑一个适合你的版本
 
@@ -23,6 +25,8 @@
 | Mac · Apple Silicon（M 系列） | [DMG · arm64](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-mac-arm64.dmg) | 打开 DMG，把小屋拖进「应用程序」 |
 | Mac · Intel | [DMG · x64](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-mac-x64.dmg) | 打开 DMG，把小屋拖进「应用程序」 |
 | Windows · x64 | [安装版](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-x64-setup.exe) · [便携版](https://github.com/ooooooomygosh/album-web/releases/download/v1.8.0/FlowCabin-1.8.0-x64-portable.exe) | 安装版按提示安装；便携版直接运行 |
+
+截图和三步入门指南展示的是当前开发代码，尚未打包进 v1.8.0。
 
 以上文件名对应 **v1.8.0**；新版本请从 [Release 页面](https://github.com/ooooooomygosh/album-web/releases/latest)选择。macOS 当前未完成开发者签名与公证，Windows 也可能显示未知发布者提示。先核对下载来源，再看[安装说明](docs/getting-started.md#安装与首次打开)。不需要为收藏、专注或环境音注册小屋账号。
 
@@ -69,11 +73,17 @@ QQ 已在 Mac Apple Silicon 上验证两首真实歌曲的播放、暂停／继�
 
 曲库搜索、封面加载和平台播放会访问对应第三方，本地保存不表示所有功能离线。桌宠与动态桌面只接收清洗后的显示数据。[数据、隐私与备份 →](docs/getting-started.md#数据与备份)
 
-## 第一次使用
+## 第一次来，让小屋带你走三步
 
-1. **先选一个地方。** 打开「布置小屋」，选择场景与伙伴；不需要解锁。
-2. **听歌，或先专注。** 添加第一张专辑并选择音源；也可以直接点「先专注一会儿」，无需先收藏。
-3. **让小屋安静下来。** 在专注工具里调整声音，按 <kbd>Z</kbd> 收起界面；需要时用「收藏与备份」保存一份数据。
+第一次打开空白小屋，会有一份可跳过的入门指南。选择会留在本机；以后点右上角「入门指南」就能重新打开。
+
+1. **找个角落。** 直接挑选场景和伙伴，边选边看，不需要解锁。
+2. **放一张唱片。** 了解收藏与播放的区别，再决定使用本地音乐还是连接平台。无需现在登录。
+3. **留一点时间。** 打开专注工具，或去添加专辑。只有亲自点「开始专注」才计时。
+
+<img src="docs/images/showcase/welcome.jpg" width="100%" alt="三步入门指南的第一步：直接选择五种场景和五位伙伴，可跳过、返回或随时重新打开">
+
+场景淡入、唱片轻微抬起、面板展开都有短促反馈。系统或应用开启「减少动态效果」后，界面过渡与伙伴动画会静下来。使用 <kbd>Tab</kbd> 浏览控件、<kbd>Esc</kbd> 关闭指南，<kbd>Z</kbd> 进入沉浸。
 
 [安装、连接音乐与常见问题](docs/getting-started.md) · [已知限制与验证状态](docs/limitations.md)
 

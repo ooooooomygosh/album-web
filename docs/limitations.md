@@ -2,7 +2,7 @@
 
 本页区分已实现、已验证与尚未验证。README 是使用入口；历史审计报告保留其当时的提交、日期与失败记录，不把旧报告套用到新提交。
 
-基线：v1.8.0 / `f46bdf6a30b63faca8937e3fef4b81bf57ce268a`。本分支仅打磨文档与上手呈现，没有发布新版本。
+基线：v1.8.0 / `f46bdf6a30b63faca8937e3fef4b81bf57ce268a`。后续呈现分支新增三步入门指南、轻量动效与真实专辑展示；没有发布新版本，v1.8.0 安装包不含这些新变化。
 
 ## 音乐与平台
 
@@ -49,7 +49,7 @@
 - [功能矩阵](audit/feature-matrix.md)：实现、自动测试与原生验证分开记录。
 - [Mac 原生验收](audit/native-mac-acceptance-2026-10-09.md)：真实 QQ、一分钟专注、场景伙伴同步、动态背景与故障注入；保留历史未完成项，更新结果以本页明确补充为准。
 - [既有自动验证汇总](audit/verification-summary.md)与[浏览器验证](audit/browser-validation.md)：精确提交及夹具边界；旧预览不是生产主页。
-- [本分支呈现验证](audit/product-presentation.md)：改动、截图生成方式、测试结果与剩余验证。
+- [首轮呈现验证](audit/product-presentation.md)与[三步入门及真实专辑展示验证](audit/welcome-experience.md)：各轮改动、截图生成方式、测试结果与剩余验证。
 - [产品审查](audit/2026-10-product-review.md)、[产品计划](product-plan.md)：待完成范围与放行条件。
 
 [回到 README](../README.md) · [第一次使用](getting-started.md)

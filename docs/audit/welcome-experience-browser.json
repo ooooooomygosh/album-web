@@ -1,0 +1,270 @@
+{
+  "startedAt": "2026-10-09T05:09:53.387Z",
+  "fixtureData": true,
+  "nativeIntegrationTested": false,
+  "realAccountsUsed": false,
+  "checks": [
+    {
+      "name": "first-visit-guide-three-sizes-keyboard-heading-and-no-autostart",
+      "passed": true
+    },
+    {
+      "name": "guide-dismissal-scene-and-companion-survive-reload",
+      "passed": true
+    },
+    {
+      "name": "guide-all-exit-actions-escape-and-focus-restoration",
+      "passed": true
+    },
+    {
+      "name": "guide-motion-obeys-os-and-app-preferences",
+      "passed": true
+    },
+    {
+      "name": "guide-storage-failure-preserves-selection-and-allows-exit",
+      "passed": true
+    },
+    {
+      "name": "returning-empty-collection-is-not-interrupted",
+      "passed": true
+    },
+    {
+      "name": "renderer-mounts-with-offline-collection",
+      "passed": true
+    },
+    {
+      "name": "viewport-1440x900",
+      "passed": true
+    },
+    {
+      "name": "viewport-960x600",
+      "passed": true
+    },
+    {
+      "name": "all-five-scenes-and-pets-select-and-persist",
+      "passed": true
+    },
+    {
+      "name": "collection-create-manual",
+      "passed": true
+    },
+    {
+      "name": "collection-update-notes-and-delete",
+      "passed": true
+    },
+    {
+      "name": "catalog-search-fixture",
+      "passed": true
+    },
+    {
+      "name": "actual-generated-wav-decodes-and-plays",
+      "passed": true
+    },
+    {
+      "name": "local-next-track-resolves-exact-id",
+      "passed": true
+    },
+    {
+      "name": "system-source-and-transport-mocked",
+      "passed": true
+    },
+    {
+      "name": "music-settings-offline-account-and-local-status",
+      "passed": true
+    },
+    {
+      "name": "focus-tasks-create-and-complete",
+      "passed": true
+    },
+    {
+      "name": "quick-notes-save-local-text",
+      "passed": true
+    },
+    {
+      "name": "focus-timer-completes-and-records-session",
+      "passed": true
+    },
+    {
+      "name": "backup-exports-collection-and-focus",
+      "passed": true
+    },
+    {
+      "name": "backup-rejects-malformed-input",
+      "passed": true
+    },
+    {
+      "name": "backup-import-merges-new-album",
+      "passed": true
+    },
+    {
+      "name": "album-wall-paints-and-downloads-real-png",
+      "passed": true
+    },
+    {
+      "name": "zen-mode-keyboard",
+      "passed": true
+    },
+    {
+      "name": "companion-snapshot-carries-selected-pet-and-room",
+      "passed": true
+    },
+    {
+      "name": "wallpaper-renderer-all-scenes-mocked-snapshot",
+      "passed": true
+    },
+    {
+      "name": "pet-renderer-all-species-and-keyboard-poke-mocked-bridge",
+      "passed": true
+    },
+    {
+      "name": "deleted-albums-do-not-receive-late-autosaves",
+      "passed": true
+    }
+  ],
+  "screenshots": [
+    "cabin-1440x900.png",
+    "cabin-960x600.png",
+    "room-personalization.png",
+    "room-personalization-960x600.png",
+    "scene-pixel-960x600.png",
+    "scene-warm-960x600.png",
+    "scene-forest-960x600.png",
+    "scene-seaside-960x600.png",
+    "scene-starlight-960x600.png",
+    "catalog-results.png",
+    "music-settings.png",
+    "focus-statistics.png",
+    "album-wall.png",
+    "zen-mode.png",
+    "wallpaper-pixel.png",
+    "wallpaper-warm.png",
+    "wallpaper-forest.png",
+    "wallpaper-seaside.png",
+    "wallpaper-starlight.png",
+    "desktop-pet-cat.png",
+    "desktop-pet-chick.png",
+    "desktop-pet-bunny.png",
+    "desktop-pet-bear.png",
+    "desktop-pet-fox.png"
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "unexpectedRequests": [],
+  "apiCalls": [
+    {
+      "method": "GET",
+      "path": "/desktop-music/local/summary",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/config",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/items",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/items",
+      "id": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/items",
+      "id": null
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/items",
+      "id": "added-18"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/items",
+      "id": "added-18"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search",
+      "id": null
+    },
+    {
+      "method": "POST",
+      "path": "/desktop-music/resolve",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/local/audio/abcdef0123456789",
+      "id": null
+    },
+    {
+      "method": "POST",
+      "path": "/desktop-music/resolve",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/local/audio/fedcba9876543210",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/now-playing",
+      "id": null
+    },
+    {
+      "method": "POST",
+      "path": "/desktop-music/now-playing/control",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/now-playing",
+      "id": null
+    },
+    {
+      "method": "POST",
+      "path": "/desktop-music/now-playing/control",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/local/summary",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/config",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/desktop-music/now-playing",
+      "id": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/items/import",
+      "id": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/items",
+      "id": null
+    }
+  ],
+  "skipped": [],
+  "limitations": [
+    "Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.",
+    "WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.",
+    "Screenshots are review artifacts; no approved pixel baseline has been established.",
+    "macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests."
+  ],
+  "passed": true,
+  "finishedAt": "2026-10-09T05:10:04.897Z"
+}

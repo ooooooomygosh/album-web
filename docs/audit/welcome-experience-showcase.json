@@ -1,0 +1,129 @@
+{
+  "startedAt": "2026-10-09T05:09:10.750Z",
+  "fixtureData": true,
+  "realCatalogAlbums": true,
+  "artworkSources": "scripts/showcase-albums.json",
+  "headless": true,
+  "realAccountsUsed": false,
+  "nativeIntegrationTested": false,
+  "checks": [
+    "first-visit-guide-three-sizes-keyboard-heading-and-no-autostart",
+    "guide-dismissal-scene-and-companion-survive-reload",
+    "guide-all-exit-actions-escape-and-focus-restoration",
+    "guide-motion-obeys-os-and-app-preferences",
+    "guide-storage-failure-preserves-selection-and-allows-exit",
+    "returning-empty-collection-is-not-interrupted",
+    "welcome-two-paths-and-visible-controls-1440x900",
+    "welcome-two-paths-and-visible-controls-960x600",
+    "twelve-albums-no-redundant-paging-and-visual-audio-hint",
+    "focus-start-and-pause-from-visible-tool",
+    "five-scene-thumbnails-and-all-partner-names-visible",
+    "partner-poke-shows-response",
+    "immersive-enter-and-exit",
+    "all-five-scenes-compact-controls-fit",
+    "real-renderer-tour-recorded-with-motion-and-no-audio"
+  ],
+  "screenshots": [
+    {
+      "name": "welcome-1440x900",
+      "publicImage": false,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "welcome-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    },
+    {
+      "name": "cabin",
+      "publicImage": true,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "focus",
+      "publicImage": true,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "personalization",
+      "publicImage": true,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "immersive",
+      "publicImage": false,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "cabin-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    },
+    {
+      "name": "scene-pixel-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    },
+    {
+      "name": "scene-warm-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    },
+    {
+      "name": "scene-forest-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    },
+    {
+      "name": "scene-seaside-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    },
+    {
+      "name": "scene-starlight-960x600",
+      "publicImage": false,
+      "viewport": {
+        "width": 960,
+        "height": 600
+      }
+    }
+  ],
+  "errors": [],
+  "unexpectedRequests": [],
+  "video": "cabin-tour.mp4",
+  "passed": true,
+  "finishedAt": "2026-10-09T05:09:39.743Z"
+}

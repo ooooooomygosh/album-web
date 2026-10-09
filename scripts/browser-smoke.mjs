@@ -4,6 +4,7 @@
  * Fixtures never call external services or read a user's profile/collection.
  */
 import assert from 'node:assert/strict';
+import { verifyWelcome } from './welcome-checks.mjs';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -32,7 +33,7 @@ try {
   browser = await chromium.launch({ executablePath: process.env.BROWSER_EXECUTABLE || (process.env.CI ? chromium.executablePath() : await fs.access('/usr/bin/chromium').then(() => true, () => false) ? '/usr/bin/chromium' : chromium.executablePath()), headless: true, args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: 'zh-CN', reducedMotion: 'reduce' });
   await context.addInitScript(() => { window.__desktopCommands = []; window.open = url => { window.__desktopCommands.push(String(url)); return null; }; window.albumDesktopAppearance = { client: true, reduceMotion: true }; const init = () => { document.documentElement.dataset.desktopClient = 'true'; document.documentElement.dataset.desktopReduceMotion = 'true'; }; if (document.documentElement) init(); else new MutationObserver((_, o) => { if (document.documentElement) { init(); o.disconnect(); } }).observe(document, { childList: true }); });
-  await context.route('**/*', async route => {
+  const routeHandler = async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.origin !== origin) { report.unexpectedRequests.push(request.url()); return route.abort('blockedbyclient'); }
     const p = url.pathname, body = request.postDataJSON?.() || {};
@@ -57,7 +58,10 @@ try {
     if (p === '/desktop-music/now-playing/control') { systemCommands.push(body.action); if (body.action === 'toggle') systemPlaying = !systemPlaying; return json({ ok: true }); }
     if (p.startsWith('/api/') || p.startsWith('/desktop-music/')) { report.unexpectedRequests.push(p); return route.fulfill({ status: 500, json: { error: 'Unimplemented fixture ' + p } }); }
     return route.continue();
-  });
+  };
+  await context.route('**/*', routeHandler);
+  const welcomeRoute = route => new URL(route.request().url()).pathname === '/api/items' ? route.fulfill({ json: { items: [] } }) : routeHandler(route);
+  await verifyWelcome({ browser, origin, routeHandler: welcomeRoute, evidence: output, output, check });
   context.on('page', watched => { watched.on('pageerror', error => report.pageErrors.push(error.message)); watched.on('console', message => { if (message.type() === 'error') report.consoleErrors.push(message.text()); }); watched.on('requestfailed', request => { if (request.failure()?.errorText !== 'net::ERR_ABORTED') report.failedRequests.push({ url: request.url(), error: request.failure()?.errorText }); }); });
   page = await context.newPage(); page.setDefaultTimeout(12000); await page.clock.install({ time: new Date('2026-10-08T10:00:00Z') });
   /* context captures errors across the main, wallpaper and pet renderers. */
