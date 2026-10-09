@@ -25,7 +25,9 @@
         "愛我吧",
         "為妳寫的歌",
         "Orange Moon"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/313404785.jpg",
+      "localSHA256": "f7dc9df3e721c0e0807c97f2dbcb54514b387691fd819ba2cb88cd207309b971"
     },
     {
       "collectionId": 966489223,
@@ -49,7 +51,9 @@
         "笑忘書",
         "螢火蟲 (\"再見螢火蟲\" 廣東版)",
         "給自己的情書 (\"笑忘書\" 廣東版)"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/966489223.jpg",
+      "localSHA256": "696ea7c5f17464dd1b7438ea99a7acca4076806954c546c48616c5387e65bb73"
     },
     {
       "collectionId": 1461046017,
@@ -72,7 +76,9 @@
         "背著你",
         "墜落",
         "無言歌"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1461046017.jpg",
+      "localSHA256": "bd13f15860d07b81681950e368052d771b291cdec27ec940b63e9d399f8a1d94"
     },
     {
       "collectionId": 1443374875,
@@ -96,7 +102,9 @@
         "大個女",
         "新美人主義 (國)",
         "遇見了你 (國)"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1443374875.jpg",
+      "localSHA256": "ecddd067c1e4762b98b900f26f8c7708ce1c976c7919744fcf177069623a194a"
     },
     {
       "collectionId": 1443147411,
@@ -118,7 +126,9 @@
         "錯覺",
         "比較幸福",
         "雨還是不停地落下"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1443147411.jpg",
+      "localSHA256": "3d6f61a704e9541d79017d6be53e92ef402c023edcf6f0f50340786ad90a4f24"
     },
     {
       "collectionId": 1690607869,
@@ -144,7 +154,9 @@
         "Serendipity",
         "Letter To My 13 Year Old Self",
         "Bewitched"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1690607869.jpg",
+      "localSHA256": "432c5faf006346aff7808b63edbe2d63f47d9ebd4a575c3ae2e207c7dbbb2402"
     },
     {
       "collectionId": 1440763349,
@@ -167,7 +179,9 @@
         "Another Chance (Remastered 2014)",
         "Interlude (Remastered 2014)",
         "Give Me A Reason (Remastered 2014)"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1440763349.jpg",
+      "localSHA256": "b907fc94d42ac1c1c673b2c4d6423c52bae569e0f2e5f6b574b6dedb1b87b9fb"
     },
     {
       "collectionId": 1078898175,
@@ -194,7 +208,9 @@
         "Summer Gypsy",
         "The Final View",
         "Peaceland"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1078898175.jpg",
+      "localSHA256": "d93f76994b6ae4a909144f07d6bec1ac8a478c50be6dbaac5b245980463ba4da"
     },
     {
       "collectionId": 1507014129,
@@ -220,7 +236,9 @@
         "honj",
         "ff",
         "garden"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1507014129.jpg",
+      "localSHA256": "7430c3eecea2122568c2d8eded38a865e45d36d9fe2821c24e16d2bacbb0e4e0"
     },
     {
       "collectionId": 1624173298,
@@ -246,7 +264,9 @@
         "Nightingale",
         "The Long Day Is Over",
         "The Nearness of You"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1624173298.jpg",
+      "localSHA256": "c72d7e51f57ba48d555c62ac92a89335d5512ecdc018f5444f32cfc246b62d22"
     },
     {
       "collectionId": 1440942198,
@@ -269,7 +289,9 @@
         "Waltz for Debby (Take 1) [Alternate Take]",
         "Detour Ahead (Take 1) [Alternate Take]",
         "My Romance (Take 2) [Alternate Take]"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/1440942198.jpg",
+      "localSHA256": "78722c97d47f60c6272cb121a524302c132bb5ad2dd1360f79869f2c9d913b76"
     },
     {
       "collectionId": 617154241,
@@ -294,7 +316,10 @@
         "Fragments of Time",
         "Doin' it Right",
         "Contact"
-      ]
+      ],
+      "localArtwork": "docs/assets/covers/617154241.jpg",
+      "localSHA256": "2e927c05038921ce70d751c5301e06416048d2a88694f0276751c19a713becd8"
     }
-  ]
+  ],
+  "localArtworkNote": "Reviewed 300×300 copies committed under docs/assets/covers (re-downloaded 2026-10-09; the CDN re-encodes originals, so the original-byte hashes are kept only as provenance). Artwork remains owned by its respective rights holders."
 }
