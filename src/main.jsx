@@ -8,5 +8,6 @@ import './room-immersive.css';
 import './record-library.css';
 import './album-wall.css';
 import './app.css';
+import './styles/pixel-ui.css';
 
 createRoot(document.getElementById('root')).render(<App/>);

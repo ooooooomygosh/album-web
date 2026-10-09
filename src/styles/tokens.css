@@ -7,6 +7,11 @@
  * tokens here instead so the palette stays in one place.
  * Mirrored in tokens.ts for JS/canvas use; keep both in sync.
  */
+/* Pixel fonts (SIL OFL 1.1) — see public/fonts/pixel/README.md */
+@font-face { font-family: 'Fusion Pixel 12'; src: url('/fonts/pixel/fusion-pixel-12-zh_hans.subset.woff2') format('woff2'); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: 'Silkscreen'; src: url('/fonts/pixel/silkscreen-regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Silkscreen'; src: url('/fonts/pixel/silkscreen-bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
 :root {
   /* ── palette (16-colour cabin ramp) ───────────────────────────── */
   --px-bg: #1c120b;          /* night wood, page background */
@@ -53,6 +58,13 @@
   --px-shadow-1: 2px 2px 0 var(--px-shadow);
   --px-shadow-2: 4px 4px 0 var(--px-shadow);
   --px-shadow-3: 4px 4px 0 var(--px-shadow), 8px 8px 0 rgba(13, 8, 5, .45);
+
+  /* 9-slice pixel frames (6×6 source, slice 2): notched corners, top-left
+     highlight, bottom-right shade. Use with border-image (see pixel-ui.css). */
+  --px-frame-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%230d0805' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%23d4a46b' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%238a5a32' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+  --px-frame-img-accent: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%230d0805' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%23ffd99c' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%23c08a4a' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+  --px-frame-img-quiet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%230d0805' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%236b4528' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%233a2416' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
+  --px-frame-img-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' shape-rendering='crispEdges'%3E%3Cpath fill='%233b2a20' d='M1 0h4v1H1zM0 1h1v4H0zM5 1h1v4H5zM1 5h4v1H1z'/%3E%3Cpath fill='%23fff7e6' d='M1 1h4v1H1zM1 2h1v2H1z'/%3E%3Cpath fill='%23e9d6b4' d='M1 4h4v1H1zM4 2h1v2H4z'/%3E%3C/svg%3E");
 
   /* ── motion (pixel art moves in frames, not curves) ───────────── */
   --px-dur-fast: 120ms;
