@@ -24,7 +24,7 @@
 
 [**⬇ 下载最新版**](https://github.com/ooooooomygosh/album-web/releases/latest) · [第一次使用](docs/getting-started.md) · [功能一览](#-功能一览) · [截图](#-截图) · [快速开始](#-快速开始) · [English](#english)
 
-<img src="docs/assets/screenshots/cabin.jpg" width="100%" alt="实际运行的心流小屋：雪窗、十二格唱片架、木屋唱机与像素小猫">
+<img src="docs/assets/screenshots/cabin.jpg" width="100%" alt="实际运行的心流小屋：雪窗、十二格唱片架、架顶的像素唱机与像素小猫">
 
 <img src="docs/assets/covers/313404785.jpg" width="64" height="64" alt="橙月 — Khalil Fong" title="橙月 · Khalil Fong">
 <img src="docs/assets/covers/966489223.jpg" width="64" height="64" alt="寓言 — Faye Wong" title="寓言 · Faye Wong">
@@ -52,7 +52,7 @@
 <td width="33%" valign="top">
 
 ### 💿 唱片架与唱机
-十二格唱片架，双击封面或拖到唱机上放唱片。唱片卡片里看曲目、写笔记，给黑胶挑颜色，用唱片盒整理收藏，还能导出一张专辑墙。
+十二格唱片架顶上摆着一台像素唱机：双击封面或拖上去，唱片落座、唱臂摆入、指示灯亮起，播放时音符随节奏飘出。唱片卡片里看曲目、写笔记，给黑胶挑颜色，用唱片盒整理收藏，还能导出一张专辑墙。
 
 </td>
 <td width="33%" valign="top">
@@ -78,13 +78,13 @@
 <td valign="top">
 
 ### 🌧 程序合成的氛围
-雨声、壁炉、风声、白噪声与黑胶底噪由程序实时合成；Lo-fi 电台用 Tone.js 离线生成，每 16 小节换一段。唱机播放时电台自动让路。
+雨声、壁炉、风声、白噪声与黑胶底噪由程序实时合成；Lo-fi 电台用 Tone.js 离线生成，每 16 小节换一段，唱机播放时自动让路。屋里有飘浮的灰尘与随时间变化的窗光，雪、炉火也会动。
 
 </td>
 <td valign="top">
 
 ### 🐱 伙伴、桌宠与动态桌面
-五个场景（像素 / 写实 / 林间 / 海边 / 星夜）与五位像素伙伴。伙伴可以出门成为桌宠，小屋可以成为动态桌面；支持减少动态效果。
+五个统一像素风的场景（像素 / 琥珀 / 林间 / 海边 / 星夜）与五位像素伙伴。伙伴会呼吸、被戳会冒爱心、跟着音乐摇摆；还可以出门成为桌宠，小屋可以成为动态桌面。所有动效都支持「减少动态效果」。
 
 </td>
 </tr>
@@ -163,7 +163,8 @@ npm run desktop:dev       # 构建并启动完整 Electron 客户端
 
 | 层 | 选型 |
 | --- | --- |
-| 渲染层 | React 19 · Vite 8 · 原生 CSS（像素设计令牌 `src/styles/tokens.css`）· Heroicons |
+| 渲染层 | React 19 · Vite 8 · 原生 CSS（像素设计令牌 `src/styles/tokens.css`，`steps()` 帧动画）· Heroicons |
+| 字体 | [Fusion Pixel 12px](https://github.com/TakWolf/fusion-pixel-font)（中文像素）· [Silkscreen](https://fonts.google.com/specimen/Silkscreen)（英文像素）· HarmonyOS Sans SC（正文）|
 | 声音 | Web Audio 程序合成环境音 · Tone.js 生成 Lo-fi |
 | 桌面端 | Electron 44 · electron-builder · safeStorage · 桌宠与动态壁纸独立窗口 |
 | 音乐 | 本地标签（music-metadata）· QQ / 网易云适配（Simple Music，GPL-3.0）· 系统媒体会话 · Music Assistant |
@@ -175,19 +176,20 @@ npm run desktop:dev       # 构建并启动完整 Electron 客户端
 ```text
 album-web/
 ├── src/                     React 渲染层
-│   ├── CabinRoom.jsx        小屋主场景：唱片架、唱机、工具栏
+│   ├── CabinRoom.jsx        小屋主场景：唱片架、工具栏
+│   ├── scene/               像素唱机、播放控制台、灰尘与窗光等动态层
 │   ├── RecordLibrary.jsx    唱片库、唱片卡片、唱片盒
 │   ├── focus/               番茄钟 · 待办 · 统计 · 声音 · 随手记（纯函数模型 + 单测）
 │   ├── audio/               环境音合成与 Lo-fi 引擎
 │   ├── pet/                 像素伙伴、桌宠窗口与动作
-│   └── styles/tokens.css    共享像素设计令牌
+│   └── styles/              像素设计令牌（tokens.css / tokens.ts）与像素 UI
 ├── desktop/                 Electron 主进程、音乐服务、桌宠 / 壁纸窗口、打包配置与测试
 ├── public/                  字体、图标、场景图与第三方许可
 ├── scripts/                 截图、冒烟测试、图标生成
 └── docs/                    使用指南、架构、限制说明、验收记录与 README 素材（docs/assets）
 ```
 
-更多细节：[架构说明](docs/architecture.md) · [窗口事件](docs/events.md) · [产品计划](docs/product-plan.md) · [桌面开发与打包](desktop/README.md)
+更多细节：[架构说明](docs/architecture.md) · [美术规范](docs/art-direction.md) · [播放器与音源](docs/player.md) · [窗口事件](docs/events.md) · [产品计划](docs/product-plan.md) · [桌面开发与打包](desktop/README.md)
 
 ## 🗺 路线图
 
@@ -229,7 +231,7 @@ npm run check && npm run test:browser
 
 产品灵感：[Chill Pulse](https://store.steampowered.com/app/2826180/Chill_Pulse/)、[lofi-engine](https://github.com/meel-hd/lofi-engine)、[next-beats](https://github.com/btahir/next-beats)、[Study Saga](https://github.com/AchilleasMakris/Study-Saga-Releases)。仅作方向参考，不使用这些项目的角色素材。
 
-依赖与接口：[Simple Music](https://github.com/Yyyangshenghao/simple-music)（GPL-3.0-only）、[Music Assistant](https://github.com/music-assistant/server)、[Tone.js](https://tonejs.github.io/)、[music-metadata](https://github.com/Borewit/music-metadata)、[Heroicons](https://heroicons.com/)、HarmonyOS Sans SC。曲库资料来自 iTunes Search、MusicBrainz 与 Cover Art Archive。字体与素材许可见 [public/licenses](public/licenses)，GPL 模块来源见 [SOURCE.txt](desktop/vendor/simple-music/SOURCE.txt)。
+依赖与接口：[Simple Music](https://github.com/Yyyangshenghao/simple-music)（GPL-3.0-only）、[Music Assistant](https://github.com/music-assistant/server)、[Tone.js](https://tonejs.github.io/)、[music-metadata](https://github.com/Borewit/music-metadata)、[Heroicons](https://heroicons.com/)、HarmonyOS Sans SC；像素字体 [Fusion Pixel](https://github.com/TakWolf/fusion-pixel-font) 与 [Silkscreen](https://github.com/google/fonts/tree/main/ofl/silkscreen)（SIL OFL 1.1，子集见 [public/fonts/pixel](public/fonts/pixel/README.md)）。曲库资料来自 iTunes Search、MusicBrainz 与 Cover Art Archive。字体与素材许可见 [public/licenses](public/licenses)，GPL 模块来源见 [SOURCE.txt](desktop/vendor/simple-music/SOURCE.txt)。
 
 </details>
 
@@ -239,11 +241,12 @@ npm run check && npm run test:browser
 
 **Flow Cabin (心流小屋)** is a cozy pixel-art desktop app for macOS and Windows. Put your favourite albums on a twelve-slot shelf, drop one on the turntable, and get through a focus session with a Pomodoro timer, todo list, quick notes and stats — while a tiny pixel companion keeps you company.
 
-- **Records** — shelf, turntable, record cards with tracklists & notes, vinyl colours, crates and an exportable album wall.
+- **Records** — a twelve-slot shelf with an animated pixel turntable on top, record cards with tracklists & notes, vinyl colours, crates and an exportable album wall.
 - **Focus** — pixel progress-ring Pomodoro with one-tap rhythms (15/5 · 25/5 · 50/10 · 90/20), auto breaks, notifications & chime; drag-to-reorder todos linked to the current session; 7-day stats and unlockable rewards.
 - **Sound** — procedurally synthesised rain, fire, wind, white noise and vinyl crackle, plus an offline Tone.js lo-fi radio that ducks when the turntable plays.
 - **Music** — local files, QQ Music / NetEase Cloud Music, the system's Now Playing, or Music Assistant. The turntable is animation-only until you pick a source.
-- **Companions** — five scenes, five pixel pals, a desktop pet and a live wallpaper. Reduced motion is respected.
+- **Companions** — five pixel-art scenes (Pixel · Amber · Forest · Seaside · Starlight), five pixel pals that breathe, react to pokes and bop to the music, a desktop pet and a live wallpaper. Reduced motion is respected.
+- **Look & feel** — one pixel style throughout: Fusion Pixel / Silkscreen fonts, notched pixel frames, `steps()` motion, dust motes and a time-of-day window light.
 - **Local-first** — collection, notes and focus data stay on your machine, with export/import backups.
 
 ```bash
