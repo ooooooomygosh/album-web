@@ -37,6 +37,10 @@ class DesktopHost {
   static void Guard(IntPtr window,uint expectedPid) { uint pid; GetWindowThreadProcessId(window,out pid); if(!IsWindow(window)||pid!=expectedPid||Class(window)!="Chrome_WidgetWin_1") throw new Exception("Invalid owned wallpaper window"); }
   static Dictionary<string,object> Probe(IntPtr window) {
     var parent=GetParent(window); RECT rect; GetWindowRect(window,out rect);
+    var info=new MONITORINFO(); info.cbSize=Marshal.SizeOf(info);
+    bool monitorFound=GetMonitorInfo(MonitorFromWindow(window,2),ref info);
+    bool covers=monitorFound&&rect.left==info.monitor.left&&rect.top==info.monitor.top&&rect.right==info.monitor.right&&rect.bottom==info.monitor.bottom;
+    bool hasFrame=(GetLong(window,-16).ToInt64()&0x00c40000L)!=0||(GetLong(window,-20).ToInt64()&0x301L)!=0;
     var icons=FindWindowEx(parent,IntPtr.Zero,"SHELLDLL_DefView",null);
     bool behind=false;
     if(Class(parent)=="WorkerW") {
@@ -48,7 +52,7 @@ class DesktopHost {
       // GetWindow(GW_HWNDPREV) walks toward the front of this sibling z-order.
       for(var h=GetWindow(window,3);h!=IntPtr.Zero;h=GetWindow(h,3)) if(h==icons) {behind=true;break;}
     }
-    return new Dictionary<string,object>{{"parent",parent.ToInt64().ToString()},{"parentClass",Class(parent)},{"behindIcons",behind},{"visible",IsWindowVisible(window)},{"bounds",new {x=rect.left,y=rect.top,width=rect.right-rect.left,height=rect.bottom-rect.top}}};
+    return new Dictionary<string,object>{{"parent",parent.ToInt64().ToString()},{"parentClass",Class(parent)},{"behindIcons",behind},{"visible",IsWindowVisible(window)},{"hasFrame",hasFrame},{"coversMonitor",covers},{"bounds",new {x=rect.left,y=rect.top,width=rect.right-rect.left,height=rect.bottom-rect.top}}};
   }
   static void Attach(IntPtr window,IntPtr owner) {
     var progman=FindWindow("Progman",null); if(progman==IntPtr.Zero) throw new Exception("Windows desktop unavailable");
@@ -64,7 +68,8 @@ class DesktopHost {
     }
     var parent=modern?progman:worker;
     // Change only our own window. Explorer and the user's saved wallpaper are untouched.
-    var style=GetLong(window,-16).ToInt64(); SetLong(window,-16,new IntPtr((style&~0x80000000L)|0x40000000L));
+    var style=GetLong(window,-16).ToInt64(); SetLong(window,-16,new IntPtr((style&~0x80cf0000L)|0x40000000L));
+    SetLong(window,-20,new IntPtr(GetLong(window,-20).ToInt64()&~0x301L));
     if(modern) {SetLong(window,-20,new IntPtr(GetLong(window,-20).ToInt64()|0x80000L)); if(!SetLayeredWindowAttributes(window,0,255,2)) throw new Exception("Cannot enable desktop composition");}
     SetParent(window,parent); if(GetParent(window)!=parent) throw new Exception("Cannot attach desktop wallpaper");
     var info=new MONITORINFO();info.cbSize=Marshal.SizeOf(info);if(!GetMonitorInfo(MonitorFromWindow(owner,2),ref info)) throw new Exception("Monitor unavailable");

@@ -27,6 +27,7 @@ export function DesktopControls({ fallback = false }) {
   return <div className={`desktop-controls ${fallback ? 'desktop-fallback' : ''}`} aria-label="软件与窗口控制">
     <button type="button" aria-label="软件设置" title="设置 · Ctrl+," onClick={() => desktopCommand('settings')}><Settings size={20}/></button>
     <span className="window-control-divider"/>
+    <button type="button" aria-label="进入全屏模式" title="全屏 · F11，Esc 退出" onClick={() => desktopCommand('fullscreen')}><Maximize size={18}/></button>
     <button type="button" aria-label="最小化窗口" title="最小化" onClick={() => desktopCommand('minimize')}><Minus size={18}/></button>
     <button type="button" aria-label="最大化或还原窗口" title="最大化 / 还原" onClick={() => desktopCommand('maximize')}><Maximize size={16}/></button>
     <button type="button" className="window-close" aria-label="关闭窗口" title="关闭" onClick={() => desktopCommand('close')}><X size={20}/></button>

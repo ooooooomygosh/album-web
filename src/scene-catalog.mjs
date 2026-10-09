@@ -6,6 +6,7 @@ const freezeGeometry = (geometry) => Object.freeze({
   rows: Object.freeze(geometry.rows.map((pair) => Object.freeze([...pair])))
 });
 const scenes = [
+  { id: 'night-study', label: '月夜书桌', description: '暖灯下写几行字，停下来转一转笔', art: '/room-scenes/night-study.png', alt: '月夜窗边戴耳机写字的女孩，右侧九格木质唱片架', geometry: { columns: [[846, 170], [1038, 170], [1230, 170]], rows: [[162, 174], [384, 174], [607, 174]] }, pixel: false, style: { accent: '#dba668', background: '#24160f' } },
   { id: 'pixel', label: '像素小屋', description: '雪窗、木架与暖暖的壁炉', art: '/room-scenes/pixel-cabin.png', alt: '像素木屋，雪窗、十二格唱片架与壁炉', geometry: pixelGeometry, pixel: true, style: { accent: '#d8a66c', background: '#36251c' } },
   { id: 'warm', label: '写实小屋', description: '在琥珀色灯光里慢慢听歌', art: '/room-scenes/warm-cabin.png', alt: '温馨木屋，雪窗、十二格唱片架与壁炉', geometry: warmGeometry, pixel: false, style: { accent: '#dba668', background: '#432b1d' } },
   { id: 'forest', label: '林间书屋', description: '绿荫环抱的安静阅读角', art: '/room-scenes/forest-cabin.svg', alt: '林间书屋，拱形森林窗、植物、十二格唱片架与绿色沙发', geometry: pixelGeometry, pixel: false, style: { accent: '#b7c59a', background: '#3d4e43' } },

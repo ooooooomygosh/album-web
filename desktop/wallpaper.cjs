@@ -45,13 +45,13 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
       snapshot = first; lastJSON = JSON.stringify(first);
       // Register on the actual isolated session before creating/loading the window.
       const wallpaperSession = session.fromPartition('album-circle-wallpaper');
-      if (!wallpaperSession.protocol.isProtocolHandled('album-desktop')) registerProtocol(wallpaperSession.protocol);
+      if (!(await wallpaperSession.protocol.isProtocolHandled('album-desktop'))) registerProtocol(wallpaperSession.protocol);
       const response = await wallpaperSession.fetch(URL, { signal: controller.signal });
       await response.body?.cancel();
       if (token !== generation) return;
       if (!response.ok) throw new Error('动态背景资源缺失，请重新安装完整客户端后重试。');
       const display = screen.getDisplayMatching(getMain().getBounds());
-      const created = new BrowserWindow({ ...display.bounds, title: '心流小屋 · 动态桌面', ...(process.platform === 'darwin' ? { type: 'desktop', hiddenInMissionControl: true } : {}), frame: false, show: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false, backgroundColor: '#38200f',
+      const created = new BrowserWindow({ ...display.bounds, title: '心流小屋 · 动态桌面', ...(process.platform === 'darwin' ? { type: 'desktop', hiddenInMissionControl: true } : {}), frame: false, thickFrame: false, roundedCorners: false, show: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false, backgroundColor: '#38200f',
         webPreferences: { preload: path.join(__dirname, 'wallpaper-preload.cjs'), partition: 'album-circle-wallpaper', sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, backgroundThrottling: false, spellcheck: false } });
       window = created; handle = process.platform === 'win32' ? hwnd(created) : null; created.webContents.setFrameRate(30);
       created.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -65,8 +65,29 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
       if (token !== generation) return;
       await created.webContents.executeJavaScript(appearanceScript(getAppearance()));
       if (token !== generation) return;
+      // A loaded document may still be an empty React root. Wait for the actual
+      // scene before attaching an opaque window to the user's desktop.
+      const ready = await created.webContents.executeJavaScript(`new Promise((resolve) => {
+        const deadline = Date.now() + 7000;
+        const check = () => {
+          const scene = document.querySelector('.room-scene'), image = document.querySelector('.cabin-scene-art');
+          if (scene && image?.complete && image.naturalWidth > 0 && scene.clientWidth > 0 && scene.clientHeight > 0) return resolve(true);
+          if (Date.now() >= deadline) return resolve(false);
+          setTimeout(check, 40);
+        }; check();
+      })`);
+      if (token !== generation) return;
+      if (!ready) throw new Error('动态背景场景未能绘制，请重新安装完整客户端后重试。');
       let attached;
-      if (process.platform === 'darwin') { created.setIgnoreMouseEvents(true); created.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false }); created.showInactive(); attached = { parentClass: 'macOS desktop', visible: created.isVisible() }; if (!attached.visible) throw new Error('桌面背景未能显示。'); } else attached = await native('attach', handle, controller.signal);
+      if (process.platform === 'darwin') { created.setIgnoreMouseEvents(true); created.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false }); created.showInactive(); attached = { parentClass: 'macOS desktop', visible: created.isVisible() }; if (!attached.visible) throw new Error('桌面背景未能显示。'); }
+      else {
+        await native('attach', handle, controller.signal);
+        if (token !== generation) return;
+        // Win32 showing alone does not activate Chromium's hidden compositor.
+        created.showInactive();
+        attached = await native('attach', handle, controller.signal);
+        if (attached.hasFrame || attached.coversMonitor === false) throw new Error('桌面背景未覆盖显示器或仍带边框，已取消应用。');
+      }
       if (token !== generation) return;
       clearTimeout(startupTimer); startupTimer = null; startupAbort = null;
       active = true; busy = false; announce(); log('wallpaper-attached', attached.parentClass);

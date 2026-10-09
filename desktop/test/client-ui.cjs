@@ -13,14 +13,16 @@ async function launch() {
   site = await application.waitForEvent('window', { predicate: (page) => page.url().startsWith('https://album-circle.vercel.app'), timeout: 5000 }).catch(() => application.windows().find((page) => page.url().startsWith('https://album-circle.vercel.app')));
   assert.ok(site); site.on('pageerror', (error) => report.pageErrors.push(error.message));
   await site.locator('.app-titlebar').waitFor({ timeout: 30000 });
+  const welcome = site.getByRole('dialog', { name: '欢迎来到心流小屋', exact: true });
+  if (await welcome.isVisible()) await welcome.getByRole('button', { name: '先逛逛小屋', exact: true }).click();
   await application.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.unmaximize(); window.setSize(1024, 768); });
   await site.waitForFunction(() => innerWidth <= 1100);
 }
 const check = (value) => report.checks.push(value);
 (async () => {
   await launch();
-  await site.locator('.cabin-pixel').waitFor(); assert.match(await site.locator('.app-brand small').innerText(), /0 张唱片/);
-  await site.locator('.room-empty', { hasText: '等你放上第一张' }).waitFor(); check('fresh-start-opens-the-pixel-cabin-without-an-account');
+  await site.locator('.cabin-night-study').waitFor(); assert.match(await site.locator('.app-brand small').innerText(), /0 张唱片/);
+  await site.locator('.room-empty', { hasText: '等你放上第一张' }).waitFor(); check('fresh-start-opens-the-night-study-without-an-account');
   await site.getByRole('button', { name: '添加专辑', exact: true }).click();
   const add = site.getByRole('dialog', { name: '添加专辑' }); await add.getByRole('tab', { name: '手动填写' }).click();
   await add.getByLabel('专辑名').fill('本地验证专辑'); await add.getByLabel('歌手').fill('离线歌手'); await add.getByLabel('曲目').fill('第一首\n第二首');

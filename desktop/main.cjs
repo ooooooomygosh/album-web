@@ -121,6 +121,15 @@ async function saveAppearance(value) {
   return { settings: appearance, display: currentDisplay() };
 }
 
+function syncFullscreen(fullscreen = mainWindow?.isFullScreen()) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (fullscreen && settingsOpen) toggleSettings(false);
+  for (const contents of [mainWindow.webContents, siteView?.webContents]) {
+    if (contents && !contents.isDestroyed()) contents.executeJavaScript(`document.documentElement.dataset.desktopFullscreen = '${fullscreen}'; window.dispatchEvent(new CustomEvent('album-desktop-fullscreen', {detail: ${fullscreen}}));`).catch(() => {});
+  }
+  resizeView();
+}
+
 function preferencesPath() { return path.join(app.getPath('userData'), 'window.json'); }
 function writeLog(event, detail = '') {
   try {
@@ -232,6 +241,7 @@ async function wireRemoteView() {
     currentError = '';
     if (isSiteUrl(contents.getURL())) lastGoodUrl = contents.getURL();
     await applyAppearance();
+    syncFullscreen();
     wallpaperStatus(wallpaperState); petStatus(petState);
     siteView.setVisible(!settingsOpen);
     if (mainWindow && !mainWindow.isDestroyed() && !contents.isDestroyed() && (!mainWindow.isVisible() || mainWindow.isMinimized())) await contents.executeJavaScript("window.dispatchEvent(new Event('blur'));").catch(() => {});
@@ -303,6 +313,7 @@ function handleSiteCommand(value) {
   if (url.protocol !== 'album-desktop:' || url.hostname !== 'action' || url.username || url.password || !isSiteUrl(siteView?.webContents.getURL())) return false;
   switch (url.pathname) {
     case '/settings': toggleSettings(true); break;
+    case '/fullscreen': mainWindow.setFullScreen(!mainWindow.isFullScreen()); break;
     case '/minimize': mainWindow.minimize(); break;
     case '/maximize': if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false); else if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); break;
     case '/close': mainWindow.close(); break;
@@ -361,7 +372,7 @@ function createMenus() {
       { label: '放大', accelerator: 'CmdOrCtrl+Plus', click: () => saveAppearance({ ...appearance, zoom: appearance.zoom + 5 }).catch(() => {}) },
       { label: '缩小', accelerator: 'CmdOrCtrl+-', click: () => saveAppearance({ ...appearance, zoom: appearance.zoom - 5 }).catch(() => {}) },
       { label: '实际大小', accelerator: 'CmdOrCtrl+0', click: () => saveAppearance({ ...appearance, zoom: 100 }).catch(() => {}) },
-      { role: 'togglefullscreen', label: '全屏' }
+      { label: '全屏', click: () => mainWindow.setFullScreen(!mainWindow.isFullScreen()) }
     ]},
     { label: '帮助', submenu: [
       { label: '打开数据文件夹', click: () => shell.openPath(app.getPath('userData')) },
@@ -426,6 +437,9 @@ async function createWindow() {
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('before-input-event', exitFullscreenOnEscape);
+  // Electron may emit the transition event before isFullScreen() changes.
+  mainWindow.on('enter-full-screen', () => syncFullscreen(true));
+  mainWindow.on('leave-full-screen', () => syncFullscreen(false));
   // Non-throttled child views retain Page Visibility/focus on host hide. Forward
   // standard DOM focus lifecycle for visual consumers; timers/audio stay live.
   // This exposes no new IPC channel or renderer method.
@@ -451,6 +465,7 @@ async function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; siteView = null; });
   await mainWindow.loadURL(SHELL_URL);
   await applyAppearance();
+  syncFullscreen();
   if (preferences.maximized || !preferences.displayAdapted) mainWindow.maximize();
   mainWindow.show();
   resizeView();

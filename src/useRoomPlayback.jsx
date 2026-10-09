@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { exactTrack, musicRequest } from './room-playback.mjs';
+import { findPlayableSource, musicRequest } from './room-playback.mjs';
 import { trackNames } from './room-model.mjs';
 
 export default function useRoomPlayback(record, trackIndex, provider, onNext) {
@@ -15,6 +15,20 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     update({ status: 'idle', playing: false, candidates: [], position: 0, duration: 0, error: '', trial: false, actualTrack: '', remote: false, quality: '' });
     const active = () => sequence.current === current && !controller.signal.aborted;
     let resolution = 0;
+    const request = (path, value) => musicRequest(path, value, controller.signal);
+    async function play(candidate, result) {
+      if (!active()) return;
+      if (result.remote) { remote.current = true; update({ status: 'loading', remote: true, resolvedProvider: candidate.provider }); }
+      else {
+        remote.current = false;
+        update({ playing: false, status: 'loading', error: '', trial: result.trial, quality: result.quality, remote: false, resolvedProvider: candidate.provider, actualTrack: candidate.title });
+        element.src = result.audioPath; element.load();
+        let timer;
+        try { await Promise.race([element.play(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('音频连接超时。')), 10000); })]); }
+        catch (error) { if (active()) resetAudio(element); throw error; }
+        finally { clearTimeout(timer); }
+      }
+    }
     async function resolve(candidate) {
       if (!active()) return;
       const request = ++resolution;
@@ -22,12 +36,7 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
       resetAudio(element); update({ status: 'loading', candidates: [], error: '' });
       try {
         const result = await musicRequest('/resolve', candidate, controller.signal); if (!latest()) return;
-        if (result.remote) { remote.current = true; update({ status: 'loading', remote: true }); }
-        else {
-          remote.current = false; update({ trial: result.trial, quality: result.quality, remote: false });
-          audio.current.src = result.audioPath; audio.current.load();
-          await audio.current.play(); // onPlay, not a successful URL, confirms playback.
-        }
+        await play(candidate, result);
       } catch (error) { if (latest()) update({ status: 'error', playing: false, error: error.name === 'NotAllowedError' ? '请点击播放按钮开始播放。' : error.message }); }
     }
     resolveRef.current = resolve;
@@ -35,10 +44,12 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
       if (remote.current) { remote.current = false; await musicRequest('/ma/control', { action: 'stop' }).catch(() => {}); }
       if (!record || provider === 'visual' || provider === 'system' || !active()) return;
       const name = trackNames(record)[trackIndex]; if (!name) { update({ status: 'error', error: '原始资料没有曲目，无法定位音频。' }); return; }
-      const exact = exactTrack(record, trackIndex, provider); if (exact) { await resolve(exact); return; }
       update({ status: 'searching' });
-      try { const result = await musicRequest(`/search?provider=${provider}&query=${encodeURIComponent(`${record.artist} ${name}`)}`, undefined, controller.signal); if (active()) update({ status: result.candidates.length ? 'choose' : 'error', candidates: result.candidates, error: result.candidates.length ? '' : provider === 'local' ? '本地音乐里没有找到这首歌，请先在音源设置中添加文件夹。' : '未找到可匹配音源，请切换平台或使用动画展示。' }); }
-      catch (error) { if (active()) update({ status: 'error', error: error.message }); }
+      try {
+        const result = await findPlayableSource({ record, index: trackIndex, provider, request, play, isCurrent: active });
+        if (active() && result?.error) update({ status: 'error', playing: false, candidates: result.candidates, error: result.error });
+      }
+      catch (error) { if (active()) update({ status: 'error', playing: false, error: error.name === 'NotAllowedError' ? '请点击播放按钮开始播放。' : error.message }); }
     })();
     return () => { controller.abort(); sequence.current++; resetAudio(element); };
   }, [record?.id, trackIndex, provider, accountEpoch]);
@@ -64,16 +75,19 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext) {
     try {
       if (remote.current) { await musicRequest('/ma/control', { action: state.playing ? 'pause' : 'play' }); return; }
       if (audio.current?.getAttribute('src')) { if (audio.current.paused) await audio.current.play(); else audio.current.pause(); }
-      else { const exact = exactTrack(record, trackIndex, provider); if (exact) await resolveRef.current?.(exact); }
+      else setAccountEpoch((value) => value + 1);
     } catch (error) { if (sequence.current === current) update({ status: 'error', error: error.message }); }
     finally { controlling.current = false; }
   };
   const events = {
-    onPlay: () => { if (audio.current?.getAttribute('src')) update({ playing: true, status: 'playing', error: '' }); }, onPause: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'paused' }); },
+    onPlay: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'loading', error: '' }); },
+    onPlaying: () => { if (audio.current?.getAttribute('src')) update({ playing: true, status: 'playing', error: '' }); },
+    onWaiting: () => { if (audio.current?.getAttribute('src') && !audio.current.paused) update({ playing: false, status: 'buffering' }); },
+    onPause: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'paused' }); },
     onTimeUpdate: () => update({ position: audio.current.currentTime }), onDurationChange: () => update({ duration: Number.isFinite(audio.current.duration) ? audio.current.duration : 0 }),
     onEnded: () => { update({ playing: false, status: 'ended' }); next.current?.(); },
     onError: () => { if (audio.current?.getAttribute('src')) update({ playing: false, status: 'error', error: '音频加载失败。请重新播放，或检查平台权限与网络。' }); }
   };
-  const statusText = state.error || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器' }[state.status] || '待播放');
+  const statusText = state.error || ({ idle: '待播放', loading: '正在连接音源…', buffering: '正在缓冲音频…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器' }[state.status] || '待播放');
   return { ...state, statusText, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek: (value) => { if (audio.current && !remote.current && Number.isFinite(value) && Number.isFinite(audio.current.duration)) audio.current.currentTime = Math.max(0, Math.min(value, audio.current.duration)); }, volume, setVolume };
 }
