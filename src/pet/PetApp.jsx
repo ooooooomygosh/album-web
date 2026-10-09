@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import PixelCat, { opaqueAt } from './PixelCat';
 import { useCatBehaviour } from './RoomCat';
+import PetLife from './PetLife';
+import '../styles/tokens.css';
 import './pet.css';
 import { normalizePetId, getPet } from './pet-catalog.mjs';
 import { subscribePetSnapshot } from './pet-snapshot.mjs';
@@ -52,7 +54,7 @@ function PetApp() {
   return <div className="pet-stage" data-reduce-motion={cat.reduced} onContextMenu={(event) => { event.preventDefault(); api?.menu(); }}>
     {cat.bubble && <div className="pet-bubble" role="status" onClick={() => api?.open()}>{cat.bubble}</div>}
     <div ref={box} style={{ transform: `translateX(${dragging ? 0 : cat.x}px)` }} className={`pet-cat ${dragging ? 'is-dragging' : ''}`} role="button" tabIndex={0} aria-label={`摸摸${getPet(petId).species}${getPet(petId).name}，双击打开小屋`} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); cat.poke(); } }} onPointerDown={down} onPointerMove={moveDrag} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up} onDoubleClick={(event) => { if (overCat(event)) api?.open(); }}>
-      <PixelCat petId={petId} pose={pose} accessory={accessory} skin={snapshot?.focus?.catSkin} reduceMotion={cat.reduced} onFrame={(index) => { frame.current = index; }}/>
+      <PetLife pose={dragging ? 'drag' : pose} pokedAt={cat.pokedAt} reduced={cat.reduced}><PixelCat petId={petId} pose={pose} accessory={accessory} skin={snapshot?.focus?.catSkin} reduceMotion={cat.reduced} onFrame={(index) => { frame.current = index; }}/></PetLife>
     </div>
   </div>;
 }
