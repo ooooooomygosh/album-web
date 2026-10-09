@@ -15,6 +15,7 @@ test('six stable scene IDs preserve legacy looks and normalize invalid settings'
     assert.match(scene.style.accent, /^#[a-f\d]{6}$/i);
     assert.match(scene.style.background, /^#[a-f\d]{6}$/i);
   }
+  assert.deepEqual(ROOM_SCENES.map((scene) => [scene.label, scene.labelEn]), [['像素小屋', 'Pixel Cabin'], ['琥珀小屋', 'Amber Cabin'], ['月夜书桌', 'Moonlit Study'], ['林间书屋', 'Forest Glade'], ['海边慢屋', 'Seaside'], ['星夜阁楼', 'Starry Night']]);
   for (const invalid of [undefined, null, '', 'constructor', '__proto__', 'invalid', 1, {}, []]) {
     assert.equal(normalizeRoomSceneId(invalid), 'pixel');
     assert.equal(getRoomScene(invalid).id, 'pixel');

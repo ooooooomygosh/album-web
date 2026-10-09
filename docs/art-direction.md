@@ -13,7 +13,7 @@ nothing glossy or rounded. Owner of this document: art direction (beauty).
 | Shape | No radii. Panels use the 9-slice notched frame `border-image: var(--px-frame-img) 2 / 6px`; buttons get a 2 px bevel + hard shadow (`--px-shadow-*`). |
 | Motion | `steps()` easing (`--px-ease`), durations `--px-dur-fast/med/slow`. Animate `translate/scale/opacity` only. Every animation has a reduced-motion fallback (`prefers-reduced-motion` and `html[data-desktop-reduce-motion=true]`). |
 | Images | Pixel art always `image-rendering: pixelated` (`.px-crisp`). Covers are box-filtered to 64×64 then upscaled. |
-| Scenes | All five rooms are pixel art. Vector sources stay in `public/room-scenes/*.svg`; the room shows `*-cabin-pixel.png` (`scene.view`), made with `scripts/art/pixelate-scene.py`. |
+| Scenes | All six rooms are pixel art — Pixel Cabin 像素小屋 (default), Amber Cabin 琥珀小屋, Moonlit Study 月夜书桌, Forest Glade 林间书屋, Seaside 海边慢屋, Starry Night 星夜阁楼 (`labelEn` in `scene-catalog.mjs`). Vector sources stay in `public/room-scenes/*.svg`; the room shows `*-cabin-pixel.png` (`scene.view`), made with `scripts/art/pixelate-scene.py`. |
 
 ## Live layers on top of the art
 
@@ -35,7 +35,7 @@ nothing glossy or rounded. Owner of this document: art direction (beauty).
 | Turntable, notes, hearts, Zzz, sparkles, frames | drawn in code in this repo | project licence |
 | Scene pixel renders | derived from the repo's own scene art | project licence |
 
-## 月夜书桌 (night-study)
+## Moonlit Study 月夜书桌 (night-study)
 
 The illustrated desk scene from PR #8 follows the same pipeline:
 `python3 scripts/art/pixelate-night-study.py` writes `night-study-pixel.png`
@@ -45,4 +45,14 @@ so the writing / pen-spin poses swap whole art pixels. The pose timeline in
 `StudyWriting.jsx` is already frame-stepped; reduced motion holds pose 0.
 Shadows are hard offsets. The scene has no free surface outside the UI safe
 areas, so the console is the only turntable here (the scene deck is hidden).
-The flagship pixel cabin (`pixel`) is the default room; 月夜书桌 stays selectable.
+The flagship Pixel Cabin (`pixel`) is the default room; Moonlit Study stays selectable.
+
+## Fitting short windows
+
+`roomGeometry` keeps each scene's `band` (art rows: shelf-top deck → bottom row;
+Moonlit Study: shelf only) between the toolbar and the now-playing footer. When a
+window is too short (1280×720, 1366×768) the art scales down instead of letting
+the toolbar cover the deck; side gutters show the same scene dimmed. On Moonlit
+Study the shelf paging sits on the wall left of the cabinet (canvas-relative via
+`--scene-x/y/k`), so it never covers a record. browser-smoke checks all scenes at
+1280×720, 1280×800, 1366×768, 1440×900 and 1920×1080.
