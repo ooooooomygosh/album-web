@@ -12,6 +12,9 @@ import './room-immersive.css';
 import './companion-room.css';
 import './wallpaper.css';
 import './styles/pixel-ui.css';
+import './styles/perf-low.css';
+import { applyPerformance } from './perf-profile.mjs';
+applyPerformance(); // the wallpaper follows the main window's 流畅模式 (same profile storage)
 
 function WallpaperTimer({ focus }) {
   const now = useClock(1000);

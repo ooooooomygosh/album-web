@@ -9,7 +9,11 @@ import './record-library.css';
 import './album-wall.css';
 import './app.css';
 import './styles/pixel-ui.css';
+import './styles/perf-low.css';
 import { installZenConsoleReveal } from './scene/zen-console.mjs';
+import { applyPerformance, startPerformanceProbe } from './perf-profile.mjs';
 
+applyPerformance(); // before the first paint: slow machines never start at full effects
+startPerformanceProbe();
 installZenConsoleReveal();
 createRoot(document.getElementById('root')).render(<App/>);
