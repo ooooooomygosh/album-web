@@ -16,6 +16,8 @@
 .desktop-clock b { font-weight: 400; animation: clock-colon 2s steps(1, end) infinite; }
 .desktop-date { margin: 6px 12px 0; font-family: var(--px-font-cn); font-size: clamp(14px, 1.3vw, 18px); color: #ffe9cb; text-shadow: 2px 2px 0 #0d0805; }
 .desktop-date span { color: var(--px-accent-hi); }
+.desktop-countdown { margin: 4px 12px 0; font-family: var(--px-font-cn); font-size: clamp(13px, 1.1vw, 16px); color: #ffe9cb; text-shadow: 2px 2px 0 #0d0805; }
+.desktop-countdown b { font-family: var(--px-font-en); font-weight: 400; color: var(--px-accent-hi); }
 .desktop-widget.is-clock.is-compact .desktop-clock { font-size: clamp(40px, 5vw, 72px); }
 
 .desktop-music { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 10px; }

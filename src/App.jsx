@@ -12,6 +12,7 @@ import PixelCat from './pet/PixelCat';
 import { DesktopControls } from './desktop-client';
 import { RecordLibraryProvider } from './RecordLibrary';
 import { FocusProvider } from './focus/useFocus';
+import { StudyProvider } from './study/useStudy';
 import { SoundscapeProvider } from './audio/useSoundscape';
 import { listItems, removeItem } from './collection-api.mjs';
 
@@ -48,7 +49,7 @@ export default function App() {
     try { await removeItem(item.id); setRecordId(''); setItems((list) => list.filter((entry) => entry.id !== item.id)); notify(`《${item.title}》已从唱片架移除。`); }
     catch (cause) { notify(cause.message); }
   };
-  return <RecordLibraryProvider userId={OWNER} roomId={ROOM}><FocusProvider userId={OWNER}><SoundscapeProvider>
+  return <RecordLibraryProvider userId={OWNER} roomId={ROOM}><FocusProvider userId={OWNER}><StudyProvider userId={OWNER}><SoundscapeProvider>
     <CompanionBridge/>
     <div className="app">
       <header className="app-titlebar">
@@ -73,5 +74,5 @@ export default function App() {
     {record && <RecordCard key={record.id} item={record} close={() => setRecordId('')} onChanged={replaceItem} onRemove={remove}/>}
     {backup && <BackupDialog items={items} reload={reload} close={() => setBackup(false)}/>}
     {wall && <AlbumWall items={items} onClose={() => setWall(false)}/>}
-  </SoundscapeProvider></FocusProvider></RecordLibraryProvider>;
+  </SoundscapeProvider></StudyProvider></FocusProvider></RecordLibraryProvider>;
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { Clock, ListBullet, ChartBar, SpeakerWave, SpeakerOff, Play, Pause, Forward, Loading, X, Settings, Shuffle, BookOpen } from '../icons';
+import { Clock, ListBullet, ChartBar, SpeakerWave, SpeakerOff, Play, Pause, Forward, Loading, X, Settings, Shuffle, BookOpen, Bookmark } from '../icons';
 import { useFocus } from './useFocus';
 import { useSoundscape } from '../audio/useSoundscape';
 import { AMBIENCE_TRACKS } from '../audio/ambience.mjs';
@@ -9,10 +9,11 @@ import PixelClock from './PixelClock';
 import TaskList from './TaskList';
 import FocusStats from './FocusStats';
 import QuickNotes from './QuickNotes';
+import StudyPanel from '../study/StudyPanel';
 import './focus.css';
 
 // Explicit built-in registry; never loads third-party code or remote widgets.
-export const BUILTIN_FOCUS_TOOLS = Object.freeze([['timer', '番茄钟', Clock, FocusTimer], ['tasks', '待办', ListBullet, TaskList], ['stats', '统计', ChartBar, FocusStats], ['sound', '声音', SpeakerWave, SoundMixer], ['notes', '随手记', BookOpen, QuickNotes]]);
+export const BUILTIN_FOCUS_TOOLS = Object.freeze([['timer', '番茄钟', Clock, FocusTimer], ['tasks', '待办', ListBullet, TaskList], ['stats', '统计', ChartBar, FocusStats], ['study', '学习', Bookmark, StudyPanel], ['sound', '声音', SpeakerWave, SoundMixer], ['notes', '随手记', BookOpen, QuickNotes]]);
 const TABS = BUILTIN_FOCUS_TOOLS;
 
 function DurationSetting({ name, label, value, max, onSave }) {

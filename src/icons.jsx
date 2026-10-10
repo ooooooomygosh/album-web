@@ -21,3 +21,4 @@ export const Forward = icon('ForwardIcon'), Backward = icon('BackwardIcon'), Gif
 export const Pencil = icon('PencilSquareIcon');
 export const ListBullet = icon('ListBulletIcon'), Moon = icon('MoonIcon'), Heart = icon('HeartIcon'), FolderOpen = icon('FolderOpenIcon'), Computer = icon('ComputerDesktopIcon');
 export const QueueList = icon('QueueListIcon'), Link = icon('LinkIcon'), DocumentArrow = icon('DocumentArrowUpIcon'), ArrowLeft = icon('ArrowLeftIcon'), Signal = icon('SignalIcon');
+export const Bookmark = icon('AcademicCapIcon');

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useFocus } from '../focus/useFocus';
+import { useStudy } from '../study/useStudy';
+import { nextCountdown } from '../study/study-model.mjs';
 import { formatClock, PHASE_LABELS, phaseProgress } from '../focus/focus-model.mjs';
 import { trackNames } from '../room-model.mjs';
 import { trackArtist } from '../room-playback.mjs';
@@ -47,9 +49,11 @@ function Widget({ id, title, icon, layout, move, children, className = '' }) {
 
 export function ClockWidget({ layout, move, compact = false }) {
   const now = useMinute(), hours = String(now.getHours()).padStart(2, '0'), minutes = String(now.getMinutes()).padStart(2, '0');
+  const study = useStudy(), exam = study ? nextCountdown(study.state, now.getTime()) : null;
   return <Widget id="clock" title="时钟" icon={<Clock size={13}/>} layout={layout} move={move} className={compact ? 'is-compact' : ''}>
     <p className="desktop-clock" aria-live="off"><time dateTime={now.toISOString()}>{hours}<b>:</b>{minutes}</time></p>
     <p className="desktop-date">{now.getMonth() + 1} 月 {now.getDate()} 日 · 周{WEEK[now.getDay()]}<span> · {greeting(now.getHours())}</span></p>
+    {exam && <p className="desktop-countdown">距离{exam.title}{exam.days === 0 ? '就是今天' : <>还有 <b>{exam.days}</b> 天</>}</p>}
   </Widget>;
 }
 
