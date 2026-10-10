@@ -74,7 +74,7 @@ function PlaylistDetail({ detail, provider, back, act, busy, saved }) {
         </div>
       </div>
     </header>
-    {tracks.length > 12 && <label className="playlist-filter"><Search size={15}/><input type="search" aria-label="在歌单中查找" placeholder="在歌单中查找歌名、歌手或专辑" value={query} onChange={(event) => setQuery(event.target.value)}/>{query && <small>{rows.length} / {tracks.length}</small>}</label>}
+    {tracks.length > 8 && <label className="playlist-filter"><Search size={15}/><input type="search" aria-label="在歌单中查找" placeholder="在歌单中查找歌名、歌手或专辑" value={query} onChange={(event) => setQuery(event.target.value)}/>{query && <small>{rows.length} / {tracks.length}</small>}</label>}
     {rows.length ? <ol className="playlist-tracks" aria-label={`${playlist.name} 曲目`}>{rows.map(({ track, index }) => <TrackRow key={`${index}-${track.title}`} track={track} index={index} play={(at) => act('play', at)}/>)}</ol>
       : <p className="playlist-empty">{tracks.length ? '没有找到匹配的歌曲。' : '这个歌单还没有歌曲。'}</p>}
     <p className="playlist-footnote">播放时先试平台原始曲目，再按歌名、歌手和版本匹配 QQ 音乐 / 网易云；不会用现场版或翻唱顶替。播放权限取决于平台账号、版权与地区。</p>
