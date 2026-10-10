@@ -8,8 +8,16 @@ const path = require('node:path');
 const { cleanCompanion } = require('./wallpaper-model.cjs');
 const { createCompanionPoller, sendCompanionCommand } = require('./companion-sync.cjs');
 const URL = 'album-desktop://mini/mini.html';
-const WIDTH = 264, HEIGHT = 64;
+const WIDTH = 300, HEIGHT = 64;
 const MINI_COMMANDS = new Set(['play-toggle', 'sound-toggle', 'focus-toggle']);
+// Player relay: IPC channel 'cabin:player-command' → DOM event 'cabin:player-command' {detail:{action}} in the cabin page.
+const PLAYER_CHANNEL = 'cabin:player-command';
+const PLAYER_ACTIONS = new Set(['toggle', 'play', 'pause', 'next', 'previous']);
+function relayPlayerCommand(site, action) {
+  if (!PLAYER_ACTIONS.has(action) || !site || site.isDestroyed()) return false;
+  site.executeJavaScript(`window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action: ${JSON.stringify(action)} } }));`).catch(() => {});
+  return true;
+}
 
 function miniBounds(workArea) { return { x: workArea.x + 16, y: workArea.y + workArea.height - HEIGHT - 16, width: WIDTH, height: HEIGHT }; }
 
@@ -19,6 +27,7 @@ function createMiniPlayer({ getSite, getAnchor, registerProtocol, helperPath, on
   const valid = (event) => window && !window.isDestroyed() && event.sender === window.webContents && event.senderFrame?.url === URL;
   ipcMain.handle('mini:snapshot', (event) => { if (!valid(event)) throw new Error('Unknown mini sender'); return latest; });
   ipcMain.on('mini:command', (event, command) => { if (valid(event) && MINI_COMMANDS.has(command)) sendCompanionCommand(getSite(), command); });
+  ipcMain.on(PLAYER_CHANNEL, (event, action) => { if (valid(event)) relayPlayerCommand(getSite(), action); });
   ipcMain.on('mini:exit', (event) => { if (valid(event)) onExit(); });
   function keepBottom(created) {
     if (process.platform !== 'win32' || !helperPath) return;
@@ -50,4 +59,4 @@ function createMiniPlayer({ getSite, getAnchor, registerProtocol, helperPath, on
   }
   return { show, hide, reposition() { if (window && !window.isDestroyed()) { const anchor = getAnchor?.(); window.setBounds(miniBounds((anchor ? screen.getDisplayMatching(anchor) : screen.getPrimaryDisplay()).workArea)); } }, get active() { return Boolean(window); } };
 }
-module.exports = { createMiniPlayer, miniBounds, MINI_COMMANDS };
+module.exports = { createMiniPlayer, miniBounds, MINI_COMMANDS, PLAYER_CHANNEL, PLAYER_ACTIONS, relayPlayerCommand };

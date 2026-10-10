@@ -88,3 +88,12 @@ test('tray icon updates live when the pet changes', () => {
   assert.equal(images.length, 2); assert.match(images[0], /foxTemplate/); assert.match(images[1], /bunnyTemplate/);
   assert.equal(trayPet.petId, 'bunny');
 });
+
+test('mini deck player relay forwards only known actions as the cabin:player-command DOM event', () => {
+  const { relayPlayerCommand, PLAYER_CHANNEL } = require('../mini-player.cjs');
+  const scripts = [], site = { isDestroyed: () => false, executeJavaScript: (code) => { scripts.push(code); return Promise.resolve(); } };
+  assert.equal(PLAYER_CHANNEL, 'cabin:player-command');
+  for (const action of ['toggle', 'play', 'pause', 'next', 'previous']) assert.equal(relayPlayerCommand(site, action), true);
+  assert.equal(relayPlayerCommand(site, 'rm -rf'), false); assert.equal(relayPlayerCommand(null, 'next'), false);
+  assert.equal(scripts.length, 5); assert.match(scripts[3], /new CustomEvent\('cabin:player-command', \{ detail: \{ action: "next" \} \}\)/);
+});

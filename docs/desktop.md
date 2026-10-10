@@ -56,3 +56,14 @@ remain as aliases of `desktop-sink`, `desktop-sink-exit`, `desktop-sink-enter`.
 - macOS: desktop-level windows hide under Stage Manager's desktop click-to-reveal; the
   mini player is per-Space-visible but not shown over fullscreen apps by design.
 - Only the display holding the cabin window gets the scene (no per-monitor scenes yet).
+
+## Mini deck → player relay (for the player owner)
+
+Mini deck hover controls: 上一首 / 播放·暂停 / 下一首 / 声音 / 专注 / 浮出.
+
+- Renderer (mini window): `window.albumMini.player(action)` sends IPC channel **`cabin:player-command`** with the action string.
+- Main process (`desktop/mini-player.cjs` → `relayPlayerCommand`): validates the sender is the mini window and that
+  `action ∈ toggle | play | pause | next | previous`, then dispatches in the cabin page:
+  `window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action } }))`.
+- The player listens to that DOM event on the main window. Play/pause on the mini deck still uses the
+  older companion `play-toggle` command until the player handles `toggle`; switch it over then.
