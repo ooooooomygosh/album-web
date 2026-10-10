@@ -2,10 +2,14 @@
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), http = require('node:http');
 const { safeAudioURL, serverURL, candidate } = require('./music-policy.cjs');
 const { createPlaylistLibrary } = require('./playlists.cjs');
-function createMusicService({ directory, safeStorage, login, logout, upstream = require('./music-upstream.cjs'), fetch = globalThis.fetch, nowPlaying = null, localMusic = null }) {
+// Requested tier; the platform answers with the best tier the account may
+// play (VIP → FLAC, guest → 128k) and the deck shows that actual tier.
+const QUALITIES = ['standard', 'exhigh', 'lossless'];
+const QUALITY_OPTIONS = [{ id: 'standard', label: '标准 · 128k' }, { id: 'exhigh', label: '高品质 · 320k' }, { id: 'lossless', label: '无损 · FLAC' }];
+function createMusicService({ directory, safeStorage, login, logout, upstream = require('./music-upstream.cjs'), fetch = globalThis.fetch, nowPlaying = null, localMusic = null, appleMusic = null, localApps = null }) {
   const token = crypto.randomBytes(32).toString('hex'), streams = new Map(), cache = new Map(), activeStreams = new Set(), accountVersions = { qq: 0, netease: 0 };
   let revision = 0;
-  const prefsPath = path.join(directory, 'music.json'); let preferences = { maURL: '', maToken: '', playerId: '', qq: '', netease: '' }, server, port, opening;
+  const prefsPath = path.join(directory, 'music.json'); let preferences = { maURL: '', maToken: '', playerId: '', qq: '', netease: '', quality: 'exhigh' }, server, port, opening;
   try { preferences = { ...preferences, ...JSON.parse(fs.readFileSync(prefsPath, 'utf8')) }; } catch {}
   const decode = (value) => { try { return value ? safeStorage.decryptString(Buffer.from(value, 'base64')) : ''; } catch { return ''; } };
   function invalidate() { revision++; cache.clear(); streams.clear(); for (const controller of activeStreams) controller.abort(); activeStreams.clear(); }
@@ -18,7 +22,8 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
   const playlists = createPlaylistLibrary({ upstream, cookies: (provider) => decode(preferences[provider]), fetch });
   // Account playlists are read on demand; a changed login discards the answer.
   async function guarded(task) { const currentRevision = revision; const result = await task(); if (currentRevision !== revision) throw new Error('平台登录已更改，请重新打开歌单。'); return result; }
-  const config = () => ({ qqLoggedIn: Boolean(decode(preferences.qq)), neteaseLoggedIn: Boolean(decode(preferences.netease)), maURL: preferences.maURL, maTokenSet: Boolean(decode(preferences.maToken)), playerId: preferences.playerId });
+  const quality = () => QUALITIES.includes(preferences.quality) ? preferences.quality : 'exhigh';
+  const config = () => ({ quality: quality(), qualities: QUALITY_OPTIONS, appleMusicAvailable: Boolean(appleMusic?.available), localApps: localApps?.status() || {}, qqLoggedIn: Boolean(decode(preferences.qq)), neteaseLoggedIn: Boolean(decode(preferences.netease)), maURL: preferences.maURL, maTokenSet: Boolean(decode(preferences.maToken)), playerId: preferences.playerId });
   async function ma(command, args = {}) {
     if (!preferences.maURL || !decode(preferences.maToken)) throw new Error('请在音源设置中配置 Music Assistant 服务器与访问令牌。');
     const response = await fetch(serverURL(preferences.maURL) + '/api', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers: { 'Authorization': 'Bearer ' + decode(preferences.maToken), 'Content-Type': 'application/json' }, body: JSON.stringify({ command, args }) });
@@ -32,6 +37,7 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     if (provider === 'qq') values = await upstream.handleQQSearch(decode(preferences.qq), query, 8);
     else if (provider === 'netease') values = await upstream.handleSearch(query, 8, decode(preferences.netease));
     else if (provider === 'ma') values = (await ma('music/search', { search_query: query, media_types: ['track'], limit: 8 })).tracks || [];
+    else if (provider === 'appleMusic') { if (!appleMusic?.available) throw new Error('系统 Apple Music 仅支持 macOS。'); return (await appleMusic.search(query)).map((value) => candidate(value, 'appleMusic')); }
     else if (provider === 'local') { if (!localMusic) throw new Error('本地音乐不可用。'); return localMusic.search(query).map((value) => candidate(value, 'local')); }
     else throw new Error('不支持此音乐来源。');
     if (currentRevision !== revision) throw new Error('音源设置已更改，请重新搜索。');
@@ -46,18 +52,19 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
       if (!/^\w[\w.-]*:\/\/track\/.{1,800}$/.test(String(body.uri || ''))) throw new Error('请搜索并选择 Music Assistant 的原始曲目。');
       await ma('player_queues/play_media', { queue_id: preferences.playerId, media: body.uri, option: 'replace' }); return { remote: true, provider, playerId: preferences.playerId };
     }
+    if (provider === 'appleMusic') { if (!appleMusic?.available) throw new Error('系统 Apple Music 仅支持 macOS。'); return appleMusic.play(id); }
     if (provider === 'local') {
       if (!localMusic?.track(id)) throw new Error('找不到这首本地歌曲，请在音源设置中重新扫描文件夹。');
       return { provider, audioPath: '/desktop-music/local/audio/' + id, trial: false, quality: '本地文件' };
     }
     if (!id || id.length > 64 || (provider === 'qq' ? !/^[a-z\d]+$/i.test(id) : !/^\d+$/.test(id))) throw new Error('曲目 ID 无效，请重新搜索选择。');
     let result;
-    if (provider === 'qq') result = await upstream.handleQQSongUrl(decode(preferences.qq), id, String(body.mediaMid || '').slice(0, 64), 'standard', body.fee);
+    if (provider === 'qq') result = await upstream.handleQQSongUrl(decode(preferences.qq), id, String(body.mediaMid || '').slice(0, 64), quality(), body.fee);
     else if (provider === 'netease') {
       const cookie = decode(preferences.netease);
       const info = upstream.getNeteaseLoginInfo ? await upstream.getNeteaseLoginInfo(cookie) : { loggedIn: false };
       if (currentRevision !== revision) throw new Error('音源设置已更改，请重新播放。');
-      result = await upstream.handleSongUrl(id, info, 'standard', cookie);
+      result = await upstream.handleSongUrl(id, info, quality(), cookie);
     }
     else throw new Error('不支持此音乐来源。');
     if (currentRevision !== revision) throw new Error('音源设置已更改，请重新播放。');
@@ -67,7 +74,7 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     const source = safeAudioURL(result.url) ? result : provider === 'qq' && Array.isArray(result.candidates) && result.candidates.find((value) => value?.playable !== false && safeAudioURL(value?.url));
     if (!source) throw new Error('音频地址不属于已支持的音乐平台。');
     const streamId = crypto.randomBytes(24).toString('hex'); streams.set(streamId, { url: source.url, provider, time: Date.now() }); if (streams.size > 40) streams.delete(streams.keys().next().value);
-    return { provider, audioPath: '/desktop-music/audio/' + streamId, trial: Boolean(source.trial ?? result.trial), quality: source.quality || result.quality || '标准音质' };
+    return { provider, audioPath: '/desktop-music/audio/' + streamId, trial: Boolean(source.trial ?? result.trial), quality: source.quality || result.quality || '标准音质', requestedQuality: quality() };
   }
   // Local files: byte ranges are served only for tracks in the scanned index.
   function localFile(req, res, file, type) {
@@ -116,6 +123,13 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     try {
       if (req.method === 'GET' && url.pathname === '/config') return json(res, config());
       if (req.method === 'POST' && url.pathname === '/config') { const value = await body(req); const maURL = value.maURL ? serverURL(String(value.maURL)) : ''; const playerId = String(value.playerId || '').slice(0, 160); const maToken = value.clearToken ? '' : value.maToken ? encrypt(String(value.maToken).slice(0, 8192)) : maURL === preferences.maURL ? preferences.maToken : ''; save({ ...preferences, maURL, maToken, playerId }); return json(res, config()); }
+      if (req.method === 'POST' && url.pathname === '/quality') { const value = String((await body(req)).quality || ''); if (!QUALITIES.includes(value)) throw new Error('不支持此音质。'); save({ ...preferences, quality: value }); return json(res, config()); }
+      if (req.method === 'GET' && url.pathname === '/apple/permission') return json(res, appleMusic ? await appleMusic.permission() : { available: false, granted: false });
+      if (req.method === 'GET' && url.pathname === '/apple/playlists') { if (!appleMusic?.available) throw new Error('系统 Apple Music 仅支持 macOS。'); return json(res, await appleMusic.playlists()); }
+      if (req.method === 'GET' && url.pathname === '/apple/playlist') { if (!appleMusic?.available) throw new Error('系统 Apple Music 仅支持 macOS。'); return json(res, await appleMusic.tracks(String(url.searchParams.get('id') || ''))); }
+      if (req.method === 'GET' && url.pathname === '/apple/state') { if (!appleMusic?.available) throw new Error('系统 Apple Music 仅支持 macOS。'); return json(res, await appleMusic.state()); }
+      if (req.method === 'POST' && url.pathname === '/apple/control') { if (!appleMusic?.available) throw new Error('系统 Apple Music 仅支持 macOS。'); return json(res, await appleMusic.control(String((await body(req)).action || ''))); }
+      if (req.method === 'POST' && url.pathname === '/open-local') { if (!localApps) throw new Error('本机音乐 App 打开功能不可用。'); return json(res, await localApps.open(await body(req))); }
       if (req.method === 'GET' && url.pathname === '/search') return json(res, { candidates: await search(url.searchParams.get('provider'), String(url.searchParams.get('query') || '').slice(0, 300)) });
       if (req.method === 'GET' && url.pathname === '/playlists') return json(res, await guarded(() => playlists.list(String(url.searchParams.get('provider') || ''))));
       if (req.method === 'GET' && url.pathname === '/playlist') return json(res, await guarded(() => playlists.tracks(String(url.searchParams.get('provider') || ''), String(url.searchParams.get('id') || ''))));
@@ -161,4 +175,4 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     stop() { accountVersions.qq++; accountVersions.netease++; invalidate(); nowPlaying?.stop(); server?.closeAllConnections(); server?.close(); server = null; port = null; opening = null; }
   };
 }
-module.exports = { createMusicService };
+module.exports = { createMusicService, QUALITIES, QUALITY_OPTIONS };

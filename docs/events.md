@@ -47,6 +47,27 @@ The pet runs in its own Electron window (`pet.html`), so it never sees the main 
 
 Pet code listens the same way in both windows (`onCabinPlayback` in `src/scene/playback-listener.mjs`). In the pet window the signal is coarser: about 8 Hz, with 0.05 energy steps and roughly 125 ms of extra latency. That is enough for sway or bob, but not for beat-accurate motion. The existing `playing` field in the snapshot still means "grooving" (real audio, spinning, or lo-fi). Use `musicPlaying` / the event's `playing` for real audio only.
 
+## `cabin:player-command` (incoming)
+
+The cabin page listens on `window` and executes:
+
+```js
+window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action: 'toggle' } }));
+```
+
+| `detail.action` | Effect |
+| --- | --- |
+| `toggle` | Play / pause (in 仅动画展示: spin / stop the record) |
+| `play` | Play if paused; no-op when already playing |
+| `pause` | Pause if playing; no-op when already paused |
+| `next` | Same rules as the ⏭ button: album order, 待播 queue, repeat, shuffle. Unplayable tracks are still auto-skipped (max 5 in a row) |
+| `previous` | Same as ⏮: restarts the track after 3 s, otherwise the previous track |
+
+Unknown actions and commands with no record on the deck are ignored. In 系统正在播放 mode only `next` / `previous` reach the deck queue; use the system transport for the external player.
+Code: `PLAYER_COMMAND_EVENT` / `PLAYER_COMMANDS` in `src/player/usePlayer.jsx`.
+
+Other Electron windows (the desktop-mode mini turntable) do not dispatch this themselves: the main process relays its IPC channel of the same name into the main window as this event — see [desktop.md](desktop.md).
+
 ## Other player events (existing)
 
 | event | direction | detail |
