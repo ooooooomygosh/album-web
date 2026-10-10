@@ -52,7 +52,7 @@ const row = () => site.locator('.room-rack-grid').getAttribute('data-start-row')
   await site.locator('.room-record').nth(2).dragTo(site.getByRole('complementary', { name: '黑胶唱机' }));
   await site.waitForFunction((id) => document.querySelector('.room-turntable').dataset.loadedId === id, items[2].id); check('real-drag-and-drop-loads-record');
   await site.screenshot({ path: path.join(output, 'immersive-room.png') });
-  await site.getByRole('button', { name: '设为桌面动态背景', exact: true }).click();
+  await site.getByRole('button', { name: '沉入桌面', exact: true }).click();
   await site.waitForFunction(() => window.albumRoomWallpaperState?.active || window.albumRoomWallpaperState?.error);
   const state = await site.evaluate(() => window.albumRoomWallpaperState); assert.equal(state.active, true, JSON.stringify(state));
   const wallpaper = app.context().pages().find((p) => p.url() === 'album-desktop://wallpaper/wallpaper.html'); assert.ok(wallpaper); wallpaper.on('pageerror', (error) => report.pageErrors.push(error.message));

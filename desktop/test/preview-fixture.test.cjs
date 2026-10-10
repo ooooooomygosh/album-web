@@ -45,3 +45,13 @@ test('preview wallpaper error, cancellation and retry are simulated events only'
   f.window.open(start); await new Promise(resolve => setTimeout(resolve, 380)); assert.equal(f.events.at(-1).detail.active, true);
   f.window.open(stop); assert.equal(f.events.at(-1).detail.active, false); assert.equal(f.forwarded.length, 0); assert.equal(f.alerts.length, 0);
 });
+
+test('preview 沉入桌面 commands mirror the wallpaper simulation and ignore tray-pet', async () => {
+  const f = fixture();
+  f.window.open('album-desktop://action/tray-pet?id=fox'); assert.equal(f.alerts.length, 0);
+  f.window.open('album-desktop://action/desktop-sink-enter'); await new Promise(resolve => setTimeout(resolve, 380));
+  f.window.open('album-desktop://action/desktop-sink-enter'); await new Promise(resolve => setTimeout(resolve, 380));
+  const sink = f.events.filter(event => event.type === 'cabin:desktop-mode').at(-1);
+  assert.equal(sink?.detail.active, true); assert.equal(sink.detail.via, 'wallpaper');
+  f.window.open('album-desktop://action/desktop-sink-exit'); assert.equal(f.events.filter(event => event.type === 'cabin:desktop-mode').at(-1).detail.active, false);
+});

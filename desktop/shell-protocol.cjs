@@ -17,12 +17,12 @@ function registerShellProtocol(targetProtocol = protocol) {
   for (const name of fs.readdirSync(path.join(__dirname, 'renderer', 'icons'))) assets[`/icons/${name}`] = [`renderer/icons/${name}`, name.endsWith('.svg') ? 'image/svg+xml' : 'text/plain'];
   const wallpaperAssets = new Map();
   const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
-  const list = (directory, prefix = '') => { for (const file of fs.readdirSync(directory, { withFileTypes: true })) { if (file.isSymbolicLink()) continue; const relative = `${prefix}/${file.name}`; if (file.isDirectory()) list(path.join(directory, file.name), relative); else if (mime[path.extname(file.name)] && (relative === '/wallpaper.html' || relative === '/pet.html' || relative.startsWith('/assets/') || relative.startsWith('/room-scenes/') || relative.startsWith('/fonts/'))) wallpaperAssets.set(relative, path.join(directory, file.name)); } };
+  const list = (directory, prefix = '') => { for (const file of fs.readdirSync(directory, { withFileTypes: true })) { if (file.isSymbolicLink()) continue; const relative = `${prefix}/${file.name}`; if (file.isDirectory()) list(path.join(directory, file.name), relative); else if (mime[path.extname(file.name)] && (relative === '/wallpaper.html' || relative === '/pet.html' || relative === '/mini.html' || relative.startsWith('/assets/') || relative.startsWith('/room-scenes/') || relative.startsWith('/fonts/'))) wallpaperAssets.set(relative, path.join(directory, file.name)); } };
   list(path.join(__dirname, 'web'));
   targetProtocol.handle('album-desktop', (request) => {
     const url = new URL(request.url);
     // The wallpaper and pet windows each load only their own page and shared assets.
-    if (['wallpaper', 'pet'].includes(url.hostname) && !url.username && !url.password && !url.port && ['GET', 'HEAD'].includes(request.method)) {
+    if (['wallpaper', 'pet', 'mini'].includes(url.hostname) && !url.username && !url.password && !url.port && ['GET', 'HEAD'].includes(request.method)) {
       const page = url.pathname.endsWith('.html') ? `/${url.hostname}.html` : null;
       const file = page && url.pathname !== page ? null : wallpaperAssets.get(url.pathname);
       if (!file || !fs.existsSync(file)) return new Response('Not found', { status: 404 });

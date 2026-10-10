@@ -194,10 +194,20 @@ try {
   assert.equal(await page.locator('.corner-tracks li').count(), 1);
   await page.keyboard.press('Escape'); await page.locator('.listening-corner').waitFor({ state: 'detached' });
   check('listening-corner-opens-paints-and-closes');
-  // 桌面模式 (browser preview: layout only): widgets replace the chrome, todo writes to focus state.
-  await page.getByRole('button', { name: '桌面模式', exact: true }).click();
-  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode'), 'the desktop client asks the shell');
-  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'true'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: true } })); }); // the shell's answer
+  // 沉入桌面: one entry point; the page asks the shell and follows cabin:desktop-mode.
+  assert.equal(await page.getByRole('button', { name: '设为桌面动态背景' }).count(), 0, 'the old wallpaper entry point is gone');
+  assert(await page.evaluate(() => typeof window.cabinDesktop?.enterDesktopMode === 'function' && window.cabinDesktop.getDesktopModeStatus().supported === true), 'public desktop API is installed');
+  await page.getByRole('button', { name: '沉入桌面', exact: true }).click();
+  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-sink-enter'), 'the desktop client asks the shell');
+  assert(await page.evaluate(() => window.__desktopCommands.some((value) => value.startsWith('album-desktop://action/tray-pet?id='))), 'the tray follows the room pet');
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: true, busy: false, supported: true, via: 'wallpaper', reason: '' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); });
+  await page.getByRole('button', { name: '浮出桌面', exact: true }).click();
+  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-sink-exit'));
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: false, busy: false, supported: true, via: '', reason: '' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); });
+  await page.getByRole('button', { name: '沉入桌面', exact: true }).waitFor();
+  check('desktop-sink-single-entry-and-api');
+  // Fallback layer (no behind-icons desktop): the cabin stays interactive with widgets.
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: true, busy: false, supported: true, via: 'window', reason: '桌面背景层暂时无法挂载' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); document.documentElement.dataset.desktopMode = 'true'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: true } })); }); // the shell's fallback answer
   await page.locator('.desktop-widgets').waitFor();
   assert(await page.evaluate(() => document.documentElement.classList.contains('room-desktop')));
   assert.equal(await page.locator('.app-titlebar').isVisible(), false);
@@ -206,8 +216,8 @@ try {
   await page.getByRole('button', { name: /移动小组件：待办/ }).focus(); await page.keyboard.press('ArrowLeft');
   assert(await page.evaluate(() => JSON.parse(localStorage.getItem('album-circle-desktop-widgets-v1')).todo.x < .77), 'widget position is remembered');
   await screenshot('desktop-mode');
-  await page.getByRole('button', { name: '回到窗口' }).click(); assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode-exit'));
-  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'false'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: false } })); });
+  await page.getByRole('button', { name: '回到窗口' }).click(); assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-sink-exit'));
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: false, busy: false, supported: true, via: '', reason: '' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); document.documentElement.dataset.desktopMode = 'false'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: false } })); });
   await page.locator('.desktop-widgets').waitFor({ state: 'detached' }); await page.locator('.app-titlebar').waitFor();
   check('desktop-mode-widgets-todo-and-layout');
   await page.locator('.turntable-controls').getByRole('button', { name: '取下唱片' }).click();
@@ -217,6 +227,8 @@ try {
   await context.addInitScript(({ companion }) => {
     window.__nativeFixtureCalls = [];
     window.albumWallpaper = { getSnapshot: async () => ({ ...companion.room, focus: companion.focus }), onSnapshot: fn => { window.__pushWallpaper = fn; return () => {}; } };
+    window.__miniCalls = [];
+    window.albumMini = { getSnapshot: async () => ({ ...companion, track: '雪夜 · 预览', musicPlaying: true }), onSnapshot: () => () => {}, command: v => window.__miniCalls.push(v), player: a => window.__miniCalls.push('player:' + a), exit: () => window.__miniCalls.push('exit') };
     window.albumPet = { getSnapshot: async () => ({ companion, size: 192 }), onSnapshot: fn => { window.__pushPet = fn; return () => {}; }, setHit: v => window.__nativeFixtureCalls.push(['hit', v]), moveBy: (x, y) => window.__nativeFixtureCalls.push(['move', x, y]), dragEnd: () => {}, menu: () => {}, open: () => window.__nativeFixtureCalls.push(['open']) };
   }, { companion });
   const mainPage = page;
@@ -225,7 +237,18 @@ try {
     await page.evaluate(({ room, look }) => window.__pushWallpaper({ ...room, look }), { room: companion.room, look: scene.id });
     await page.locator(`.cabin-scene[data-room-look="${scene.id}"]`).waitFor(); assert.equal(await page.locator('.room-record').count(), Math.min(companion.room.items.length, scene.geometry.columns.length * scene.geometry.rows.length)); await screenshot(`wallpaper-${scene.id}`);
   }
-  check('wallpaper-renderer-all-scenes-mocked-snapshot'); await page.close();
+  check('wallpaper-renderer-all-scenes-mocked-snapshot');
+  // The room cat is hidden in the wallpaper while the interactive pet is out (沉入桌面 never shows two pets).
+  await page.evaluate(({ room }) => window.__pushWallpaper({ ...room, petOut: true }), { room: companion.room }); await page.waitForTimeout(100);
+  assert.equal(await page.locator('.wallpaper-room .room-cat:visible, .wallpaper-room .pixel-cat:visible').count(), 0, 'room cat hidden while the pet is out');
+  check('wallpaper-hides-room-cat-while-pet-is-out'); await page.close();
+  page = await context.newPage(); await page.setViewportSize({ width: 300, height: 64 }); await page.goto(origin + '/mini.html');
+  await page.locator('.mini-bar').waitFor(); await page.getByText('雪夜 · 预览').waitFor();
+  assert.equal(await page.locator('.mini-actions').evaluate(e => getComputedStyle(e).opacity), '0', 'controls hidden until hover');
+  await page.hover('.mini-bar'); await page.getByRole('button', { name: '上一首' }).click(); await page.getByRole('button', { name: '暂停' }).click(); await page.getByRole('button', { name: '下一首' }).click(); await page.getByRole('button', { name: '浮出桌面' }).click();
+  await page.locator('.mini-bar').dblclick({ position: { x: 4, y: 4 } });
+  assert.deepEqual(await page.evaluate(() => window.__miniCalls), ['player:previous', 'play-toggle', 'player:next', 'exit', 'exit']); await screenshot('mini-player');
+  check('mini-player-hover-controls-and-double-click-exit'); await page.close();
   page = await context.newPage(); await page.setViewportSize({ width: 420, height: 420 }); await page.goto(origin + '/pet.html'); await page.locator('.pet-cat .pixel-cat').waitFor();
   for (const pet of PETS) {
     await page.evaluate(({ companion, petId }) => window.__pushPet({ companion: { ...companion, petId }, size: 192 }), { companion, petId: pet.id });
