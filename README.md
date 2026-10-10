@@ -104,7 +104,7 @@
 <td valign="top">
 
 ### 🔒 数据留在本机
-收藏、笔记、专注记录、待办和随手记保存在本机，可在「收藏与备份」中导出 / 导入。平台凭据通过 Electron safeStorage 加密保存，不能安全加密时拒绝保存。
+收藏、笔记、专注记录、待办和随手记保存在本机，可在「设置 › 数据与备份」中导出 / 导入。平台凭据通过 Electron safeStorage 加密保存，不能安全加密时拒绝保存。
 
 </td>
 </tr>
@@ -145,9 +145,9 @@
 </tr>
 </table>
 
-| 专注中的小屋 | 布置小屋 | 第一次来 |
+| 专注中的小屋 | 设置 › 房间与桌宠 | 新手引导 |
 | :---: | :---: | :---: |
-| <img src="docs/assets/screenshots/focus.jpg" alt="专注计时运行中，小猫冒泡提示剩余时间"> | <img src="docs/assets/screenshots/personalization.jpg" alt="六个场景与五位像素伙伴的选择器"> | <img src="docs/assets/screenshots/welcome.jpg" alt="可跳过的三步入门指南"> |
+| <img src="docs/assets/screenshots/focus.jpg" alt="专注计时运行中，小猫冒泡提示剩余时间"> | <img src="docs/assets/screenshots/personalization.jpg" alt="六个场景与五位像素伙伴的选择器"> | <img src="docs/assets/screenshots/onboarding.png" alt="新手引导：选择音源"> |
 
 <sub>截图展示当前开发分支的界面，可能尚未打包进最新 Release。重现方法见 <a href="#-截图是怎么来的">截图是怎么来的</a>。</sub>
 
@@ -172,6 +172,12 @@
 | Music Assistant | 连接已有服务器与播放器 | 需要自己的服务器；未完成真实音箱验收 |
 
 搜索到专辑不等于获得播放权限。各平台验收范围见[使用边界](docs/limitations.md#音乐与平台)，连接方法见[如何连接音源](docs/getting-started.md#连接音乐)。
+
+## 🧭 第一次使用
+
+第一次打开会出现 **新手引导**：选音源并登录 / 添加文件夹 → 打开需要的权限（通知；Mac 上的「音乐」自动化；可选开机启动）→ 选房间和伙伴 → 播放测试音确认有声音。每一步都能跳过；中途关掉，下次从那一步继续。
+
+所有设置都在右上角 **「设置」**：音源 · 房间与桌宠 · 专注工具 · 桌面（沉入桌面，<kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>D</kbd> 退出）· 数据与备份 · 关于（**重新引导**）。原来的「布置小屋」「音源设置」按钮仍可用，会直接打开对应分区。说明见 [docs/onboarding.md](docs/onboarding.md)。
 
 ## 🚀 快速开始
 
@@ -290,6 +296,7 @@ npm run check && npm run test:browser
 - **Companions** — five pixel pals that breathe, react to pokes and bop to the music, a desktop pet and a live wallpaper. Reduced motion is respected.
 - **Look & feel** — one pixel style throughout: Fusion Pixel / Silkscreen fonts, notched pixel frames, `steps()` motion, dust motes and a time-of-day window light.
 - **Local-first** — collection, notes and focus data stay on your machine, with export/import backups.
+- **First run** — a skippable, resumable onboarding wizard sets up a music source, permissions, room and companion, and plays a test sound. Everything else lives in one **Settings** hub (Sources · Room & companion · Focus · Desktop · Data & backup · About → re-run onboarding). See [docs/onboarding.md](docs/onboarding.md).
 
 ```bash
 npm ci && npm --prefix desktop ci
