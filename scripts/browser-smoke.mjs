@@ -164,6 +164,22 @@ try {
   assert.equal(await page.locator('.corner-tracks li').count(), 1);
   await page.keyboard.press('Escape'); await page.locator('.listening-corner').waitFor({ state: 'detached' });
   check('listening-corner-opens-paints-and-closes');
+  // 桌面模式 (browser preview: layout only): widgets replace the chrome, todo writes to focus state.
+  await page.getByRole('button', { name: '桌面模式', exact: true }).click();
+  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode'), 'the desktop client asks the shell');
+  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'true'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: true } })); }); // the shell's answer
+  await page.locator('.desktop-widgets').waitFor();
+  assert(await page.evaluate(() => document.documentElement.classList.contains('room-desktop')));
+  assert.equal(await page.locator('.app-titlebar').isVisible(), false);
+  for (const name of ['时钟', '正在播放', '专注', '待办']) await page.getByRole('region', { name, exact: true }).waitFor();
+  await page.getByLabel('桌面待办', { exact: true }).fill('桌面上的待办'); await page.keyboard.press('Enter'); await page.getByText('桌面上的待办', { exact: true }).waitFor();
+  await page.getByRole('button', { name: /移动小组件：待办/ }).focus(); await page.keyboard.press('ArrowLeft');
+  assert(await page.evaluate(() => JSON.parse(localStorage.getItem('album-circle-desktop-widgets-v1')).todo.x < .77), 'widget position is remembered');
+  await screenshot('desktop-mode');
+  await page.getByRole('button', { name: '回到窗口' }).click(); assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode-exit'));
+  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'false'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: false } })); });
+  await page.locator('.desktop-widgets').waitFor({ state: 'detached' }); await page.locator('.app-titlebar').waitFor();
+  check('desktop-mode-widgets-todo-and-layout');
   await page.locator('.turntable-controls').getByRole('button', { name: '取下唱片' }).click();
   items = items.filter(i => i.type !== 'playlist'); neteaseLoggedIn = false; await page.reload(); await page.locator('.room-record').first().waitFor();
   const companion = await page.evaluate(() => window.albumCompanionSnapshot());
