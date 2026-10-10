@@ -15,7 +15,8 @@
 | 本地音乐 | 已实现 | 有目录边界、索引与 WAV 播放测试；不保证每种格式、标签与设备均已覆盖 |
 | 系统正在播放 | 已实现 | Mac Music / Spotify，Windows 系统媒体接口；Mac 空闲状态已验收，实际 Music / Spotify 控制及 Windows 原生行为未完整验收 |
 | Music Assistant | 已实现 | 接入与隔离测试存在；真实服务器与音箱未验收 |
-| QQ 我的歌单浏览／批量导入 | 未实现 | 登录仅供现有播放接入，不表示歌单同步 |
+| 我的歌单（网易云 / QQ / Apple Music） | 已实现 | 网易云与 QQ 账号歌单、公开分享链接、macOS「音乐」App 歌单（JXA）、Apple Music 公开链接（页面元数据 + iTunes Lookup）与导出文件；均为离线夹具测试，真实账号与「音乐」App 未验收。Apple 曲目通过版本匹配在 QQ / 网易云播放，不是 MusicKit 播放 |
+| 桌面模式（可操作的桌面） | 已实现 | macOS 窗口层级 −1、Windows `DesktopHost.exe keep-bottom`（WinEvent 钩子保持最底层）；控制器有单元测试、C# 已编译检查，真实 macOS / Windows 桌面行为未验收 |
 | QQ 旧收藏缺失 `mediaMid` 自动补全 | 未实现 | 新取得资料会保留标识；旧记录可能需重新搜索资料，先保留备份与笔记 |
 | 官方 MusicKit / Spotify 内嵌 SDK | 未实现 | 曲库资料、系统播放器控制和账号接入不能替代官方 SDK |
 | 通用第三方插件市场／权限沙箱 | 未实现 | 专注、待办、统计、声音、随手记是内置工具 |
