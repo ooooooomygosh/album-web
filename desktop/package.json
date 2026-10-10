@@ -69,6 +69,8 @@
       "pet-preload.cjs",
       "companion-sync.cjs",
       "now-playing.cjs",
+      "apple-music.cjs",
+      "local-app.cjs",
       "local-music.cjs",
       "collection-store.cjs",
       "catalog-search.mjs",
