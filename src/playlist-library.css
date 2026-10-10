@@ -14,6 +14,8 @@
 .playlist-rail-tab[aria-selected=true] { color: var(--px-ink); background: var(--px-surface-3); border-color: var(--px-shadow); box-shadow: inset 2px 2px 0 var(--px-border-hi), inset -2px -2px 0 #0000004d; }
 .playlist-rail-tab:focus-visible { outline: 2px solid var(--px-focus); outline-offset: 1px; }
 .playlist-rail-glyph { display: grid; place-items: center; flex: 0 0 30px; height: 30px; color: #fff7e6; border: 2px solid var(--px-shadow); box-shadow: inset 2px 2px 0 #ffffff40, inset -2px -2px 0 #00000040; }
+.playlist-rail-glyph b { font-family: var(--px-font-en); font-size: 11px; font-weight: 700; letter-spacing: -.02em; }
+.playlist-rail-tab.is-netease .playlist-rail-glyph b { font-family: var(--px-font-cn); font-size: 14px; font-weight: 400; }
 .playlist-rail-tab.is-netease .playlist-rail-glyph { background: #c8322a; }
 .playlist-rail-tab.is-qq .playlist-rail-glyph { background: #2fa36b; }
 .playlist-rail-tab.is-apple .playlist-rail-glyph { background: linear-gradient(135deg, #f8495d, #c52a8e); }
@@ -47,6 +49,8 @@
 .playlist-card:hover .playlist-sleeve-disc, .playlist-card:focus-visible .playlist-sleeve-disc { transform: translateX(34%) rotate(40deg); }
 .playlist-hero .playlist-sleeve-disc { transform: translateX(38%); animation: playlist-disc-out var(--px-dur-slow) var(--px-ease-smooth) both; }
 .playlist-hero .playlist-sleeve { margin-right: 74px; }
+.playlist-grid.is-featured .playlist-sleeve-disc { transform: translateX(28%) rotate(20deg); }
+.playlist-grid.is-featured .playlist-card:hover .playlist-sleeve-disc { transform: translateX(36%) rotate(70deg); }
 .playlist-sleeve.is-spinning .playlist-sleeve-disc { animation: playlist-disc-spin 1.8s linear infinite; }
 
 /* ── grid ─────────────────────────────────────────────────────── */

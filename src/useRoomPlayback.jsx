@@ -30,6 +30,10 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
   const [accountEpoch, setAccountEpoch] = useState(0);
   const skips = useRef(0), resumeAt = useRef(0), recovered = useRef(''), prefetched = useRef('');
   const update = (value) => setState((old) => ({ ...old, ...value }));
+  // 45 rpm on a 33 record: faster and higher, like the real thing. Resets per record.
+  const rate = useRef(1);
+  const applyRate = (element = audio.current) => { if (!element) return; element.preservesPitch = false; element.mozPreservesPitch = false; element.webkitPreservesPitch = false; element.playbackRate = rate.current; };
+  useEffect(() => { rate.current = 1; applyRate(); }, [record?.id]);
   const resetAudio = (element = audio.current) => { fader.current.stop(); if (element) { element.pause(); element.removeAttribute('src'); element.load(); } };
   useEffect(() => {
     const current = ++sequence.current, controller = new AbortController(), element = audio.current; resetAudio(element);
@@ -45,7 +49,7 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
         remote.current = false;
         update({ playing: false, status: 'loading', error: '', trial: result.trial, quality: result.quality, remote: false, resolvedProvider: candidate.provider, actualTrack: candidate.title });
         fader.current.set(0); // every start fades in: no click, no blast at full volume
-        element.src = result.audioPath; element.load();
+        element.src = result.audioPath; element.load(); applyRate(element);
         if (resumeAt.current > 0) { const at = resumeAt.current; resumeAt.current = 0; element.addEventListener('loadedmetadata', () => { if (Number.isFinite(element.duration)) element.currentTime = Math.min(at, Math.max(0, element.duration - 1)); }, { once: true }); }
         await ensureAnalyser(element); // energy for cabin:playback; no-op for cross-origin audio
         let timer;
@@ -176,5 +180,7 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
     audio.current.currentTime = 0;
     try { if (audio.current.paused) { fader.current.set(0); await audio.current.play(); fader.current.to(1, FADE_IN_MS); } } catch (error) { update({ status: 'error', error: playbackErrorMessage(error) || '音频加载失败。' }); }
   };
-  return { ...state, statusText, skipping, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek, seekBy: (delta) => seek((audio.current?.currentTime || 0) + delta), restart, retry: () => { skips.current = 0; setAccountEpoch((value) => value + 1); }, remote: Boolean(state.remote), volume, muted, setVolume: (value) => setSound({ volume: value, muted: false }), setMuted: (value) => setSound({ muted: Boolean(value) }), canControl: provider !== 'visual' && provider !== 'system' };
+  return { ...state, statusText, skipping, rate: rate.current, setRate: (value) => { rate.current = Math.max(.5, Math.min(2, Number(value) || 1)); applyRate(); update({}); },
+    // Seek into a track that is about to start (dragging the needle across songs).
+    startAt: (seconds) => { resumeAt.current = Math.max(0, Number(seconds) || 0); }, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek, seekBy: (delta) => seek((audio.current?.currentTime || 0) + delta), restart, retry: () => { skips.current = 0; setAccountEpoch((value) => value + 1); }, remote: Boolean(state.remote), volume, muted, setVolume: (value) => setSound({ volume: value, muted: false }), setMuted: (value) => setSound({ muted: Boolean(value) }), canControl: provider !== 'visual' && provider !== 'system' };
 }

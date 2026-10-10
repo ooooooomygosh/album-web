@@ -23,3 +23,6 @@
   html:not([data-desktop-reduce-motion=true]) .cabin-rack .room-record{transition:translate .16s ease-out,filter .16s ease-out}
   html:not([data-desktop-reduce-motion=true]) .cabin-rack .room-record:hover{translate:0 -3px;filter:brightness(1.08)}
 }
+
+/* Imported playlists sit on the shelf like albums, with a small paper tag. */
+.cabin-rack .room-record-tag{position:absolute;z-index:4;left:6%;top:6%;padding:2px 5px 1px;font:400 calc(11px * var(--scene-k, 1) + 4px)/1 var(--px-font-cn);color:#2e1d12;background:#ffe9cb;box-shadow:0 0 0 2px #0d0805,2px 2px 0 2px #0d080580;pointer-events:none;letter-spacing:.04em}
