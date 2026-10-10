@@ -42,10 +42,12 @@ function createPetPhysics({ random = Math.random, now = () => Date.now() } = {})
         vy += GRAVITY * step; vx *= Math.exp(-1.2 * step);
         x += vx * step; y += vy * step;
         if (x < minX) { x = minX; vx = -vx * .45; } else if (x > maxX) { x = maxX; vx = -vx * .45; }
+        if (y < area.y - 40) { y = area.y - 40; vy = Math.max(0, vy); } // the top of the screen is a ceiling
         if (Math.abs(vx) > 30) facing = Math.sign(vx);
         if (y >= floor) {
           y = floor;
           if (vy > 700) { vy = -vy * .28; vx *= .6; } // one small bounce
+          else if (Math.abs(vx) > 60) { vy = 0; vx *= Math.exp(-5 * step); } // a sideways toss slides along the floor
           else { vy = 0; vx = 0; mode = 'land'; landedAt = time; }
         }
       } else if (mode === 'walk') {

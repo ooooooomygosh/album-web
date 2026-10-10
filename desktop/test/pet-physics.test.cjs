@@ -51,3 +51,17 @@ test('pet physics: a gentle release on the floor does not fall; idle pets stroll
   time += 10 * 60 * 1000; physics.step(current, area, 0, { allowWalk: true }); assert.equal(physics.mode, 'walk');
   physics.step(current, area, 1 / 60, { allowWalk: false }); assert.equal(physics.mode, 'idle');
 });
+
+test('pet physics: a sideways flick along the floor slides; an upward throw stops at the top', () => {
+  let time = 0; const physics = createPetPhysics({ now: () => time });
+  const floor = floorOf(size, area);
+  for (let i = 0; i < 6; i++) { time += 16; physics.drag(25, 0); }
+  assert.equal(physics.release({ ...size, x: 300, y: floor }, area), 'fall');
+  let current = { ...size, x: 300, y: floor };
+  for (let i = 0; i < 400 && physics.mode !== 'idle'; i++) { time += 16; const next = physics.step(current, area, 1 / 60); current = { ...current, x: next.x, y: next.y }; }
+  assert(current.x > 450, `slides along the floor (x=${current.x})`); assert.equal(current.y, floor);
+  for (let i = 0; i < 6; i++) { time += 16; physics.drag(0, -60); }
+  physics.release({ ...size, x: 600, y: 200 }, area); current = { ...size, x: 600, y: 200 }; let top = 200;
+  for (let i = 0; i < 400 && physics.mode !== 'idle'; i++) { time += 16; const next = physics.step(current, area, 1 / 60); current = { ...current, x: next.x, y: next.y }; top = Math.min(top, next.y); }
+  assert(top >= area.y - 40, 'never leaves the top of the screen'); assert.equal(current.y, floor);
+});

@@ -17,7 +17,8 @@ const DAY = 86400000;
 const text = (value, max) => (typeof value === 'string' ? value : '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').trim().slice(0, max);
 const number = (value, low, high, fallback = 0) => Number.isFinite(Number(value)) ? Math.max(low, Math.min(high, Number(value))) : fallback;
 const uid = (prefix) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-export function dayKey(time) { const date = new Date(time); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+import { dayKey } from '../focus/focus-model.mjs';
+export { dayKey };
 
 // Cards keep FSRS memory state with times as epoch milliseconds (JSON-safe).
 function toFsrs(memory, now) {

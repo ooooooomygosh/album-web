@@ -15,7 +15,7 @@ function Review({ deck, close }) {
   useEffect(() => { root.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => { if (!card && queue.upcoming && queue.upcoming - Date.now() < 30 * 60000) { const timer = setTimeout(() => setNow(Date.now()), Math.max(1000, queue.upcoming - Date.now())); return () => clearTimeout(timer); } }, [card?.id, queue.upcoming]);
   const key = (event) => {
-    if (event.target.closest('input,textarea')) return;
+    if (event.target.closest('input,textarea') || (event.target !== event.currentTarget && event.target.closest('button') && (event.key === ' ' || event.key === 'Enter'))) return; // a focused button does its own thing
     if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); if (!flipped) setFlipped(true); else rate(RATINGS[2].rating); }
     const choice = RATINGS.find((entry) => entry.key === event.key); if (choice && flipped) { event.preventDefault(); rate(choice.rating); }
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }

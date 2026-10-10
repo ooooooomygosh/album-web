@@ -10,7 +10,7 @@
 //            windows are never reparented or modified.
 const { spawn } = require('node:child_process');
 
-function createDesktopMode({ getWindow, screen, platform = process.platform, helperPath, spawnProcess = spawn, onChange = () => {}, log = () => {} }) {
+function createDesktopMode({ getWindow, screen, leaveFullscreen = null, platform = process.platform, helperPath, spawnProcess = spawn, onChange = () => {}, log = () => {} }) {
   let active = false, saved = null, keeper = null, refitTimer = null;
   const win = () => { const value = getWindow(); return value && !value.isDestroyed() ? value : null; };
   const handle = (value) => value.getNativeWindowHandle().readBigUInt64LE().toString();
@@ -32,8 +32,11 @@ function createDesktopMode({ getWindow, screen, platform = process.platform, hel
   function enter() {
     const value = win(); if (!value || active) return state();
     saved = { bounds: value.isMaximized() || value.isFullScreen() ? value.getNormalBounds() : value.getBounds(), maximized: value.isMaximized() };
-    if (value.isFullScreen()) value.setFullScreen(false);
-    if (platform === 'darwin' && value.isSimpleFullScreen?.()) value.setSimpleFullScreen(false);
+    // Leave fullscreen through the shell so the page and the keep-awake blocker follow.
+    const native = value.isFullScreen();
+    if (leaveFullscreen) leaveFullscreen(); else { if (native) value.setFullScreen(false); if (platform === 'darwin' && value.isSimpleFullScreen?.()) value.setSimpleFullScreen(false); }
+    // Native fullscreen exits asynchronously; fill the work area once it has.
+    if (native) value.once?.('leave-full-screen', () => { if (active) fit(); });
     if (value.isMaximized()) value.unmaximize();
     value.setResizable(false); value.setMovable(false); value.setFullScreenable(false);
     fit(value);

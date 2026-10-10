@@ -61,3 +61,14 @@ test('desktop mode refits to the current work area after display changes', async
   assert.deepEqual(window.calls.filter(([name]) => name === 'setBounds').at(-1)[1], area);
   mode.stop();
 });
+
+test('desktop mode leaves fullscreen through the shell and fits after a native exit', () => {
+  const window = fakeWindow(); let full = true, leaves = 0; const handlers = {};
+  window.isFullScreen = () => full; window.once = (name, fn) => { handlers[name] = fn; };
+  const mode = createDesktopMode({ getWindow: () => window, screen, platform: 'darwin', leaveFullscreen: () => { leaves++; } });
+  mode.enter();
+  assert.equal(leaves, 1);
+  full = false; window.calls.length = 0; handlers['leave-full-screen']();
+  assert.deepEqual(window.calls.find(([name]) => name === 'setBounds')[1], { x: 0, y: 25, width: 1440, height: 875 });
+  mode.stop();
+});

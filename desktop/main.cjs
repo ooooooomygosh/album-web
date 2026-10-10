@@ -129,10 +129,12 @@ function isFullscreen() { return Boolean(mainWindow && !mainWindow.isDestroyed()
 function setFullscreen(on) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (on && desktopMode?.active) desktopMode.exit();
+  // Leaving: undo whichever kind is active (the green button enters native fullscreen).
+  if (!on) { if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false); if (process.platform === 'darwin' && mainWindow.isSimpleFullScreen()) { mainWindow.setSimpleFullScreen(false); syncFullscreen(false); } return; }
   if (process.platform === 'darwin') {
-    try { mainWindow.setSimpleFullScreen(on); syncFullscreen(on); return; } catch { /* fall back to native fullscreen */ }
+    try { mainWindow.setSimpleFullScreen(true); syncFullscreen(true); return; } catch { /* fall back to native fullscreen */ }
   }
-  mainWindow.setFullScreen(on);
+  mainWindow.setFullScreen(true);
 }
 const toggleFullscreen = () => setFullscreen(!isFullscreen());
 function syncFullscreen(fullscreen = isFullscreen()) {
@@ -518,7 +520,7 @@ else {
     });
     registerShellProtocol(); registerIpc();
     wallpaper = createWallpaper({ app, getMain: () => mainWindow, getSite: () => siteView?.webContents, status: wallpaperStatus, appearanceScript, getAppearance: () => appearance, log: writeLog, registerProtocol: registerShellProtocol });
-    desktopMode = createDesktopMode({ getWindow: () => mainWindow, screen, helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'DesktopHost.exe') : path.join(__dirname, 'native', 'bin', 'DesktopHost.exe'), log: writeLog,
+    desktopMode = createDesktopMode({ getWindow: () => mainWindow, screen, leaveFullscreen: () => setFullscreen(false), helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'DesktopHost.exe') : path.join(__dirname, 'native', 'bin', 'DesktopHost.exe'), log: writeLog,
       onChange: (state) => { refreshTray(); notifySite(`document.documentElement.dataset.desktopMode = '${state.active}'; window.dispatchEvent(new CustomEvent('album-desktop-mode', {detail: ${JSON.stringify(state)}}));`); } });
     pet = createPet({ directory: app.getPath('userData'), getSite: () => siteView?.webContents, status: petStatus, registerProtocol: registerShellProtocol, restoreMain: restoreMainWindow, log: writeLog });
     collection = createCollectionStore({ directory: app.getPath('userData') });

@@ -48,7 +48,7 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
       created.webContents.on('will-frame-navigate', (event) => event.preventDefault());
       created.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
       created.webContents.session.setPermissionCheckHandler(() => false);
-      created.on('closed', () => { if (window === created) { window = null; poller.stop(); announce(); } });
+      created.on('closed', () => { if (window === created) { window = null; clearTimeout(loop); loop = null; clearInterval(idleTimer); idleTimer = null; poller.stop(); announce(); } });
       created.setIgnoreMouseEvents(true, { forward: true });
       await created.loadURL(URL);
       if (window !== created) return;
@@ -62,7 +62,9 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
   }
   // Falling, landing and strolling move the window itself, ~60 frames a second,
   // only while something moves. A quiet pet costs nothing.
-  const area = () => screen.getDisplayMatching(window.getBounds()).workArea;
+  // A thrown pet stays on the display it was thrown on (stacked monitors must not swap floors mid-air).
+  let flightArea = null;
+  const area = () => flightArea || screen.getDisplayMatching(window.getBounds()).workArea;
   const allowWalk = () => !latest?.reduceMotion && (!latest?.focus || latest.focus.phase === 'idle') && !latest?.musicPlaying;
   function publish(next) { if (next.mode !== motion.mode || next.facing !== motion.facing) { motion = { mode: next.mode, facing: next.facing }; window?.webContents.send('pet:update', payload()); } }
   function tick() {
@@ -72,7 +74,7 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
     if (next.x !== bounds.x || next.y !== bounds.y) window.setBounds({ ...bounds, x: next.x, y: next.y });
     publish(next);
     if (physics.moving) loop = setTimeout(tick, 16);
-    else { lastStep = 0; const { x, y } = window.getBounds(); prefs = { ...prefs, x, y }; save(); }
+    else { lastStep = 0; flightArea = null; const { x, y } = window.getBounds(); prefs = { ...prefs, x, y }; save(); }
   }
   const animate = () => { if (!loop && window) { lastStep = 0; loop = setTimeout(tick, 16); } };
   function wander() { if (!window || physics.moving || physics.mode === 'drag') return; physics.step(window.getBounds(), area(), 0, { allowWalk: allowWalk() }); if (physics.moving) animate(); }
@@ -98,12 +100,12 @@ function createPet({ directory, getSite, getFocus, status, registerProtocol, res
   ipcMain.on('pet:hit', (event, value) => { if (validSender(event)) window.setIgnoreMouseEvents(!value, { forward: true }); });
   ipcMain.on('pet:move', (event, dx, dy) => {
     if (!validSender(event) || !Number.isFinite(dx) || !Number.isFinite(dy) || Math.abs(dx) > 2000 || Math.abs(dy) > 2000) return;
-    clearTimeout(loop); loop = null; physics.drag(dx, dy); publish({ mode: 'drag', facing: motion.facing });
+    clearTimeout(loop); loop = null; flightArea = null; physics.drag(dx, dy); publish({ mode: 'drag', facing: motion.facing });
     const bounds = window.getBounds(); window.setBounds(clampToWorkArea({ ...bounds, x: bounds.x + dx, y: bounds.y + dy }));
   });
   ipcMain.on('pet:drag-end', (event) => {
     if (!validSender(event)) return;
-    const bounds = window.getBounds(), mode = physics.release(bounds, area());
+    flightArea = null; const bounds = window.getBounds(); flightArea = area(); const mode = physics.release(bounds, flightArea);
     publish({ mode, facing: physics.facing });
     if (physics.moving) animate(); else { prefs = { ...prefs, x: bounds.x, y: bounds.y }; save(); }
   });

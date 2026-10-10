@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useFocus } from './useFocus';
-import { focusStats, levelInfo, UNLOCKS, unlockedIds, minutesByDay } from './focus-model.mjs';
+import { focusStats, levelInfo, UNLOCKS, unlockedIds, minutesByDay, dayKey } from './focus-model.mjs';
 import { heatmap } from '../study/study-model.mjs';
 import '../study/study.css';
 
@@ -9,7 +9,7 @@ export default function FocusStats() {
   const focus = useFocus(), { sessions, rewards } = focus.state;
   const stats = focusStats(sessions, focus.now), peak = Math.max(30, ...stats.week.map((day) => day.minutes));
   const level = levelInfo(rewards.xp), unlocked = unlockedIds(rewards.xp);
-  const goal = focus.state.settings.dailyGoal, weeks = heatmap(minutesByDay(sessions), focus.now, 18), activeDays = weeks.flat().filter((day) => day.minutes > 0).length;
+  const goal = focus.state.settings.dailyGoal, today = dayKey(focus.now), weeks = useMemo(() => heatmap(minutesByDay(sessions), focus.now, 18), [sessions, today]), activeDays = weeks.flat().filter((day) => day.minutes > 0).length;
   return <div className="focus-stats">
     <dl className="focus-stat-tiles">
       <div><dt>今日专注</dt><dd>{hours(stats.today)}</dd></div>
