@@ -1,0 +1,79 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { scoreCandidate, rankForAutoplay, createMatchMemory, matchKey, AUTO_MATCH_THRESHOLD } from './auto-match.mjs';
+import { findPlayableSource } from '../room-playback.mjs';
+import { localAppTarget, listSources, getSourceStatus, requestPermission, testPlayback, connectSource } from './sources.mjs';
+
+const want = { title: '晴天', artist: 'Jay Chou', album: '叶惠美', duration: 269000 };
+const c = (id, extra = {}) => ({ id, provider: 'qq', title: '晴天', artist: '周杰伦', album: '叶惠美', duration: 269000, ...extra });
+
+test('auto-match: cross-script artist plays when album and duration agree (the 重新匹配 case)', () => {
+  assert.ok(scoreCandidate(c('a'), want) >= AUTO_MATCH_THRESHOLD);
+  assert.equal(scoreCandidate(c('b', { album: '', duration: 0 }), want) < AUTO_MATCH_THRESHOLD, true, 'title alone is not enough when the artist cannot be compared');
+  assert.equal(scoreCandidate(c('c', { artist: '另一位歌手' }), { ...want, artist: '周杰伦' }), 0, 'a different artist in the same script is rejected');
+  assert.equal(scoreCandidate(c('d', { title: '晴天 (Live)' }), want), 0, 'live is never substituted');
+  assert.ok(scoreCandidate(c('e', { title: '晴天 (2015 Remaster)', artist: 'Jay Chou' }), want) >= AUTO_MATCH_THRESHOLD, 'remaster decoration is the same recording');
+  assert.ok(scoreCandidate(c('f', { duration: 200000 }), want) < scoreCandidate(c('g'), want), 'a far-off duration ranks lower');
+});
+
+test('auto-match: ranking prefers album + duration, keeps order on ties', () => {
+  const ranked = rankForAutoplay([c('other-album', { album: '精选', artist: 'Jay Chou' }), c('exact', { artist: 'Jay Chou' }), c('wrong', { artist: 'Someone Else' })], want);
+  assert.deepEqual(ranked.map((x) => x.id), ['exact', 'other-album']);
+});
+
+const memoryStore = () => { const data = {}; return { getItem: (k) => data[k] ?? null, setItem: (k, v) => { data[k] = v; } }; };
+const record = { id: 'r1', type: 'album', title: '叶惠美', artist: 'Jay Chou', tracks: ['晴天', '以父之名'], trackDetails: [{ title: '晴天', lengthMillis: 269000, source: 'apple' }, { title: '以父之名', lengthMillis: 342000, source: 'apple' }] };
+
+test('fallback: the stored source fails → rematch → best candidate plays, then next candidate', async () => {
+  const memory = createMatchMemory(memoryStore()), resolved = [];
+  memory.put(matchKey(record, 0), { id: 'stale', provider: 'qq', title: '晴天' });
+  const result = await findPlayableSource({ record, index: 0, provider: 'qq', memory,
+    request: async (path, body) => { if (path === '/resolve') { resolved.push(body.id); if (body.id === 'stale' || body.id === 'vip') throw new Error('会员'); return { audioPath: '/a' }; } return { candidates: path.includes('provider=qq') ? [c('vip', { artist: 'Jay Chou' }), c('ok'), c('karaoke', { title: '晴天 (伴奏)' })] : [] }; },
+    play: async () => {} });
+  assert.deepEqual(resolved, ['stale', 'vip', 'ok']);
+  assert.equal(result.candidate.id, 'ok');
+  assert.equal(memory.get(matchKey(record, 0)).id, 'ok', 'the working match is cached for next time');
+  resolved.length = 0;
+  const again = await findPlayableSource({ record, index: 0, provider: 'qq', memory, request: async (path, body) => { resolved.push(path === '/resolve' ? body.id : 'search'); return { audioPath: '/a' }; }, play: async () => {} });
+  assert.equal(again.remembered, true); assert.deepEqual(resolved, ['ok'], 'second play skips the search');
+});
+
+test('fallback: nothing playable returns an honest error with the candidates (deck then auto-skips)', async () => {
+  const result = await findPlayableSource({ record, index: 1, provider: 'qq', request: async (path) => { if (path === '/resolve') throw new Error('版权'); return { candidates: [c('x', { title: '以父之名', album: '叶惠美', duration: 342000 })] }; }, play: async () => { throw new Error('must not play'); } });
+  assert.equal(result.candidate, undefined);
+  assert.match(result.error, /暂时不可播放/);
+  assert.equal(result.candidates.length, 2);
+});
+
+test('match memory is bounded and ignores session files', () => {
+  const memory = createMatchMemory(memoryStore(), 2);
+  memory.put('a', { id: '1', provider: 'qq' }); memory.put('b', { id: '2', provider: 'qq' }); memory.put('c', { id: '3', provider: 'qq' }); memory.put('d', { sessionUrl: 'blob:x', id: '4', provider: 'local' });
+  assert.equal(memory.size, 2); assert.equal(memory.get('a'), null);
+});
+
+test('local app hand-off only after a failure, with the platform id when known', () => {
+  assert.equal(localAppTarget({ record, index: 0, provider: 'qq', status: 'playing' }), null);
+  const qq = localAppTarget({ record, index: 0, provider: 'qq', status: 'error', candidates: [c('0039MnYb0qxYhV')] });
+  assert.deepEqual(qq, { provider: 'qq', id: '0039MnYb0qxYhV', query: 'Jay Chou 晴天', label: '在 QQ 音乐中打开' });
+  const ne = localAppTarget({ record: { ...record, trackDetails: [{ source: 'netease', providerId: '186016' }] }, index: 0, provider: 'auto', status: 'error' });
+  assert.equal(ne.provider, 'netease'); assert.equal(ne.id, '186016');
+  assert.equal(localAppTarget({ record, index: 0, provider: 'local', status: 'error' }), null);
+});
+
+test('onboarding API: list, status, permission, connect and test playback', async () => {
+  assert.equal(listSources({ mac: false }).find((s) => s.id === 'appleMusic').supported, false);
+  assert.equal(listSources({ mac: true }).find((s) => s.id === 'appleMusic').supported, true);
+  const request = async (path) => ({ '/config': { qqLoggedIn: true, neteaseLoggedIn: false }, '/apple/permission': { available: true, granted: false, needsPermission: true, error: '请允许' } })[path];
+  assert.equal((await getSourceStatus('qq', { request })).connected, true);
+  assert.equal((await getSourceStatus('netease', { request })).connected, false);
+  assert.deepEqual(await requestPermission('appleMusic', { request }), { granted: false, needsPermission: true, available: true, error: '请允许' });
+  const target = new EventTarget(); let sent;
+  const pending = connectSource('qq', { target, command: (cmd, params) => { sent = [cmd, params]; } });
+  target.dispatchEvent(Object.assign(new Event('album-music-account'), { detail: { ok: true } }));
+  assert.deepEqual(await pending, { ok: true, cancelled: false, error: '' }); assert.deepEqual(sent, ['music-login', { provider: 'qq' }]);
+  const audio = { play: async () => {}, pause() {}, removeAttribute() {}, load() {} };
+  const ok = await testPlayback({ provider: 'qq', seconds: 0, createAudio: () => audio, request: async (path) => path === '/resolve' ? { audioPath: '/a', quality: '320k MP3' } : { candidates: [c('t', { artist: '周杰伦' })] } });
+  assert.deepEqual(ok, { ok: true, provider: 'qq', quality: '320k MP3', title: '晴天' });
+  const bad = await testPlayback({ provider: 'qq', seconds: 0, createAudio: () => ({ ...audio, play: async () => { throw new Error('blocked'); } }), request: async (path) => path === '/resolve' ? { audioPath: '/a' } : { candidates: [c('t', { artist: '周杰伦' })] } });
+  assert.equal(bad.ok, false, 'never reports success unless audio played');
+});

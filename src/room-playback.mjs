@@ -1,4 +1,5 @@
 import { playbackErrorMessage } from './player/playback-cache.mjs';
+import { rankForAutoplay, matchKey, AUTO_MATCH_ATTEMPTS } from './player/auto-match.mjs';
 // A playlist's tracks each have their own artist and album; an album's share the record's.
 export const trackArtist = (item, index) => item?.trackDetails?.[index]?.artist || item?.artist || '';
 export const trackAlbum = (item, index) => item?.trackDetails?.[index]?.album || (item?.type === 'playlist' ? '' : item?.title || '');
@@ -53,35 +54,34 @@ export function normalizeLocalLibrary(value) {
   return { ...raw, albums, folders: list(raw.folders).filter((folder) => folder && typeof folder.path === 'string'), albumCount: count(raw.albumCount, albums.length), trackCount: count(raw.trackCount, albums.reduce((sum, album) => sum + album.tracks.length, 0)) };
 }
 
-const normalized = (value) => String(value || '').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
-const versions = (value) => (String(value || '').toLowerCase().match(/live|remix|acoustic|instrumental|karaoke|现场|伴奏|翻唱|混音|重混|不插电|纯音乐/g) || []).sort().join('|');
-export function rankCandidates(candidates, record, index) {
+// What the track should sound like, for ranking platform search results.
+export function wantedTrack(record, index) {
   const raw = record?.tracks?.[index], title = typeof raw === 'string' ? raw : raw?.title || raw?.name || record?.title;
-  const target = normalized(title), artist = normalized(trackArtist(record, index)), album = normalized(trackAlbum(record, index));
-  return candidates.map((candidate) => {
-    // A live performance or cover is not silently substituted for a studio recording.
-    const correctVersion = versions(candidate.title) === versions(title);
-    const sameTitle = normalized(candidate.title) === target;
-    const candidateArtist = normalized(candidate.artist);
-    const artistParts = String(candidate.artist || '').split(/[,，、/&;；]|\s+(?:feat\.?|ft\.?|with)\s+/i).map(normalized);
-    const sameArtist = artist && candidateArtist && (candidateArtist === artist || artistParts.includes(artist));
-    const sameAlbum = Boolean(album) && normalized(candidate.album) === album;
-    return { candidate, score: correctVersion && sameTitle && (sameArtist || (candidate.provider === 'local' && !candidateArtist && sameAlbum)) ? 100 + (sameAlbum ? 20 : 0) : 0 };
-  }).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score).map(({ candidate }) => candidate);
+  return { title, artist: trackArtist(record, index), album: trackAlbum(record, index), duration: Number(record?.trackDetails?.[index]?.lengthMillis) || 0 };
+}
+export function rankCandidates(candidates, record, index) {
+  return rankForAutoplay(candidates, wantedTrack(record, index));
 }
 
-export async function findPlayableSource({ record, index, provider, request, play, isCurrent = () => true }) {
+// Plays the first source that really starts. Order: the match that worked last
+// time (memory) → the record's own platform id → ranked search results, up to
+// AUTO_MATCH_ATTEMPTS per platform. Nothing is reported as playing unless
+// `play` resolved; when nothing works the caller gets the candidates + error.
+export async function findPlayableSource({ record, index, provider, request, play, isCurrent = () => true, memory = null }) {
   const tried = new Set(), candidates = [];
   let lastError = '', hadMatches = false;
+  const key = memory ? matchKey(record, index) : '';
   const attempt = async (candidate) => {
-    const key = `${candidate.provider}:${candidate.id}`;
-    if (!isCurrent() || tried.has(key)) return false;
-    tried.add(key); hadMatches = true;
+    const id = `${candidate.provider}:${candidate.id}`;
+    if (!isCurrent() || tried.has(id)) return false;
+    tried.add(id); hadMatches = true;
     try {
       const result = await request('/resolve', candidate);
       if (!isCurrent()) return false;
       await play(candidate, result);
-      return isCurrent();
+      if (!isCurrent()) return false;
+      if (!result?.remote) memory?.put(key, candidate);
+      return true;
     } catch (error) {
       if (!isCurrent() || error.name === 'AbortError') return false;
       lastError = playbackErrorMessage(error);
@@ -95,6 +95,12 @@ export async function findPlayableSource({ record, index, provider, request, pla
   const providers = provider === 'auto' ? (origin === 'netease' ? ['netease', 'qq'] : ['qq', 'netease']) : provider === 'qq' ? ['qq', 'netease'] : provider === 'netease' ? ['netease', 'qq'] : [provider];
   const raw = record?.tracks?.[index], name = typeof raw === 'string' ? raw : raw?.title || raw?.name;
   if (!name) return { candidates: [], error: '原始资料没有曲目，无法定位音频。' };
+  const remembered = memory?.get(key);
+  if (remembered && providers.includes(remembered.provider)) {
+    if (await attempt(remembered)) return { candidate: remembered, candidates: [], remembered: true };
+    if (!isCurrent()) return null;
+    memory.forget(key);
+  }
   for (const source of providers) {
     if (!isCurrent()) return null;
     const exact = exactTrack(record, index, source);
@@ -105,7 +111,7 @@ export async function findPlayableSource({ record, index, provider, request, pla
       if (!isCurrent()) return null;
       const found = Array.isArray(result.candidates) ? result.candidates : [];
       candidates.push(...found);
-      for (const candidate of rankCandidates(found, record, index)) {
+      for (const candidate of rankCandidates(found, record, index).slice(0, AUTO_MATCH_ATTEMPTS)) {
         if (await attempt(candidate)) return { candidate, candidates: [] };
         if (!isCurrent()) return null;
       }

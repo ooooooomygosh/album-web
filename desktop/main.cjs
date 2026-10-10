@@ -15,6 +15,8 @@ const { createMusicService } = require('./music-service.cjs');
 const { openQQLogin, openNeteaseLogin, clearQQLogin, clearNeteaseLogin } = require('./music-login.cjs');
 const { createPet } = require('./pet.cjs');
 const { createNowPlaying } = require('./now-playing.cjs');
+const { createAppleMusic } = require('./apple-music.cjs');
+const { createLocalApps } = require('./local-app.cjs');
 const { createLocalMusic } = require('./local-music.cjs');
 const { sendCompanionCommand } = require('./companion-sync.cjs');
 
@@ -528,7 +530,7 @@ else {
     catalog = async (params) => (await search).searchCatalog(params);
     localMusic = createLocalMusic({ directory: app.getPath('userData'), resizeCover: (buffer) => { const image = nativeImage.createFromBuffer(buffer); return image.isEmpty() ? null : image.resize({ width: Math.min(600, image.getSize().width), quality: 'good' }).toJPEG(86); } });
     const nowPlaying = createNowPlaying({ helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'NowPlaying.exe') : path.join(__dirname, 'native', 'bin', 'NowPlaying.exe') });
-    music = createMusicService({ directory: app.getPath('userData'), safeStorage, nowPlaying, localMusic, login: (provider) => provider === 'qq' ? openQQLogin(mainWindow) : openNeteaseLogin(mainWindow), logout: (provider) => provider === 'qq' ? clearQQLogin() : clearNeteaseLogin() });
+    music = createMusicService({ directory: app.getPath('userData'), safeStorage, nowPlaying, localMusic, appleMusic: createAppleMusic(), localApps: createLocalApps({ openExternal: (url) => shell.openExternal(url), appForProtocol: (url) => app.getApplicationNameForProtocol(url) }), login: (provider) => provider === 'qq' ? openQQLogin(mainWindow) : openNeteaseLogin(mainWindow), logout: (provider) => provider === 'qq' ? clearQQLogin() : clearNeteaseLogin() });
     writeLog('started', app.getVersion()); await createWindow();
   }).catch((error) => {
     writeLog('startup-error', error.message);
