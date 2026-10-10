@@ -13,8 +13,10 @@ async function launch() {
   site = await application.waitForEvent('window', { predicate: (page) => page.url().startsWith('https://album-circle.vercel.app'), timeout: 5000 }).catch(() => application.windows().find((page) => page.url().startsWith('https://album-circle.vercel.app')));
   assert.ok(site); site.on('pageerror', (error) => report.pageErrors.push(error.message));
   await site.locator('.app-titlebar').waitFor({ timeout: 30000 });
-  const welcome = site.getByRole('dialog', { name: '欢迎来到心流小屋', exact: true });
-  if (await welcome.isVisible()) await welcome.getByRole('button', { name: '先逛逛小屋', exact: true }).click();
+  // A fresh profile opens the 新手引导 (PR #16); this test checks the cabin itself, so skip it.
+  const onboarding = site.getByRole('dialog', { name: '新手引导', exact: true });
+  await onboarding.waitFor({ timeout: 15000 }).catch(() => {});
+  if (await onboarding.isVisible()) { await onboarding.getByRole('button', { name: '跳过引导', exact: true }).click(); await onboarding.waitFor({ state: 'hidden' }); }
   await application.evaluate(({ BrowserWindow }) => { const window = BrowserWindow.getAllWindows()[0]; window.unmaximize(); window.setSize(1024, 768); });
   await site.waitForFunction(() => innerWidth <= 1100);
 }
