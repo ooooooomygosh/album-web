@@ -5,6 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { verifyWelcome } from './welcome-checks.mjs';
+import { neteasePlaylists, playlistDetail } from './playlist-fixture.mjs';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -23,7 +24,7 @@ const cover = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w
 let items = Array.from({ length: 18 }, (_, i) => ({ id: `fixture-${i}`, type: 'album', title: i === 0 ? '晨光本地唱片' : `测试唱片 ${i + 1}`, artist: 'Fixture Artist', year: '2026', cover: i === 2 ? '' : cover, source: 'manual', tracks: ['晨光', '夜雨'], trackDetails: ['abcdef0123456789', 'fedcba9876543210'].map((id, index) => ({ title: index ? '夜雨' : '晨光', source: 'local', providerId: id })), addedAt: new Date(Date.UTC(2026, 9, 8) - i * 86400000).toISOString() }));
 const wav = Buffer.alloc(44 + 22050 * 2 * 15); wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(22050, 24); wav.writeUInt32LE(44100, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
 for (let i = 0; i < (wav.length - 44) / 2; i++) wav.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * 220 / 22050) * 1200), 44 + i * 2);
-let systemPlaying = true, localAlbumCalls = 0; const systemCommands = [];
+let systemPlaying = true, localAlbumCalls = 0, neteaseLoggedIn = false; const systemCommands = [];
 const screenshot = async (name) => { await page.screenshot({ path: path.join(output, name + '.png'), animations: 'disabled' }); report.screenshots.push(name + '.png'); };
 const closeDialog = () => page.keyboard.press('Escape');
 try {
@@ -48,7 +49,11 @@ try {
       if (request.method() === 'DELETE') { items = items.filter(i => i.id !== id); return json({ ok: true }); }
     }
     if (p === '/api/search') return json({ candidates: [{ ...items[0], id: 'search-result', title: '搜索找到的专辑' }] });
-    if (p === '/desktop-music/config') return json({ qqLoggedIn: false, neteaseLoggedIn: false, maURL: '', playerId: '' });
+    if (p === '/desktop-music/config') return json({ qqLoggedIn: false, neteaseLoggedIn, maURL: '', playerId: '' });
+    if (p === '/desktop-music/playlists') return json({ loggedIn: true, provider: 'netease', user: 'Fixture', playlists: neteasePlaylists.map(({ cover, ...entry }) => entry) });
+    const bare = (detail) => ({ ...detail, playlist: { ...detail.playlist, cover: '' }, tracks: detail.tracks.map(({ cover, ...track }) => track) });
+    if (p === '/desktop-music/playlist') return json(bare(playlistDetail(url.searchParams.get('id'))));
+    if (p === '/desktop-music/playlist/link') return json({ ...bare(playlistDetail('9003', 'qq')), provider: 'qq' });
     if (p === '/desktop-music/local/summary') return json({ folders: [{ name: 'Fixture Music', path: '/fixture/music' }], albumCount: 1, trackCount: 2 });
     if (p === '/desktop-music/local/albums') return json(localAlbumCalls++ % 2 ? { albums: [{ id: '0123456789abcdef', title: '残缺资料' }, null] } : {}); // malformed on purpose: {} then an album without tracks
     if (p === '/desktop-music/resolve') return json({ audioPath: '/desktop-music/local/audio/' + body.id, trial: false });
@@ -129,13 +134,65 @@ try {
   await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '待办', exact: true }).click(); await page.getByLabel('新的待办').fill('浏览器测试待办'); await page.getByRole('button', { name: '添加待办' }).click(); await page.getByRole('checkbox', { name: '完成：浏览器测试待办' }).check(); assert.equal(await page.locator('.focus-task-list li.is-done').count(), 1); check('focus-tasks-create-and-complete');
   await page.getByRole('tab', { name: '随手记', exact: true }).click(); await page.getByLabel('随手记内容').fill('QA 随手记备份内容'); check('quick-notes-save-local-text');
   await page.getByRole('tab', { name: '番茄钟' }).click(); await page.getByRole('button', { name: '计时设置' }).click(); await page.getByLabel('专注（分）').fill('2'); await page.getByLabel('专注（分）').blur(); await page.getByRole('button', { name: '开始专注' }).click(); await page.clock.fastForward(121000); await page.locator('.focus-phase', { hasText: '短休息' }).waitFor(); await page.getByRole('tab', { name: '统计' }).click(); assert.match(await page.locator('.focus-stat-tiles').innerText(), /2 分钟/); await screenshot('focus-statistics'); check('focus-timer-completes-and-records-session'); await page.locator('.focus-dock-close').click();
-  await page.getByRole('button', { name: '收藏与备份', exact: true }).click(); const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: '导出备份', exact: true }).click(); const download = await downloadPromise; await download.saveAs(path.join(output, 'fixture-backup.json')); const backup = JSON.parse(await fs.readFile(path.join(output, 'fixture-backup.json'))); assert.equal(backup.kind, 'FlowCabinBackup'); assert.equal(backup.items.length, 18); assert.equal(backup.focus.tasks.length, 1); assert.equal(backup.focus.notes, 'QA 随手记备份内容'); check('backup-exports-collection-and-focus');
+  // 学习: a deck, pasted cards, a keyboard review (Space flips, 1–4 rate), a countdown.
+  await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '学习', exact: true }).click();
+  await page.getByLabel('新卡组名称').fill('QA 单词'); await page.getByRole('button', { name: '新建', exact: true }).click();
+  await page.getByRole('button', { name: '编辑', exact: true }).click(); await page.getByLabel('新卡片').fill('ephemeral - 短暂的\n光合作用：植物利用光能'); await page.getByRole('button', { name: '添加 2 张' }).click(); await page.getByText('添加了 2 张卡片。').waitFor();
+  await page.getByRole('button', { name: '卡组', exact: true }).click(); await page.locator('.study-deck-open', { hasText: 'QA 单词' }).click();
+  await page.locator('.study-card-front', { hasText: 'ephemeral' }).waitFor(); await page.keyboard.press(' '); await page.locator('.study-card-back', { hasText: '短暂的' }).waitFor();
+  assert.equal(await page.locator('.study-ratings button').count(), 4); await page.keyboard.press('4'); await page.locator('.study-card-front', { hasText: '光合作用' }).waitFor();
+  assert.equal(await page.evaluate(() => document.querySelector('audio')?.paused ?? true), true, 'Space in a review does not start music');
+  await page.keyboard.press(' '); await page.keyboard.press('3'); await page.locator('.study-done').waitFor(); await page.getByRole('button', { name: '回到卡组' }).click();
+  await page.getByLabel('倒计时名称').fill('期末'); await page.getByLabel('倒计时日期').fill('2026-12-20'); await page.getByRole('button', { name: '添加倒计时' }).click(); await page.locator('.study-countdowns li', { hasText: '期末' }).getByText('73 天').waitFor();
+  check('study-flashcards-fsrs-keyboard-review-and-countdown'); await page.locator('.focus-dock-close').click();
+  await page.getByRole('button', { name: '收藏与备份', exact: true }).click(); const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: '导出备份', exact: true }).click(); const download = await downloadPromise; await download.saveAs(path.join(output, 'fixture-backup.json')); const backup = JSON.parse(await fs.readFile(path.join(output, 'fixture-backup.json'))); assert.equal(backup.kind, 'FlowCabinBackup'); assert.equal(backup.items.length, 18); assert.equal(backup.focus.tasks.length, 1); assert.equal(backup.focus.notes, 'QA 随手记备份内容'); assert.equal(backup.study.cards.length, 2); assert.equal(backup.study.countdowns[0].title, '期末'); check('backup-exports-collection-and-focus');
   await page.getByLabel('导入备份文件').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{invalid') }); await page.getByText('文件内容无法读取。', { exact: true }).waitFor(); check('backup-rejects-malformed-input');
   const imported = { kind: 'FlowCabinBackup', items: [{ ...items[0], id: 'backup-imported', title: '备份导入唱片' }] };
   await page.getByLabel('导入备份文件').setInputFiles({ name: 'fixture.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) }); await page.getByText('导入完成：新增 1 张唱片，唱片架现在共有 19 张。', { exact: true }).waitFor(); assert(items.some(i => i.id === 'backup-imported')); check('backup-import-merges-new-album'); await closeDialog();
   await page.getByRole('button', { name: '专辑墙', exact: true }).click(); await page.locator('.wall-library-album').first().click(); await page.waitForFunction(() => { const c = document.querySelector('.wall-canvas-wrap canvas'); return c?.width > 300 && !document.querySelector('.wall-preview-bar').textContent.includes('正在更新'); }); await screenshot('album-wall');
   const pngPromise = page.waitForEvent('download'); await page.getByRole('button', { name: '下载 PNG', exact: true }).click(); const png = await pngPromise; await png.saveAs(path.join(output, 'fixture-album-wall.png')); const pngBytes = await fs.readFile(path.join(output, 'fixture-album-wall.png')); assert.equal(pngBytes.subarray(1, 4).toString(), 'PNG'); assert(pngBytes.length > 1000); check('album-wall-paints-and-downloads-real-png'); await closeDialog();
   await page.keyboard.press('z'); assert(await page.evaluate(() => document.documentElement.classList.contains('room-zen'))); await screenshot('zen-mode'); await page.keyboard.press('Escape'); check('zen-mode-keyboard');
+  // 我的歌单: account playlists, link import, file import; a playlist plays like an album.
+  neteaseLoggedIn = true;
+  await page.getByRole('button', { name: '我的歌单', exact: true }).click();
+  await page.getByRole('tab', { name: /网易云音乐/ }).click();
+  await page.locator('.playlist-card', { hasText: '深夜写作' }).click(); await page.locator('.playlist-hero h3', { hasText: '深夜写作' }).waitFor();
+  assert.equal(await page.locator('.playlist-track').count(), 12); await screenshot('playlist-detail');
+  await page.getByLabel('在歌单中查找').fill('laufey'); assert.equal(await page.locator('.playlist-track').count(), 1); await page.getByLabel('在歌单中查找').fill('');
+  await page.getByRole('button', { name: '放上唱片架' }).click(); await page.locator('.playlist-notice', { hasText: '已放上唱片架' }).waitFor();
+  const savedPlaylist = items.find(i => i.type === 'playlist'); assert(savedPlaylist, 'playlist saved as a shelf record'); assert.equal(savedPlaylist.trackDetails[0].artist, 'Laufey'); assert.equal(savedPlaylist.trackDetails[0].source, 'netease'); assert.equal(savedPlaylist.externalIds.playlist, 'netease:9002');
+  await page.getByRole('button', { name: '全部歌单' }).click(); await page.getByRole('tab', { name: /链接与文件/ }).click();
+  await page.getByLabel('歌单分享链接').fill('https://y.qq.com/n/ryqq/playlist/9003'); await page.getByRole('button', { name: '读取歌单' }).click(); await page.locator('.playlist-badge', { hasText: 'QQ 音乐' }).waitFor();
+  await page.getByRole('button', { name: '全部歌单' }).click();
+  await page.locator('.playlist-import input[type=file]').setInputFiles({ name: 'night.m3u8', mimeType: 'audio/x-mpegurl', buffer: Buffer.from('#EXTM3U\n#EXTINF:200,Fixture Artist - 晨光\n/x.mp3\n') });
+  await page.locator('.playlist-hero h3', { hasText: 'night' }).waitFor(); assert.equal(await page.locator('.playlist-track').count(), 1);
+  await page.getByRole('button', { name: '放上唱机' }).click(); await page.locator('.playlist-dialog').waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => document.querySelector('.room-turntable')?.dataset.loadedId?.length > 0); assert.match(await page.locator('.turntable-artist').innerText(), /Fixture Artist · 歌单/);
+  check('playlists-account-link-and-file-import-play-on-deck');
+  // 唱机特写: the close-up opens with T, draws the deck, and Esc returns.
+  await page.keyboard.press('t'); await page.locator('.listening-corner .pixel-turntable').waitFor(); await page.waitForTimeout(300); await screenshot('listening-corner');
+  assert(await page.locator('.pixel-turntable').evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let lit = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) lit++; return lit > c.width * c.height * .5; }), 'deck is painted');
+  assert.equal(await page.locator('.corner-tracks li').count(), 1);
+  await page.keyboard.press('Escape'); await page.locator('.listening-corner').waitFor({ state: 'detached' });
+  check('listening-corner-opens-paints-and-closes');
+  // 桌面模式 (browser preview: layout only): widgets replace the chrome, todo writes to focus state.
+  await page.getByRole('button', { name: '桌面模式', exact: true }).click();
+  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode'), 'the desktop client asks the shell');
+  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'true'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: true } })); }); // the shell's answer
+  await page.locator('.desktop-widgets').waitFor();
+  assert(await page.evaluate(() => document.documentElement.classList.contains('room-desktop')));
+  assert.equal(await page.locator('.app-titlebar').isVisible(), false);
+  for (const name of ['时钟', '正在播放', '专注', '待办']) await page.getByRole('region', { name, exact: true }).waitFor();
+  await page.getByLabel('桌面待办', { exact: true }).fill('桌面上的待办'); await page.keyboard.press('Enter'); await page.getByText('桌面上的待办', { exact: true }).waitFor();
+  await page.getByRole('button', { name: /移动小组件：待办/ }).focus(); await page.keyboard.press('ArrowLeft');
+  assert(await page.evaluate(() => JSON.parse(localStorage.getItem('album-circle-desktop-widgets-v1')).todo.x < .77), 'widget position is remembered');
+  await screenshot('desktop-mode');
+  await page.getByRole('button', { name: '回到窗口' }).click(); assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode-exit'));
+  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'false'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: false } })); });
+  await page.locator('.desktop-widgets').waitFor({ state: 'detached' }); await page.locator('.app-titlebar').waitFor();
+  check('desktop-mode-widgets-todo-and-layout');
+  await page.locator('.turntable-controls').getByRole('button', { name: '取下唱片' }).click();
+  items = items.filter(i => i.type !== 'playlist'); neteaseLoggedIn = false; await page.reload(); await page.locator('.room-record').first().waitFor();
   const companion = await page.evaluate(() => window.albumCompanionSnapshot());
   assert.equal(companion.petId, PETS.at(-1).id); assert(companion.room.items.length > 0); check('companion-snapshot-carries-selected-pet-and-room');
   await context.addInitScript(({ companion }) => {

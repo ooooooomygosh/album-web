@@ -4,6 +4,8 @@ import Dialog from './Dialog';
 import { useRecordLibrary } from './RecordLibrary';
 import { normalizeLibrary } from './record-library.mjs';
 import { useFocus } from './focus/useFocus';
+import { useStudy } from './study/useStudy';
+import { normalizeStudy } from './study/study-model.mjs';
 import { focusStats } from './focus/focus-model.mjs';
 import { downloadBlob } from './album-wall-canvas.mjs';
 import { importItems } from './collection-api.mjs';
@@ -13,12 +15,12 @@ import { backupFocus, restoreFocus } from './backup-model.mjs';
 
 // Everything lives on this computer; a backup file moves it to another one.
 export default function BackupDialog({ items, close, reload }) {
-  const library = useRecordLibrary(), focus = useFocus(), soundscape = useSoundscape();
+  const library = useRecordLibrary(), focus = useFocus(), study = useStudy(), soundscape = useSoundscape();
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const stats = focus ? focusStats(focus.state.sessions, Date.now()) : null;
   const exportBackup = () => {
     let sound = null; try { sound = JSON.parse(localStorage.getItem(SOUND_KEY)); } catch {}
-    const backup = { kind: 'FlowCabinBackup', version: 2, exportedAt: new Date().toISOString(), items, library: library.data, focus: focus ? backupFocus(focus.state) : null, sound };
+    const backup = { kind: 'FlowCabinBackup', version: 2, exportedAt: new Date().toISOString(), items, library: library.data, focus: focus ? backupFocus(focus.state) : null, study: study?.state || null, sound };
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     downloadBlob(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }), `FlowCabin-backup-${day}.json`);
     setNotice('备份文件已生成。');
@@ -37,6 +39,8 @@ export default function BackupDialog({ items, close, reload }) {
       const warnings = [];
       if (!librarySaved) warnings.push('唱片已导入，但小屋设置保存失败，请检查存储空间');
       if (data.focus && focus && window.confirm('备份里包含专注记录、待办与随手记。要替换这台电脑上的这些内容吗？')) focus.replace(restoreFocus(data.focus, focus.state));
+      const savedStudy = data.study ? normalizeStudy(data.study) : null;
+      if (savedStudy && study && (savedStudy.decks.length || savedStudy.countdowns.length) && window.confirm(`备份里有 ${savedStudy.decks.length} 个卡组、${savedStudy.cards.length} 张闪卡和 ${savedStudy.countdowns.length} 个倒计时。要替换这台电脑上的学习记录吗？`)) { if (!study.replace(savedStudy)) warnings.push('学习记录未能保存'); }
       if (data.sound && soundscape?.replaceMix) {
         try { soundscape.replaceMix(data.sound); } catch { warnings.push('声音设置未能保存'); }
       }

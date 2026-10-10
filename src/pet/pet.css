@@ -10,3 +10,8 @@ body{font-family:var(--desktop-font,'HarmonyOS Sans SC Bundled','PingFang SC','M
 @media(prefers-reduced-motion:reduce){.pet-bubble{animation:none}}
 
 .pet-stage[data-reduce-motion="true"] .pet-bubble{animation:none}
+/* Thrown and landing: a stretch while falling, a squash when it touches down. */
+.pet-cat.is-falling .pixel-cat{transform:scale(.94,1.06);transform-origin:50% 100%}
+.pet-cat.is-landing .pixel-cat{animation:pet-land .26s steps(4,end);transform-origin:50% 100%}
+@keyframes pet-land{0%{transform:scale(1.14,.84)}55%{transform:scale(.96,1.05)}100%{transform:none}}
+.pet-stage[data-reduce-motion="true"] .pet-cat .pixel-cat{animation:none!important;transform:none!important}

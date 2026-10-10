@@ -45,3 +45,8 @@
 .music-settings .music-source-use:active{transform:translate(1px,1px);box-shadow:1px 1px 0 var(--px-shadow,#0d0805)}
 .music-source-current{color:var(--px-good,#9ccf8c);box-shadow:inset 0 0 0 1px var(--px-good,#9ccf8c)}
 .music-source-row{display:flex;align-items:center;gap:8px;margin:6px 0 0}.music-source-row>:first-child{margin-left:0}.music-source-row small{font-size:11px;color:var(--px-ink-dim,#c9a47a)}
+.player-queue-title{display:block;margin:4px 0 3px;font-size:10.5px;letter-spacing:.06em;color:var(--pl-dim)}.player-queue-title:first-child{margin-top:0}
+.player-queue ol.player-queue-tracks{padding:0;max-height:none;list-style:none;margin-bottom:4px}
+.player-queue li button.player-queue-jump{display:flex;align-items:center;gap:6px;width:100%;min-width:0;padding:1px 2px;color:var(--pl-ink);text-align:left;font:inherit}.player-queue li button.player-queue-jump:hover{color:var(--pl-ink);background:#ffffff12}
+.player-queue-jump b{font-family:var(--px-font-en,monospace);font-size:9px;font-weight:400;color:var(--pl-dim)}
+.player-queue-more{display:block;margin:-2px 0 4px;font-size:10px;color:var(--pl-dim)}

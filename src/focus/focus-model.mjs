@@ -8,7 +8,7 @@ export const PHASES = ['idle', 'focus', 'shortBreak', 'longBreak'];
 export const PHASE_LABELS = { idle: '准备开始', focus: '专注中', shortBreak: '短休息', longBreak: '长休息' };
 const MINUTE = 60000;
 
-export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false, hideSeconds: false, catSkin: 'orange' });
+export const DEFAULT_SETTINGS = Object.freeze({ focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoBreak: true, autoFocus: false, notify: true, chime: true, autoSound: false, hideSeconds: false, catSkin: 'orange', dailyGoal: 90 });
 // One-tap rhythms. Values stay inside normalizeSettings() bounds.
 export const FOCUS_PRESETS = Object.freeze([
   Object.freeze({ id: 'sprint', label: '冲刺', hint: '15 / 3', focusMin: 15, shortMin: 3, longMin: 10 }),
@@ -60,7 +60,7 @@ export function normalizeSettings(value = {}) {
   return {
     focusMin: clamp(v.focusMin, 1, 180, DEFAULT_SETTINGS.focusMin), shortMin: clamp(v.shortMin, 1, 60, DEFAULT_SETTINGS.shortMin),
     longMin: clamp(v.longMin, 1, 90, DEFAULT_SETTINGS.longMin), longEvery: clamp(v.longEvery, 2, 8, DEFAULT_SETTINGS.longEvery),
-    autoBreak: v.autoBreak !== false, autoFocus: v.autoFocus === true, notify: v.notify !== false, chime: v.chime !== false, autoSound: v.autoSound === true, hideSeconds: v.hideSeconds === true, catSkin: v.catSkin === 'black' ? 'black' : 'orange'
+    autoBreak: v.autoBreak !== false, autoFocus: v.autoFocus === true, notify: v.notify !== false, chime: v.chime !== false, autoSound: v.autoSound === true, hideSeconds: v.hideSeconds === true, catSkin: v.catSkin === 'black' ? 'black' : 'orange', dailyGoal: clamp(v.dailyGoal, 0, 720, DEFAULT_SETTINGS.dailyGoal)
   };
 }
 function normalizeTimer(value = {}, settings = DEFAULT_SETTINGS) {

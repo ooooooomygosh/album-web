@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, WebContentsView, Menu, Tray, dialog, ipcMain, clipboard, shell, protocol, screen, net, safeStorage, nativeImage } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, Tray, dialog, ipcMain, clipboard, shell, protocol, screen, net, safeStorage, nativeImage, powerSaveBlocker } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { SITE_ORIGIN, SHELL_URL, isSiteUrl, isShellUrl, isExternalUrl, safeSavedWindow } = require('./policy.cjs');
@@ -9,6 +9,7 @@ const { createSiteRouter } = require('./site-router.cjs');
 const { DEFAULT_SETTINGS, normalizeSettings, appearanceScript, listSystemFonts } = require('./settings.cjs');
 const { registerShellProtocol } = require('./shell-protocol.cjs');
 const { createWallpaper } = require('./wallpaper.cjs');
+const { createDesktopMode } = require('./desktop-mode.cjs');
 const { createCollectionStore } = require('./collection-store.cjs');
 const { createMusicService } = require('./music-service.cjs');
 const { openQQLogin, openNeteaseLogin, clearQQLogin, clearNeteaseLogin } = require('./music-login.cjs');
@@ -45,7 +46,7 @@ let preferences = {};
 let appearance = { ...DEFAULT_SETTINGS };
 let settingsOpen = false;
 let systemFonts = [];
-let wallpaper;
+let wallpaper, desktopMode, awakeBlocker = null;
 let music;
 let collection;
 let catalog;
@@ -62,7 +63,7 @@ function restoreMainWindow() {
   mainWindow.show(); mainWindow.focus();
 }
 // One tray icon while the wallpaper or the desktop pet keeps running.
-function companionsActive() { return Boolean(wallpaperState.active || wallpaperState.busy || petState.active); }
+function companionsActive() { return Boolean(wallpaperState.active || wallpaperState.busy || petState.active || desktopMode?.active); }
 function refreshTray() {
   if (companionsActive()) {
     if (!companionTray) { companionTray = new Tray(path.join(__dirname, 'assets', 'tray.png')); companionTray.on('double-click', restoreMainWindow); }
@@ -74,6 +75,7 @@ function refreshTray() {
       { type: 'separator' },
       petState.active ? { label: '让伙伴回家', click: () => pet.stop() } : { label: '伙伴出门（桌宠）', click: () => pet.start().catch((error) => writeLog('pet-error', error.message)) },
       ...(wallpaperState.active ? [{ label: '停止桌面动态背景', click: () => wallpaper.stop() }] : []),
+      ...(desktopMode?.active ? [{ label: '退出桌面模式', click: () => desktopMode.exit() }] : []),
       { type: 'separator' }, { label: '退出应用', click: () => app.quit() }
     ]));
   } else if (companionTray) {
@@ -121,8 +123,25 @@ async function saveAppearance(value) {
   return { settings: appearance, display: currentDisplay() };
 }
 
-function syncFullscreen(fullscreen = mainWindow?.isFullScreen()) {
+// macOS uses simple fullscreen: instant, in the same Space, no slide animation —
+// better for a cabin left running on a screen. Windows keeps real fullscreen.
+function isFullscreen() { return Boolean(mainWindow && !mainWindow.isDestroyed() && (mainWindow.isFullScreen() || (process.platform === 'darwin' && mainWindow.isSimpleFullScreen()))); }
+function setFullscreen(on) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (on && desktopMode?.active) desktopMode.exit();
+  // Leaving: undo whichever kind is active (the green button enters native fullscreen).
+  if (!on) { if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false); if (process.platform === 'darwin' && mainWindow.isSimpleFullScreen()) { mainWindow.setSimpleFullScreen(false); syncFullscreen(false); } return; }
+  if (process.platform === 'darwin') {
+    try { mainWindow.setSimpleFullScreen(true); syncFullscreen(true); return; } catch { /* fall back to native fullscreen */ }
+  }
+  mainWindow.setFullScreen(true);
+}
+const toggleFullscreen = () => setFullscreen(!isFullscreen());
+function syncFullscreen(fullscreen = isFullscreen()) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  // A fullscreen cabin is a screen to look at: keep the display awake meanwhile.
+  if (fullscreen && awakeBlocker === null) awakeBlocker = powerSaveBlocker.start('prevent-display-sleep');
+  else if (!fullscreen && awakeBlocker !== null) { powerSaveBlocker.stop(awakeBlocker); awakeBlocker = null; }
   if (fullscreen && settingsOpen) toggleSettings(false);
   for (const contents of [mainWindow.webContents, siteView?.webContents]) {
     if (contents && !contents.isDestroyed()) contents.executeJavaScript(`document.documentElement.dataset.desktopFullscreen = '${fullscreen}'; window.dispatchEvent(new CustomEvent('album-desktop-fullscreen', {detail: ${fullscreen}}));`).catch(() => {});
@@ -181,10 +200,10 @@ function openExternal(url) {
 }
 
 function exitFullscreenOnEscape(event, input) {
-  if (input.type === 'keyDown' && input.key === 'F11') { event.preventDefault(); mainWindow.setFullScreen(!mainWindow.isFullScreen()); return true; }
-  if (input.type === 'keyDown' && input.key === 'Escape' && mainWindow?.isFullScreen()) {
+  if (input.type === 'keyDown' && input.key === 'F11') { event.preventDefault(); toggleFullscreen(); return true; }
+  if (input.type === 'keyDown' && input.key === 'Escape' && isFullscreen()) {
     event.preventDefault();
-    mainWindow.setFullScreen(false);
+    setFullscreen(false);
     return true;
   }
   if (input.type === 'keyDown' && input.key === 'Escape' && settingsOpen) { event.preventDefault(); toggleSettings(false); }
@@ -243,6 +262,7 @@ async function wireRemoteView() {
     await applyAppearance();
     syncFullscreen();
     wallpaperStatus(wallpaperState); petStatus(petState);
+    if (desktopMode) notifySite(`document.documentElement.dataset.desktopMode = '${desktopMode.active}';`);
     siteView.setVisible(!settingsOpen);
     if (mainWindow && !mainWindow.isDestroyed() && !contents.isDestroyed() && (!mainWindow.isVisible() || mainWindow.isMinimized())) await contents.executeJavaScript("window.dispatchEvent(new Event('blur'));").catch(() => {});
     sendState();
@@ -313,9 +333,12 @@ function handleSiteCommand(value) {
   if (url.protocol !== 'album-desktop:' || url.hostname !== 'action' || url.username || url.password || !isSiteUrl(siteView?.webContents.getURL())) return false;
   switch (url.pathname) {
     case '/settings': toggleSettings(true); break;
-    case '/fullscreen': mainWindow.setFullScreen(!mainWindow.isFullScreen()); break;
+    case '/fullscreen': toggleFullscreen(); break;
+    case '/fullscreen-exit': setFullscreen(false); break;
+    case '/desktop-mode': desktopMode.toggle(); break;
+    case '/desktop-mode-exit': desktopMode.exit(); break;
     case '/minimize': mainWindow.minimize(); break;
-    case '/maximize': if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false); else if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); break;
+    case '/maximize': if (desktopMode.active) desktopMode.exit(); else if (isFullscreen()) setFullscreen(false); else if (mainWindow.isMaximized()) mainWindow.unmaximize(); else mainWindow.maximize(); break;
     case '/close': mainWindow.close(); break;
     case '/wallpaper-start': wallpaper.start(); break;
     case '/wallpaper-stop': wallpaper.stop(); break;
@@ -338,6 +361,9 @@ async function chooseMusicFolder() {
 }
 function notifyLocalMusic(detail) {
   if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent('album-local-music', {detail: ${JSON.stringify(detail)}}));`).catch(() => {});
+}
+function notifySite(script) {
+  if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(script).catch(() => {});
 }
 function notifyMusic(result) {
   if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent('album-music-account', {detail: ${JSON.stringify(result)}}));`).catch(() => {});
@@ -372,7 +398,8 @@ function createMenus() {
       { label: '放大', accelerator: 'CmdOrCtrl+Plus', click: () => saveAppearance({ ...appearance, zoom: appearance.zoom + 5 }).catch(() => {}) },
       { label: '缩小', accelerator: 'CmdOrCtrl+-', click: () => saveAppearance({ ...appearance, zoom: appearance.zoom - 5 }).catch(() => {}) },
       { label: '实际大小', accelerator: 'CmdOrCtrl+0', click: () => saveAppearance({ ...appearance, zoom: 100 }).catch(() => {}) },
-      { label: '全屏', click: () => mainWindow.setFullScreen(!mainWindow.isFullScreen()) }
+      { label: '全屏', accelerator: 'F11', click: toggleFullscreen },
+      { label: '桌面模式', click: () => desktopMode.toggle() }
     ]},
     { label: '帮助', submenu: [
       { label: '打开数据文件夹', click: () => shell.openPath(app.getPath('userData')) },
@@ -455,9 +482,13 @@ async function createWindow() {
   mainWindow.on('move', () => { if (settingsOpen) sendState(); });
   mainWindow.on('close', (event) => {
     if ((wallpaper?.active || wallpaper?.busy || pet?.active) && !quitting) { event.preventDefault(); mainWindow.hide(); return; }
+    // Closing while the cabin is the desktop leaves desktop mode; the next launch returns to it only if the app quit while in it.
+    const wasDesktop = Boolean(desktopMode?.active);
+    if (wasDesktop && !quitting) { event.preventDefault(); desktopMode.exit(); return; }
     try {
       fs.mkdirSync(app.getPath('userData'), { recursive: true });
-      fs.writeFileSync(preferencesPath(), JSON.stringify({ ...mainWindow.getNormalBounds(), maximized: mainWindow.isMaximized(), displayAdapted: true }));
+      if (wasDesktop) { const previous = (() => { try { return JSON.parse(fs.readFileSync(preferencesPath(), 'utf8')); } catch { return {}; } })(); fs.writeFileSync(preferencesPath(), JSON.stringify({ ...previous, desktopMode: true, displayAdapted: true })); desktopMode.stop(); }
+      else fs.writeFileSync(preferencesPath(), JSON.stringify({ ...mainWindow.getNormalBounds(), maximized: mainWindow.isMaximized(), displayAdapted: true, desktopMode: false }));
     } catch { /* Keep the last successfully saved window state. */ }
     clearTimeout(loadTimer); clearTimeout(retryTimer);
     if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.close();
@@ -469,6 +500,7 @@ async function createWindow() {
   if (preferences.maximized || !preferences.displayAdapted) mainWindow.maximize();
   mainWindow.show();
   resizeView();
+  if (preferences.desktopMode) desktopMode.enter();
   listSystemFonts().then((fonts) => { systemFonts = fonts; return applyAppearance(); }).catch(() => {});
   startupComplete = true;
   await navigate();
@@ -480,14 +512,16 @@ else {
     restoreMainWindow();
   });
   app.whenReady().then(async () => {
-    screen.on('display-metrics-changed', () => { sendState(); wallpaper?.reposition(); pet?.reposition(); });
+    screen.on('display-metrics-changed', () => { sendState(); wallpaper?.reposition(); pet?.reposition(); desktopMode?.refit(); });
     screen.on('display-removed', () => {
       if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized() && !mainWindow.isFullScreen()) mainWindow.setBounds(safeSavedWindow(mainWindow.getBounds(), screen.getDisplayMatching(mainWindow.getBounds()).workArea));
       sendState();
-      wallpaper?.reposition(); pet?.reposition();
+      wallpaper?.reposition(); pet?.reposition(); desktopMode?.refit();
     });
     registerShellProtocol(); registerIpc();
     wallpaper = createWallpaper({ app, getMain: () => mainWindow, getSite: () => siteView?.webContents, status: wallpaperStatus, appearanceScript, getAppearance: () => appearance, log: writeLog, registerProtocol: registerShellProtocol });
+    desktopMode = createDesktopMode({ getWindow: () => mainWindow, screen, leaveFullscreen: () => setFullscreen(false), helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'DesktopHost.exe') : path.join(__dirname, 'native', 'bin', 'DesktopHost.exe'), log: writeLog,
+      onChange: (state) => { refreshTray(); notifySite(`document.documentElement.dataset.desktopMode = '${state.active}'; window.dispatchEvent(new CustomEvent('album-desktop-mode', {detail: ${JSON.stringify(state)}}));`); } });
     pet = createPet({ directory: app.getPath('userData'), getSite: () => siteView?.webContents, status: petStatus, registerProtocol: registerShellProtocol, restoreMain: restoreMainWindow, log: writeLog });
     collection = createCollectionStore({ directory: app.getPath('userData') });
     const search = import('./catalog-search.mjs');
@@ -503,5 +537,5 @@ else {
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
   app.on('activate', () => { if (mainWindow) restoreMainWindow(); else createWindow().catch((error) => writeLog('startup-error', error.message)); });
-  app.on('before-quit', () => { quitting = true; wallpaper?.stop(); pet?.stop(); music?.stop(); companionTray?.destroy(); companionTray = null; if (startupComplete) writeLog('closed'); });
+  app.on('before-quit', () => { quitting = true; if (awakeBlocker !== null) { powerSaveBlocker.stop(awakeBlocker); awakeBlocker = null; } wallpaper?.stop(); pet?.stop(); music?.stop(); companionTray?.destroy(); companionTray = null; if (startupComplete) writeLog('closed'); });
 }
