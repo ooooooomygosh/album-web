@@ -1,0 +1,146 @@
+import React, { useEffect, useRef, useState } from 'react';
+import Dialog from '../Dialog';
+import PixelCat from '../pet/PixelCat';
+import { PETS } from '../pet/pet-catalog.mjs';
+import { ROOM_SCENES, getRoomScene } from '../scene-catalog.mjs';
+import { Check, Music2 } from '../icons';
+import * as model from './onboarding-model.mjs';
+import './onboarding.css';
+
+const PERMISSION_TEXT = { granted: '已允许', denied: '未允许 · 可在系统设置里修改', skipped: '已跳过', unsupported: '会在第一次用到时由系统询问' };
+
+// First-run wizard. Each step only changes what the user explicitly picks:
+// it never starts a timer, and sound plays only after 「播放测试」 is pressed.
+export default function OnboardingWizard({ state, update, env, player, look, petId, onRoomChange, useSource, openMusicSettings, openAdd, close, reduceMotion, error }) {
+  const heading = useRef(null), first = useRef(true);
+  const step = state.step, index = model.stepIndex(step);
+  useEffect(() => { if (first.current) { first.current = false; return; } heading.current?.focus({ preventScroll: true }); }, [step]);
+  const go = (fn) => update(fn(state));
+  const scene = getRoomScene(look);
+  return <Dialog title="新手引导" label="新手引导" close={() => close('later')} className="onboarding" wide>
+    <ol className="onboarding-progress" aria-label="引导进度">{model.STEPS.map((id, i) => <li key={id} aria-current={id === step ? 'step' : undefined} className={i < index ? 'is-done' : ''}><span aria-hidden="true">{i < index ? '✓' : i + 1}</span>{model.STEP_LABELS[id]}</li>)}</ol>
+    <div className="onboarding-layout">
+      <aside className="onboarding-scene" aria-hidden="true"><img src={scene.view} alt="" width="240" height="180"/><PixelCat petId={petId} pose={step === 'test' || step === 'done' ? 'groove' : 'idle'} reduceMotion={reduceMotion}/><span>{scene.label}</span></aside>
+      <section className="onboarding-step" key={step} aria-labelledby="onboarding-heading">
+        {step === 'welcome' && <Welcome heading={heading} env={env}/>}
+        {step === 'source' && <SourceStep heading={heading} state={state} update={update} env={env} player={player} useSource={useSource} openMusicSettings={openMusicSettings} openAdd={openAdd}/>}
+        {step === 'permissions' && <PermissionStep heading={heading} state={state} update={update} env={env} player={player}/>}
+        {step === 'room' && <RoomStep heading={heading} look={look} petId={petId} onRoomChange={onRoomChange} reduceMotion={reduceMotion} error={error}/>}
+        {step === 'test' && <TestStep heading={heading} state={state} update={update} player={player} openMusicSettings={openMusicSettings}/>}
+        {step === 'done' && <DoneStep heading={heading} state={state} env={env}/>}
+      </section>
+    </div>
+    <footer className="onboarding-footer">
+      {step !== 'done' ? <button type="button" className="onboarding-text" onClick={() => close('skip')}>跳过引导</button> : <span/>}
+      <small>{step === 'done' ? '以后可以在「设置 › 关于」里重新引导。' : '关掉窗口也没关系，下次打开会从这一步继续。'}</small>
+      <div>
+        {index > 0 && step !== 'done' && <button type="button" className="pixel-button" onClick={() => go(model.back)}>上一步</button>}
+        {step === 'welcome' && <button type="button" className="pixel-button is-primary" onClick={() => go(model.next)}>开始设置</button>}
+        {step !== 'welcome' && step !== 'done' && <button type="button" className="pixel-button is-primary" onClick={() => go(model.next)}>下一步</button>}
+        {step === 'done' && <button type="button" className="pixel-button is-primary" onClick={() => close('done')}>进入小屋</button>}
+      </div>
+    </footer>
+  </Dialog>;
+}
+
+const Heading = ({ heading, eyebrow, children }) => <><span className="onboarding-eyebrow">{eyebrow}</span><h3 id="onboarding-heading" ref={heading} tabIndex={-1}>{children}</h3></>;
+
+function Welcome({ heading, env }) {
+  return <>
+    <Heading heading={heading} eyebrow="第一次来">欢迎来到心流小屋</Heading>
+    <p>花一分钟把小屋调好，之后打开就能直接听歌、专注。每一步都可以跳过，以后在「设置」里随时改。</p>
+    <ul className="onboarding-list">
+      <li><b>1</b>选一个音乐来源并连接</li><li><b>2</b>打开需要的权限（通知{env.desktop ? '、开机启动' : ''}）</li><li><b>3</b>挑房间和陪你的小伙伴</li><li><b>4</b>放一段声音，确认能听到</li>
+    </ul>
+    {!env.desktop && <p className="onboarding-hint">你在用网页版：QQ 音乐 / 网易云登录、系统播放器和开机启动需要桌面版。</p>}
+  </>;
+}
+
+function SourceStep({ heading, state, update, env, player, useSource, openMusicSettings, openAdd }) {
+  const [sources, setSources] = useState(() => model.sourceOptions(env)), [status, setStatus] = useState({}), [busy, setBusy] = useState(''), [message, setMessage] = useState(''), [quality, setQuality] = useState(null);
+  const refresh = async (id) => { const next = await player.getSourceStatus(id); setStatus((old) => ({ ...old, [id]: next })); };
+  useEffect(() => {
+    let alive = true;
+    player.listSources().then((list) => { if (alive) setSources(list); });
+    player.qualities().then((value) => { if (alive) setQuality(value); });
+    const done = () => { setBusy(''); if (state.source) refresh(state.source); };
+    window.addEventListener('album-music-account', done); window.addEventListener('album-local-music', done);
+    return () => { alive = false; window.removeEventListener('album-music-account', done); window.removeEventListener('album-local-music', done); };
+  }, [state.source]);
+  useEffect(() => { if (state.source) refresh(state.source); }, [state.source]);
+  const choose = (source) => { update(model.chooseSource(state, source.id)); setMessage(''); const provider = source.provider || model.providerFor(source.id); if (provider) useSource?.(provider); };
+  const connect = async (source) => {
+    setBusy(source.id); setMessage('');
+    const result = await player.connectSource(source.id);
+    if (!result.pending) setBusy('');
+    if (result.fallback === 'add-album') { setMessage(result.error); return; }
+    if (!result.ok) setMessage(result.error || '没有连接成功。'); else if (!result.pending) refresh(source.id);
+  };
+  const selected = sources.find((item) => item.id === state.source);
+  return <>
+    <Heading heading={heading} eyebrow="第 1 步 · 音源">想从哪里听歌？</Heading>
+    <p>选一个就好，之后可以在「设置 › 音源」里加更多。</p>
+    <div className="onboarding-sources" role="radiogroup" aria-label="音乐来源">{sources.map((source) => <button type="button" role="radio" key={source.id} aria-checked={state.source === source.id} disabled={!source.available} aria-label={`音源 ${source.label}`} onClick={() => choose(source)}>
+      <strong>{source.label}</strong><small>{source.available ? source.hint : source.reason}</small>{state.source === source.id && <Check size={14}/>}
+    </button>)}</div>
+    {selected && <div className="onboarding-connect" role="group" aria-label={`连接 ${selected.label}`}>
+      <span><strong>{selected.label}</strong><small>{status[selected.id]?.detail || ' '}</small></span>
+      {selected.id === 'local' && !env.desktop ? <button type="button" className="pixel-button" onClick={() => openAdd?.()}>选择音乐文件</button>
+        : selected.id !== 'system' && <button type="button" className="pixel-button" disabled={Boolean(busy)} onClick={() => connect(selected)}>{busy === selected.id ? '等待完成…' : selected.id === 'local' ? '添加音乐文件夹' : selected.id === 'appleMusic' ? '检查连接' : status[selected.id]?.connected ? '重新登录' : '登录'}</button>}
+    </div>}
+    {quality?.options?.length > 0 && <label className="onboarding-quality">音质<select aria-label="音质" value={state.quality || quality.current || ''} onChange={async (event) => { const id = event.target.value; if (await player.setQuality(id)) update({ ...state, quality: id }); }}>{quality.options.map((option) => <option key={option.id ?? option} value={option.id ?? option}>{option.label ?? option}</option>)}</select><small>播放不了时会自动降一档</small></label>}
+    {message && <p className="onboarding-hint" role="status">{message}</p>}
+    <button type="button" className="onboarding-text" onClick={() => openMusicSettings?.()}><Music2 size={14}/>更多音源（Music Assistant 等）</button>
+  </>;
+}
+
+function PermissionStep({ heading, state, update, env, player }) {
+  const items = model.permissionItems(env, state.source);
+  const [busy, setBusy] = useState('');
+  const ask = async (item) => { setBusy(item.id); const result = await player.requestPermission(item.id); setBusy(''); update(model.setPermission(state, item.id, result)); };
+  return <>
+    <Heading heading={heading} eyebrow="第 2 步 · 权限">只开需要的权限</Heading>
+    <p>每一项都会弹出系统询问，拒绝也能正常使用小屋。</p>
+    {items.length ? <ul className="onboarding-permissions">{items.map((item) => { const result = state.permissions[item.id]; return <li key={item.id}>
+      <span><strong>{item.label}{item.optional ? <em>可选</em> : null}</strong><small>{result ? PERMISSION_TEXT[result] : item.hint}</small></span>
+      {result === 'granted' ? <span className="onboarding-ok"><Check size={14}/>已允许</span> : <>
+        <button type="button" className="pixel-button" disabled={Boolean(busy)} aria-label={`允许 ${item.label}`} onClick={() => ask(item)}>{busy === item.id ? '等待系统…' : '允许'}</button>
+        {!result && <button type="button" className="onboarding-text" aria-label={`跳过 ${item.label}`} onClick={() => update(model.setPermission(state, item.id, 'skipped'))}>跳过</button>}
+      </>}
+    </li>; })}</ul> : <p className="onboarding-hint">这个环境不需要额外权限。</p>}
+  </>;
+}
+
+function RoomStep({ heading, look, petId, onRoomChange, reduceMotion, error }) {
+  return <>
+    <Heading heading={heading} eyebrow="第 3 步 · 房间与伙伴">选一个房间，再挑个伙伴</Heading>
+    <div className="onboarding-scenes">{ROOM_SCENES.map((scene) => <button type="button" key={scene.id} aria-pressed={look === scene.id} aria-label={`入门选择 ${scene.label}`} onClick={() => onRoomChange({ look: scene.id })}><img src={scene.view} alt="" width="120" height="90" loading="lazy"/><span>{scene.label}</span></button>)}</div>
+    <div className="onboarding-pets">{PETS.map((pet) => <button type="button" key={pet.id} aria-pressed={petId === pet.id} aria-label={`入门选择 ${pet.name || pet.label}`} onClick={() => onRoomChange({ petId: pet.id })}><PixelCat petId={pet.id} pose="idle" reduceMotion={reduceMotion}/><span>{pet.name || pet.label}</span></button>)}</div>
+    {error && <p role="alert" className="record-error">{error}</p>}
+  </>;
+}
+
+function TestStep({ heading, state, update, player, openMusicSettings }) {
+  const [phase, setPhase] = useState(state.tested ? 'answered' : 'idle'), [result, setResult] = useState(null);
+  const play = async () => { setPhase('playing'); const next = await player.testPlayback(); setResult(next); if (!next.ok) { setPhase('answered'); update(model.setTested(state, 'failed')); } else setPhase('ask'); };
+  const answer = (value) => { setPhase('answered'); update(model.setTested(state, value)); };
+  return <>
+    <Heading heading={heading} eyebrow="第 4 步 · 试听">放一段声音试试</Heading>
+    <p>{result?.kind === 'track' ? '会从你选的音源放几秒钟。' : '会播放一小段提示音，确认电脑的扬声器或耳机有声音。'}</p>
+    <div className="onboarding-test">
+      <button type="button" className="pixel-button is-primary" disabled={phase === 'playing'} onClick={play}>{phase === 'playing' ? '正在播放…' : state.tested ? '再试一次' : '播放测试'}</button>
+      {phase === 'ask' && <span role="group" aria-label="是否听到声音"><button type="button" className="pixel-button" onClick={() => answer('ok')}>听到了</button><button type="button" className="pixel-button" onClick={() => answer('silent')}>没听到</button></span>}
+    </div>
+    {state.tested === 'ok' && <p className="onboarding-ok" role="status"><Check size={14}/>声音正常，可以开始听歌了。</p>}
+    {(state.tested === 'silent' || state.tested === 'failed') && <div className="onboarding-hint" role="status"><p>{result?.error || '没听到声音的话，可以检查：'}</p><ul><li>系统音量和输出设备（耳机 / 扬声器）</li><li>小屋右上角是否静音（按 M 切换）</li><li>平台音源需要登录，部分歌曲受版权限制</li></ul><button type="button" className="onboarding-text" onClick={() => openMusicSettings?.()}>打开音源设置</button></div>}
+  </>;
+}
+
+function DoneStep({ heading, state, env }) {
+  const s = model.summary(state, env);
+  return <>
+    <Heading heading={heading} eyebrow="都好了">小屋准备好了</Heading>
+    <dl className="onboarding-summary"><dt>音源</dt><dd>{s.source}</dd><dt>权限</dt><dd>{s.permissions.length ? s.permissions.map((id) => ({ notifications: '通知', appleMusic: '音乐 App', autostart: '开机启动' }[id] || id)).join('、') : '未开启'}</dd><dt>试听</dt><dd>{s.tested}</dd></dl>
+    <p>双击唱片架上的封面放盘，点右下角的番茄开始专注。所有设置都收在右上角「设置」里；想让小屋沉入桌面，在「设置 › 桌面」打开，按 Ctrl/⌘+Alt+D 退出。</p>
+  </>;
+}

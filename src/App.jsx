@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Library, Grid3X3, BookOpen, QueueList } from './icons';
-import { isNewCabin } from './CabinWelcome';
+import { Plus, Grid3X3, Settings, QueueList } from './icons';
+import { isNewCabin } from './onboarding/onboarding-model.mjs';
 import CabinRoom from './CabinRoom';
 import AddAlbum from './AddAlbum';
 import PlaylistLibrary from './PlaylistLibrary';
@@ -28,7 +28,7 @@ function useToast() {
 
 export default function App() {
   const [firstVisit] = useState(() => isNewCabin(localStorage));
-  const [guideRequest, setGuideRequest] = useState(0);
+  const [hubRequest, setHubRequest] = useState(null);
   const [items, setItems] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [playlists, setPlaylists] = useState(false), [adding, setAdding] = useState(null), [recordId, setRecordId] = useState(''), [backup, setBackup] = useState(false), [wall, setWall] = useState(false);
   const [toast, notify] = useToast();
@@ -55,17 +55,16 @@ export default function App() {
       <header className="app-titlebar">
         <div className="app-brand"><PixelCat pose="idle" accessory="headphones" className="app-brand-cat" label="心流小屋"/><span><strong>心流小屋</strong><small>{loading ? '整理唱片中…' : `${items.length} 张唱片`}</small></span></div>
         <div className="app-actions">
-          <button type="button" className="pixel-button is-quiet" aria-label="入门指南" title="入门指南" onClick={() => setGuideRequest(value => value + 1)}><BookOpen size={17}/><span>入门指南</span></button>
           <button type="button" className="pixel-button is-primary" aria-label="添加专辑" onClick={() => setAdding({ query: '' })}><Plus size={17}/><span>添加专辑</span></button>
           <button type="button" className="pixel-button" aria-label="我的歌单" title="导入网易云 / QQ 音乐 / Apple Music 歌单" onClick={() => setPlaylists(true)}><QueueList size={17}/><span>我的歌单</span></button>
-          <button type="button" className="pixel-button" aria-label="收藏与备份" title="收藏与备份" onClick={() => setBackup(true)}><Library size={17}/><span>收藏与备份</span></button>
           <button type="button" className="pixel-button" aria-label="专辑墙" onClick={() => setWall(true)} title="挑选专辑，生成专辑墙图片"><Grid3X3 size={17}/><span>专辑墙</span></button>
+          <button type="button" className="pixel-button is-quiet" aria-label="设置" title="设置：音源、房间与桌宠、专注、桌面、备份、重新引导" onClick={() => setHubRequest({ section: 'music', at: Date.now() })}><Settings size={17}/><span>设置</span></button>
         </div>
         <DesktopControls/>
       </header>
       <main className="app-cabin">
         {error && <p className="app-error" role="alert">{error}<button type="button" onClick={reload}>重试</button></p>}
-        <CabinRoom items={items} loading={loading || Boolean(error)} firstVisit={firstVisit} guideRequest={guideRequest} notify={notify} openRecord={setRecordId} openAdd={(query = '') => setAdding({ query })}/>
+        <CabinRoom items={items} loading={loading || Boolean(error)} firstVisit={firstVisit} hubRequest={hubRequest} openBackup={() => setBackup(true)} openWall={() => setWall(true)} notify={notify} openRecord={setRecordId} openAdd={(query = '') => setAdding({ query })}/>
       </main>
       {toast && <p className="app-toast" role="status" key={toast.at}>{toast.text}</p>}
     </div>
