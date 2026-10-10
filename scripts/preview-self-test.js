@@ -87,9 +87,9 @@
           else await click('取消');
           await click('唱片卡片'); await click('移除'); await click('确认移除'); await wait(() => !document.querySelector('dialog[open]'), 'colour fixture removed');
         }
-        await click('设为桌面动态背景'); await wait(() => document.querySelector('.wallpaper-error')?.textContent.includes('模拟桌面背景启动失败'), 'wallpaper fixture error'); await click('关闭动态背景提示'); assert(!document.querySelector('.wallpaper-error'), 'Wallpaper error did not dismiss'); pass('simulated wallpaper error dismissal');
-        await click('设为桌面动态背景'); await click('取消应用桌面背景'); await new Promise(r => setTimeout(r, 450)); assert(findButton('设为桌面动态背景'), 'Cancelled fixture startup reactivated'); pass('simulated wallpaper startup cancellation');
-        await click('设为桌面动态背景'); await wait(() => findButton('停止桌面动态背景'), 'wallpaper fixture retry'); await click('停止桌面动态背景'); pass('simulated wallpaper retry and stop');
+        await click('沉入桌面'); await wait(() => document.querySelector('.wallpaper-error')?.textContent.includes('模拟桌面背景启动失败'), 'wallpaper fixture error'); await click('关闭动态背景提示'); assert(!document.querySelector('.wallpaper-error'), 'Wallpaper error did not dismiss'); pass('simulated wallpaper error dismissal');
+        await click('沉入桌面'); await click('取消沉入桌面'); await new Promise(r => setTimeout(r, 450)); assert(findButton('沉入桌面'), 'Cancelled fixture startup reactivated'); pass('simulated wallpaper startup cancellation');
+        await click('沉入桌面'); await wait(() => findButton('浮出桌面'), 'wallpaper fixture retry'); await click('浮出桌面'); pass('simulated wallpaper retry and stop');
         const title = '预览自检唱片 ' + Date.now();
         await click('添加专辑'); await click('手动填写'); await input('专辑名', title); await input('歌手', '自检演示作者'); await input('曲目', '测试第一首\n测试第二首'); await click('放上唱片架'); await wait(() => document.querySelector('.add-notice')?.textContent.includes(title), 'manual add'); await click('关闭添加专辑');
         const record = await wait(() => [...document.querySelectorAll('.room-record')].find(e => e.getAttribute('aria-label')?.includes(title)), 'new record'); record.click(); await click('唱片卡片'); await input('我的笔记', '预览自检笔记'); await wait(() => document.querySelector('.record-card-saved')?.textContent.includes('已保存在'), 'notes saved'); pass('collection add and notes update');

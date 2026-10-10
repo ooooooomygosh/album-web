@@ -28,7 +28,7 @@ const colour = (value, fallback) => /^#[\da-f]{6}$/i.test(value || '') ? value :
 function cleanSnapshot(value) {
   if (!value || typeof value !== 'object' || !LOOKS.includes(value.look)) return null;
   const record = item(value.record), style = value.recordStyle || {}, tracks = record?.tracks.length || 0;
-  return { look: value.look, petId: petId(value.petId), roomName: string(value.roomName, 120), startRow: Number.isSafeInteger(value.startRow) ? Math.max(0, Math.min(100000, value.startRow)) : 0,
+  return { look: value.look, petId: petId(value.petId), petOut: value.petOut === true, roomName: string(value.roomName, 120), startRow: Number.isSafeInteger(value.startRow) ? Math.max(0, Math.min(100000, value.startRow)) : 0,
     items: Array.isArray(value.items) ? value.items.slice(0, 12).map(item).filter(Boolean) : [], selectedId: string(value.selectedId), record,
     recordStyle: { base: colour(style.base, '#16191d'), opacity: Number.isFinite(style.opacity) ? Math.max(0, Math.min(100, style.opacity)) : 100, splatter: style.splatter === true, splashes: (Array.isArray(style.splashes) && style.splashes.length ? style.splashes : ['#dba746']).slice(0, 3).map((v) => colour(v, '#dba746')) },
     spinning: Boolean(record && value.spinning === true), trackIndex: Math.max(0, Math.min(tracks - 1, Number.isSafeInteger(value.trackIndex) ? value.trackIndex : 0)), reduceMotion: value.reduceMotion === true,

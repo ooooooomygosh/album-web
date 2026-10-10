@@ -35,7 +35,7 @@ async function desktopPixels(name) {
   return { ...captured, firstFrameMatch: match };
 }
 async function startWallpaper() {
-  await site.getByRole('button', { name: '设为桌面动态背景', exact: true }).click();
+  await site.getByRole('button', { name: '沉入桌面', exact: true }).click();
   await site.waitForFunction(() => window.albumRoomWallpaperState?.active || window.albumRoomWallpaperState?.error);
   const state = await site.evaluate(() => window.albumRoomWallpaperState); assert.equal(state.active, true, JSON.stringify(state));
   wallpaper = app.context().pages().find(p => p.url() === 'album-desktop://wallpaper/wallpaper.html');
