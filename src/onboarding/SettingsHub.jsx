@@ -5,6 +5,7 @@ import { desktopCommand } from '../desktop-client';
 import { Check, Music2 } from '../icons';
 import { sourceOptions, providerFor } from './onboarding-model.mjs';
 import { version } from '../../package.json';
+import UpdatePanel from '../desktop/UpdatePanel';
 import './onboarding.css';
 
 export const HUB_SECTIONS = Object.freeze([
@@ -30,7 +31,7 @@ export default function SettingsHub({ section = 'music', setSection, close, env,
           {env.desktop && <Row title="本地音乐文件夹" hint="添加或移除扫描的文件夹，在「音源与账户」里管理。"><button type="button" className="pixel-button" onClick={openMusicSettings}>管理文件夹</button></Row>}
         </div>}
         {section === 'about' && <div className="hub-rows">
-          <Row title={`心流小屋 v${version}`} hint={env.desktop ? '桌面版' : '网页版'}><a className="pixel-button" href="https://github.com/ooooooomygosh/album-web" target="_blank" rel="noreferrer">项目主页</a></Row>
+          <UpdatePanel version={version} desktop={Boolean(env.desktop)}/>
           <Row title="重新引导" hint="再走一遍新手引导，之前的选择会保留。"><button type="button" className="pixel-button is-primary" onClick={restartOnboarding}>重新引导</button></Row>
           <Row title="快捷键" hint="空格 播放/暂停 · Z 沉浸 · M 静音 · F11 全屏 · Ctrl/⌘+Alt+D 退出沉入桌面 · Ctrl/⌘+, 软件设置"/>
         </div>}
