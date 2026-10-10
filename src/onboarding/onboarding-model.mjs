@@ -18,8 +18,8 @@ export function detectEnv(win = globalThis) {
 }
 
 // Sources the first-run step offers. `provider` is the turntable provider the
-// choice maps to today; Apple Music rides on 系统正在播放 until the player
-// exposes its own provider through listSources().
+// choice maps to on main; with PR #15 loaded, listSources() maps Apple Music
+// to its own 'appleMusic' deck provider.
 const SOURCE_TABLE = [
   { id: 'local', label: '本地音乐', hint: '选一个音乐文件夹，歌曲留在原位置播放。', provider: 'local' },
   { id: 'qq', label: 'QQ 音乐', hint: '在官方登录页登录，凭据加密保存在本机。', provider: 'qq', desktopOnly: true },

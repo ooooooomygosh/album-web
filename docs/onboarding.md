@@ -49,25 +49,28 @@
 
 适配层在 `onboarding-adapter.mjs`，所有方法可选；缺失时走回退，**不会假装已登录或已授权**。
 
-### 播放器（`window.cabinPlayer`，对应 docs/player.md）
+### 播放器（PR #15 `src/player/sources.mjs`，docs/player.md「音源接口」）
 
-| 方法 | 期望 | 现在的回退 |
-| --- | --- | --- |
-| `listSources()` | `[{ id, label, available, reason?, provider? }]`，id 用 `local / qq / netease / appleMusic / system` | 内置列表（按桌面/网页、Mac 过滤） |
-| `connectSource(id)` | `Promise<{ ok, pending?, error? }>`；`pending` 时完成后派发 `album-music-account` 或 `album-local-music` | 本地：`local-music-folder` 命令；QQ/网易云：`music-login` 命令；系统/Apple Music：直接 ok（仅桌面版） |
-| `getSourceStatus(id)` | `{ connected, detail }`（detail 是给用户看的中文） | 读 `/desktop-music/config`、`/desktop-music/local/summary` |
-| `requestPermission('appleMusic')` | `'granted' / 'denied' / 'unsupported'`，触发 macOS 自动化授权 | 返回 `unsupported`，提示「第一次用到时由系统询问」 |
-| `requestPermission('autostart')` | 同上（可放在桌面侧） | `unsupported` |
-| `testPlayback()` | 用所选音源放几秒，`{ ok, error? }` | WebAudio 三音提示音，只能确认输出设备 |
-| `listAudioQualities()` / `getAudioQuality()` / `setAudioQuality(id)` | 音质三档，播放失败自动降档 | 设置里显示禁用的「自动」占位，引导里不显示 |
+适配层按 #15 的真实签名编写；模块用 `import.meta.glob('../player/sources.mjs')` 懒加载，main 上没有这个文件时自动走回退。
 
-通知权限由页面自己用 `Notification.requestPermission()` 处理。播放控制可用 `cabin:player-command` `{ action: toggle|play|pause|next|previous }`，引导目前不需要。
+| 方法（#15） | 返回 | 引导 / 设置怎么用 | main 上的回退 |
+| --- | --- | --- | --- |
+| `listSources({ mac })` | `[{ id, label, kind, login, platform?, supported }]` | 隐藏 `supported=false` 与 `ma`（MA 在「音源与账户」详情页）；Apple Music 映射到唱机 `appleMusic` 音源 | 内置列表（按桌面/网页、Mac 过滤），Apple Music 落到「系统正在播放」 |
+| `connectSource(id)` | `Promise<{ ok, cancelled, error }>`，登录/选文件夹结束才 resolve | 按钮显示「等待完成…」，结束后刷新状态；`cancelled` 显示「已取消」 | 发 `music-login` / `local-music-folder` 命令，等 `album-music-account` / `album-local-music` 事件刷新 |
+| `getSourceStatus(id)` | `{ id, supported, connected, detail, needsPermission?, app? }` | 显示 `detail` | 读 `/desktop-music/config`、`/local/summary` |
+| `requestPermission('appleMusic')` | `{ granted, needsPermission, available, error }` | `granted`→已允许；`available=false`→不支持；否则→未允许 | 返回「第一次用到时由系统询问」 |
+| `testPlayback({ provider })` | `{ ok, provider, quality, title }` 或 `{ ok:false, error }` | 「播放测试」低音量真实试放《晴天》约 3 秒；Apple Music / 系统播放用 `auto` | WebAudio 提示音，只能确认输出设备 |
+| 音质 | `GET /desktop-music/config` 的 `quality` / `qualities`，`POST /quality { quality }` | 设置 › 音源 的音质下拉；引导音源步骤在有 `qualities` 时显示 | 显示禁用的「自动」占位 |
+
+已用 #15 合并预演验证：`main + feat/onboarding + feat/seamless-playback` 构建通过，`npm run test:browser` 54 项全部通过（唯一冲突是 package.json 的测试列表，一行即可解决）。
+
+通知权限由页面自己用 `Notification.requestPermission()` 处理。播放控制可派发 `cabin:player-command` `{ action: toggle|play|pause|next|previous }`，引导目前不需要。
 
 ### 桌面（`window.cabinDesktop`，对应 #14 的 docs/desktop.md）
 
-`enterDesktopMode()`、`exitDesktopMode()`、`getDesktopModeStatus() → { active, busy, supported, via, reason }`、`onDesktopModeChange(cb)`（无则监听 `cabin:desktop-mode`）。`busy` 时开关禁用；`supported=false` 时禁用并直接显示 `reason`。缺失时回退到当前页面的桌面模式切换。
+`enterDesktopMode()`、`exitDesktopMode()`、`getDesktopModeStatus() → { active, busy, supported, via, reason }`、`onDesktopModeChange(cb)`（无则监听 `cabin:desktop-mode`）。`busy` 时开关禁用；`supported=false` 时禁用并直接显示 `reason`（中文）。退出快捷键 Ctrl/⌘+Alt+D 写在设置 › 桌面 与引导完成页。缺失时回退到当前页面的桌面模式切换。
 
 ## 5. 待办（TODO）
 
-- 播放器：上表各方法上线后，删掉 `onboarding-adapter.mjs` 里的 `TODO(player)` 回退。
+- 播放器：#15 合并后可删掉 `onboarding-adapter.mjs` 的回退分支；开机启动还没有 API（`requestPermission('autostart')` 目前返回不支持）。
 - 桌面：#14 合并后，本分支只读 `window.cabinDesktop`，回退分支可删除；开机启动需要一个 `requestPermission('autostart')` 或独立 API。

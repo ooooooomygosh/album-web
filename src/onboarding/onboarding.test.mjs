@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as m from './onboarding-model.mjs';
-import { createPlayerAdapter, createDesktopAdapter, DESKTOP_MODE_EVENT } from './onboarding-adapter.mjs';
+import { createPlayerAdapter, createDesktopAdapter, loadPlayerSources, DESKTOP_MODE_EVENT } from './onboarding-adapter.mjs';
 
 const memory = (seed = {}) => { const data = { ...seed }; return { getItem: (k) => (k in data ? data[k] : null), setItem: (k, v) => { data[k] = String(v); }, data, get length() { return Object.keys(data).length; }, ...Object.fromEntries(Object.entries(data)) }; };
 
@@ -57,31 +57,51 @@ test('sources and permissions follow web / desktop / mac', () => {
   assert.equal(m.providerFor('appleMusic'), 'system');
 });
 
-test('player adapter prefers the teammate API and falls back honestly', async () => {
+test('player adapter falls back on main without sources.mjs', async () => {
   const commands = [];
-  const fallback = createPlayerAdapter({ env: { desktop: true }, win: {}, command: (...a) => commands.push(a), request: async (path) => path === '/config' ? { qqLoggedIn: true } : { albumCount: 1, trackCount: 3 } });
+  const fallback = createPlayerAdapter({ env: { desktop: true }, win: {}, load: async () => null, command: (...a) => commands.push(a), request: async (path) => path === '/config' ? { qqLoggedIn: true } : { albumCount: 1, trackCount: 3 } });
   assert.deepEqual(await fallback.connectSource('qq'), { ok: true, pending: 'album-music-account' });
   assert.deepEqual(commands, [['music-login', { provider: 'qq' }]]);
   assert.equal((await fallback.getSourceStatus('qq')).connected, true);
   assert.equal((await fallback.getSourceStatus('local')).detail, '1 张专辑 · 3 首');
   assert.equal(await fallback.requestPermission('appleMusic'), 'unsupported');
   assert.equal(await fallback.qualities(), null);
-  const web = createPlayerAdapter({ env: { desktop: false }, win: {} });
+  const web = createPlayerAdapter({ env: { desktop: false }, win: {}, load: async () => null });
   assert.equal((await web.connectSource('local')).fallback, 'add-album');
   assert.equal((await web.connectSource('netease')).ok, false);
   assert.equal((await web.testPlayback()).ok, false);
+  assert.equal(await loadPlayerSources({}), null);
+});
 
+test('player adapter matches PR #15 sources.mjs shapes', async () => {
   const calls = [];
-  const api = { listSources: () => [{ id: 'qq', available: true }, { id: 'appleMusic', label: 'Apple Music', available: false, reason: '未授权' }], connectSource: async (id) => { calls.push(id); return { ok: true }; }, getSourceStatus: () => ({ connected: true, detail: 'VIP' }), requestPermission: async () => 'granted', testPlayback: async () => ({ ok: true }), listAudioQualities: () => ['standard', 'lossless'], getAudioQuality: () => 'standard', setAudioQuality: () => true };
-  const real = createPlayerAdapter({ api, env: { desktop: true } });
-  const list = await real.listSources();
-  assert.equal(list[0].label, 'QQ 音乐'); assert.equal(list[1].reason, '未授权');
-  assert.deepEqual(await real.connectSource('qq'), { ok: true }); assert.deepEqual(calls, ['qq']);
+  // Shapes copied from docs/player.md 「音源接口」 on feat/seamless-playback.
+  const api = {
+    listSources: ({ mac }) => [{ id: 'qq', label: 'QQ 音乐', kind: 'account', login: true, supported: true }, { id: 'local', label: '本地音乐', kind: 'folder', login: false, supported: true }, { id: 'appleMusic', label: '系统 Apple Music', kind: 'system-app', login: false, platform: 'darwin', supported: mac }, { id: 'ma', label: 'Music Assistant', kind: 'server', supported: true }],
+    connectSource: async (id) => { calls.push(['connect', id]); return { ok: false, cancelled: true, error: '' }; },
+    getSourceStatus: async (id) => ({ id, supported: true, connected: true, detail: '已允许控制“音乐”App', needsPermission: false }),
+    requestPermission: async () => ({ granted: true, needsPermission: false, available: true, error: '' }),
+    testPlayback: async ({ provider }) => { calls.push(['test', provider]); return { ok: true, provider: 'qq', quality: '320k', title: '晴天' }; }
+  };
+  const real = createPlayerAdapter({ api, env: { desktop: true, mac: false }, request: async (path, body) => { calls.push([path, body]); return { quality: 'high', qualities: ['standard', 'high', 'lossless'] }; } });
+  assert.deepEqual((await real.listSources()).map((s) => s.id), ['qq', 'local'], 'unsupported and Music Assistant are hidden');
+  assert.deepEqual(await real.connectSource('qq'), { ok: false, cancelled: true, error: '已取消。' });
+  assert.deepEqual(await real.connectSource('appleMusic'), { ok: true });
+  assert.equal((await real.getSourceStatus('appleMusic')).connected, true);
   assert.equal(await real.requestPermission('appleMusic'), 'granted');
-  assert.equal((await real.testPlayback()).kind, 'track');
-  assert.deepEqual(await real.qualities(), { options: ['standard', 'lossless'], current: 'standard' });
-  const failing = createPlayerAdapter({ api: { connectSource: () => { throw new Error('网络错误'); } } });
+  const played = await real.testPlayback('qq');
+  assert.equal(played.kind, 'track'); assert.equal(played.title, '晴天');
+  assert.deepEqual(await real.qualities(), { options: [{ id: 'standard', label: 'standard' }, { id: 'high', label: 'high' }, { id: 'lossless', label: 'lossless' }], current: 'high' });
+  assert.equal(await real.setQuality('lossless'), true);
+  assert.deepEqual(calls.filter((c) => c[0] !== '/config'), [['connect', 'qq'], ['test', 'qq'], ['/quality', { quality: 'lossless' }]]);
+  const mac = createPlayerAdapter({ api, env: { desktop: true, mac: true } });
+  assert.equal((await mac.listSources()).find((s) => s.id === 'appleMusic').provider, 'appleMusic');
+  const denied = createPlayerAdapter({ api: { requestPermission: async () => ({ granted: false, available: false }) }, env: { desktop: true } });
+  assert.equal(await denied.requestPermission('appleMusic'), 'unsupported');
+  const failing = createPlayerAdapter({ api: { connectSource: () => { throw new Error('网络错误'); } }, env: { desktop: true } });
   assert.deepEqual(await failing.connectSource('qq'), { ok: false, error: '网络错误' });
+  const lazy = createPlayerAdapter({ win: {}, env: { desktop: true }, load: async () => api });
+  assert.equal((await lazy.listSources()).length, 2);
 });
 
 test('notification permission maps browser answers', async () => {

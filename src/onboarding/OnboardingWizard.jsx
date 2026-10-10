@@ -122,11 +122,11 @@ function RoomStep({ heading, look, petId, onRoomChange, reduceMotion, error }) {
 
 function TestStep({ heading, state, update, player, openMusicSettings }) {
   const [phase, setPhase] = useState(state.tested ? 'answered' : 'idle'), [result, setResult] = useState(null);
-  const play = async () => { setPhase('playing'); const next = await player.testPlayback(); setResult(next); if (!next.ok) { setPhase('answered'); update(model.setTested(state, 'failed')); } else setPhase('ask'); };
+  const play = async () => { setPhase('playing'); const next = await player.testPlayback(state.source === 'appleMusic' || state.source === 'system' ? 'auto' : model.providerFor(state.source) || 'auto'); setResult(next); if (!next.ok) { setPhase('answered'); update(model.setTested(state, 'failed')); } else setPhase('ask'); };
   const answer = (value) => { setPhase('answered'); update(model.setTested(state, value)); };
   return <>
     <Heading heading={heading} eyebrow="第 4 步 · 试听">放一段声音试试</Heading>
-    <p>{result?.kind === 'track' ? '会从你选的音源放几秒钟。' : '会播放一小段提示音，确认电脑的扬声器或耳机有声音。'}</p>
+    <p>{result?.kind === 'track' ? `会从你选的音源低音量试放几秒${result.title ? `（《${result.title}》）` : ''}。` : '会播放一小段提示音，确认电脑的扬声器或耳机有声音。'}</p>
     <div className="onboarding-test">
       <button type="button" className="pixel-button is-primary" disabled={phase === 'playing'} onClick={play}>{phase === 'playing' ? '正在播放…' : state.tested ? '再试一次' : '播放测试'}</button>
       {phase === 'ask' && <span role="group" aria-label="是否听到声音"><button type="button" className="pixel-button" onClick={() => answer('ok')}>听到了</button><button type="button" className="pixel-button" onClick={() => answer('silent')}>没听到</button></span>}
