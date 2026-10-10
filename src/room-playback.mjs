@@ -1,11 +1,19 @@
+import { playbackErrorMessage } from './player/playback-cache.mjs';
+// A playlist's tracks each have their own artist and album; an album's share the record's.
+export const trackArtist = (item, index) => item?.trackDetails?.[index]?.artist || item?.artist || '';
+export const trackAlbum = (item, index) => item?.trackDetails?.[index]?.album || (item?.type === 'playlist' ? '' : item?.title || '');
 export function exactTrack(item, index, provider) {
+  if (provider === 'netease') {
+    const detail = item?.trackDetails?.[index];
+    return detail?.source === 'netease' && /^\d{1,20}$/.test(detail.providerId || '') ? { id: detail.providerId, provider: 'netease', title: detail.title, artist: trackArtist(item, index), album: trackAlbum(item, index) } : null;
+  }
   if (provider === 'local') {
     const detail = item?.trackDetails?.[index];
     return detail?.source === 'local' && /^[a-f\d]{16}$/.test(detail.providerId || '') ? { id: detail.providerId, provider: 'local', title: detail.title, artist: item.artist } : null;
   }
   if (provider !== 'qq') return null;
-  const detail = item?.trackDetails?.[index], mid = detail?.providerId || (item?.type === 'song' ? item.externalIds?.qqSongMid : '');
-  return /^[a-z\d]{14}$/i.test(mid || '') ? { id: mid, provider: 'qq', title: item.tracks?.[index] || item.title, artist: item.artist, mediaMid: /^[a-z\d]{14}$/i.test(detail?.mediaMid || '') ? detail.mediaMid : '' } : null;
+  const detail = item?.trackDetails?.[index], mid = (['netease', 'apple', 'local'].includes(detail?.source) ? '' : detail?.providerId) || (item?.type === 'song' ? item.externalIds?.qqSongMid : '');
+  return /^[a-z\d]{14}$/i.test(mid || '') ? { id: mid, provider: 'qq', title: item.tracks?.[index] || item.title, artist: trackArtist(item, index), mediaMid: /^[a-z\d]{14}$/i.test(detail?.mediaMid || '') ? detail.mediaMid : '' } : null;
 }
 // Metadata scans can take minutes on large folders; ordinary network calls
 // retain a short timeout. Aborting a request does not cancel a native scan.
@@ -49,7 +57,7 @@ const normalized = (value) => String(value || '').normalize('NFKC').toLowerCase(
 const versions = (value) => (String(value || '').toLowerCase().match(/live|remix|acoustic|instrumental|karaoke|现场|伴奏|翻唱|混音|重混|不插电|纯音乐/g) || []).sort().join('|');
 export function rankCandidates(candidates, record, index) {
   const raw = record?.tracks?.[index], title = typeof raw === 'string' ? raw : raw?.title || raw?.name || record?.title;
-  const target = normalized(title), artist = normalized(record?.artist);
+  const target = normalized(title), artist = normalized(trackArtist(record, index)), album = normalized(trackAlbum(record, index));
   return candidates.map((candidate) => {
     // A live performance or cover is not silently substituted for a studio recording.
     const correctVersion = versions(candidate.title) === versions(title);
@@ -57,7 +65,7 @@ export function rankCandidates(candidates, record, index) {
     const candidateArtist = normalized(candidate.artist);
     const artistParts = String(candidate.artist || '').split(/[,，、/&;；]|\s+(?:feat\.?|ft\.?|with)\s+/i).map(normalized);
     const sameArtist = artist && candidateArtist && (candidateArtist === artist || artistParts.includes(artist));
-    const sameAlbum = normalized(candidate.album) && normalized(candidate.album) === normalized(record?.title);
+    const sameAlbum = Boolean(album) && normalized(candidate.album) === album;
     return { candidate, score: correctVersion && sameTitle && (sameArtist || (candidate.provider === 'local' && !candidateArtist && sameAlbum)) ? 100 + (sameAlbum ? 20 : 0) : 0 };
   }).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score).map(({ candidate }) => candidate);
 }
@@ -76,13 +84,15 @@ export async function findPlayableSource({ record, index, provider, request, pla
       return isCurrent();
     } catch (error) {
       if (!isCurrent() || error.name === 'AbortError') return false;
-      lastError = error.name === 'NotAllowedError' ? '请点击播放按钮开始播放。' : error.message;
+      lastError = playbackErrorMessage(error);
       // Browser gesture restrictions are not a reason to try unrelated recordings.
       if (error.name === 'NotAllowedError') throw error;
       return false;
     }
   };
-  const providers = provider === 'auto' || provider === 'qq' ? ['qq', 'netease'] : provider === 'netease' ? ['netease', 'qq'] : [provider];
+  // 自动匹配 tries the platform the track came from first (a NetEase playlist → 网易云).
+  const origin = record?.trackDetails?.[index]?.source;
+  const providers = provider === 'auto' ? (origin === 'netease' ? ['netease', 'qq'] : ['qq', 'netease']) : provider === 'qq' ? ['qq', 'netease'] : provider === 'netease' ? ['netease', 'qq'] : [provider];
   const raw = record?.tracks?.[index], name = typeof raw === 'string' ? raw : raw?.title || raw?.name;
   if (!name) return { candidates: [], error: '原始资料没有曲目，无法定位音频。' };
   for (const source of providers) {
@@ -91,7 +101,7 @@ export async function findPlayableSource({ record, index, provider, request, pla
     if (exact && await attempt(exact)) return { candidate: exact, candidates: [] };
     if (!isCurrent()) return null;
     try {
-      const result = await request(`/search?provider=${source}&query=${encodeURIComponent(`${record.artist} ${name}`)}`);
+      const result = await request(`/search?provider=${source}&query=${encodeURIComponent(`${trackArtist(record, index)} ${name}`)}`);
       if (!isCurrent()) return null;
       const found = Array.isArray(result.candidates) ? result.candidates : [];
       candidates.push(...found);

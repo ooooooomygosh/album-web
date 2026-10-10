@@ -82,3 +82,5 @@
 .room-turntable .turntable-console { max-height: min(62vh, 460px); overscroll-behavior: contain; }
 .room-turntable .turntable-audio-sliders { position: sticky; bottom: -12px; z-index: 2; margin: 8px -12px -12px; padding: 8px 12px 10px; background: linear-gradient(#2a1a10, #24160f); box-shadow: 0 -2px 0 #8a5a3266; }
 @media (max-height: 760px) { .room-turntable .turntable-console { max-height: calc(100vh - 260px); } }
+.room-turntable .turntable-closeup { display: grid; place-items: center; width: 22px; height: 22px; margin-left: auto; margin-right: 6px; padding: 0; color: var(--px-ink-dim); background: var(--px-surface-2); border: 2px solid var(--px-shadow); box-shadow: inset 1px 1px 0 #ffffff1c; cursor: pointer; }
+.room-turntable .turntable-closeup:hover { color: #24170d; background: var(--px-accent); }

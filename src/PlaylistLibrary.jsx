@@ -1,0 +1,208 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Dialog from './Dialog';
+import { QueueList, Play, Shuffle, Plus, Check, Heart, Search, Loading, Link, DocumentArrow, ArrowLeft, Music2, ListBullet } from './icons';
+import { addItem, updateItem } from './collection-api.mjs';
+import { musicRequest } from './room-playback.mjs';
+import { desktopCommand, useDesktopAppearance } from './desktop-client';
+import { generatedCover } from './player/pixel-cover.mjs';
+import { parsePlaylistFile } from './playlist-files.mjs';
+import { PLAYLIST_SOURCES, playlistItem, playlistKey, filterTracks, formatDuration, totalDuration } from './playlist-model.mjs';
+import './playlist-library.css';
+
+// 「我的歌单」: account playlists from 网易云 / QQ 音乐 / Apple Music, public
+// share links and exported files. A playlist is a sleeve on the shelf: put it
+// on the turntable, shuffle it, or queue it after the current record.
+const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || navigator.userAgent || '');
+const TABS = [
+  { id: 'netease', label: '网易云音乐', hint: '我的歌单 · 收藏' },
+  { id: 'qq', label: 'QQ 音乐', hint: '自建 · 收藏 · 我喜欢' },
+  { id: 'apple', label: 'Apple Music', hint: isMac ? '音乐 App · 公开链接' : '公开链接 · 导出文件' },
+  { id: 'import', label: '链接与文件', hint: '粘贴分享链接 · .xml .m3u .txt' }
+];
+const KIND_LABEL = { liked: '我喜欢', created: '我创建的', collect: '我收藏的' };
+
+function Sleeve({ src, title, size = 'md', spinning = false }) {
+  const [failed, setFailed] = useState(false);
+  const fallback = useMemo(() => generatedCover({ title, artist: 'playlist' }), [title]);
+  return <span className={`playlist-sleeve is-${size} ${spinning ? 'is-spinning' : ''}`} aria-hidden="true">
+    <span className="playlist-sleeve-disc"><span className="playlist-sleeve-label" style={{ backgroundImage: `url("${!failed && src ? src : fallback}")` }}/></span>
+    <img className="playlist-sleeve-cover" src={!failed && src ? src : fallback} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)}/>
+  </span>;
+}
+
+function PlaylistGrid({ playlists, open, busyId }) {
+  const groups = ['liked', 'created', 'collect'].map((kind) => [kind, playlists.filter((entry) => entry.kind === kind)]).filter(([, list]) => list.length);
+  return <div className="playlist-groups">{groups.map(([kind, list]) => <section key={kind} aria-label={KIND_LABEL[kind]}>
+    <h3>{kind === 'liked' && <Heart size={15}/>}{KIND_LABEL[kind]}<small>{list.length}</small></h3>
+    <ul className={`playlist-grid ${kind === 'liked' ? 'is-featured' : ''}`}>{list.map((entry) => <li key={entry.id}>
+      <button type="button" className="playlist-card" aria-label={`打开歌单 ${entry.name}`} aria-busy={busyId === entry.id} onClick={() => open(entry)}>
+        <Sleeve src={entry.cover} title={entry.name} size={kind === 'liked' ? 'lg' : 'md'}/>
+        <span className="playlist-card-copy"><strong title={entry.name}>{entry.name}</strong><small>{entry.trackCount ? `${entry.trackCount} 首` : '歌单'}{entry.creator ? ` · ${entry.creator}` : ''}</small></span>
+        {busyId === entry.id && <Loading size={18} className="player-spin playlist-card-busy"/>}
+      </button>
+    </li>)}</ul>
+  </section>)}</div>;
+}
+
+function TrackRow({ track, index, play }) {
+  return <li className="playlist-track" onDoubleClick={() => play(index)}>
+    <span className="playlist-track-index"><b>{String(index + 1).padStart(2, '0')}</b><button type="button" aria-label={`从第 ${index + 1} 首《${track.title}》开始播放`} onClick={() => play(index)}><Play size={13}/></button></span>
+    {track.cover ? <img className="playlist-track-cover" src={track.cover} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"/> : <span className="playlist-track-cover is-empty" aria-hidden="true"><Music2 size={13}/></span>}
+    <span className="playlist-track-copy"><strong title={track.title}>{track.title}</strong><small title={track.artist}>{track.artist || '歌手未知'}</small></span>
+    <span className="playlist-track-album" title={track.album}>{track.album}</span>
+    <span className="playlist-track-time">{track.duration ? formatDuration(track.duration) : ''}</span>
+  </li>;
+}
+
+function PlaylistDetail({ detail, provider, back, act, busy, saved }) {
+  const [query, setQuery] = useState('');
+  const { playlist, tracks } = detail, rows = filterTracks(tracks, query), source = PLAYLIST_SOURCES[provider] || PLAYLIST_SOURCES.file;
+  return <div className="playlist-detail">
+    <button type="button" className="playlist-back" onClick={back}><ArrowLeft size={15}/>全部歌单</button>
+    <header className="playlist-hero">
+      <Sleeve src={playlist.cover} title={playlist.name} size="xl"/>
+      <div className="playlist-hero-copy">
+        <small className={`playlist-badge is-${source.tone}`}>{source.label}</small>
+        <h3 title={playlist.name}>{playlist.name}</h3>
+        <p>{[playlist.creator, `${tracks.length} 首`, totalDuration(tracks)].filter(Boolean).join(' · ')}{detail.truncated ? ' · 已导入前 500 首' : ''}</p>
+        {playlist.description && <p className="playlist-description" title={playlist.description}>{playlist.description}</p>}
+        <div className="playlist-actions">
+          <button type="button" className="pixel-button is-primary" disabled={busy || !tracks.length} onClick={() => act('play', 0)}><Play size={16}/>放上唱机</button>
+          <button type="button" className="pixel-button" disabled={busy || tracks.length < 2} onClick={() => act('shuffle')}><Shuffle size={16}/>随机播放</button>
+          <button type="button" className="pixel-button" disabled={busy || !tracks.length} onClick={() => act('queue')}><ListBullet size={16}/>加入待播</button>
+          <button type="button" className="pixel-button is-quiet" disabled={busy || !tracks.length} onClick={() => act('save')}>{saved ? <><Check size={16}/>已在唱片架 · 同步</> : <><Plus size={16}/>放上唱片架</>}</button>
+        </div>
+      </div>
+    </header>
+    {tracks.length > 8 && <label className="playlist-filter"><Search size={15}/><input type="search" aria-label="在歌单中查找" placeholder="在歌单中查找歌名、歌手或专辑" value={query} onChange={(event) => setQuery(event.target.value)}/>{query && <small>{rows.length} / {tracks.length}</small>}</label>}
+    {rows.length ? <ol className="playlist-tracks" aria-label={`${playlist.name} 曲目`}>{rows.map(({ track, index }) => <TrackRow key={`${index}-${track.title}`} track={track} index={index} play={(at) => act('play', at)}/>)}</ol>
+      : <p className="playlist-empty">{tracks.length ? '没有找到匹配的歌曲。' : '这个歌单还没有歌曲。'}</p>}
+    <p className="playlist-footnote">播放时先试平台原始曲目，再按歌名、歌手和版本匹配 QQ 音乐 / 网易云；不会用现场版或翻唱顶替。播放权限取决于平台账号、版权与地区。</p>
+  </div>;
+}
+
+function SignIn({ provider, desktop, busy, signIn }) {
+  const name = PLAYLIST_SOURCES[provider].label;
+  return <div className="playlist-signin">
+    <span className="playlist-signin-art" aria-hidden="true"><Sleeve title={name} size="lg"/></span>
+    <h3>登录{name}，读取你的歌单</h3>
+    <p>登录在{name}官方页面完成，凭据只加密保存在这台电脑上。登录后，这里会出现「我喜欢」、自建和收藏的歌单。</p>
+    <button type="button" className="pixel-button is-primary" disabled={!desktop || busy} onClick={signIn}>{busy ? <><Loading size={16} className="player-spin"/>等待登录…</> : `登录${name}`}</button>
+    {!desktop && <small>平台登录需要在心流小屋桌面版中进行。</small>}
+    <small>不想登录？在「链接与文件」里粘贴公开歌单的分享链接也可以。</small>
+  </div>;
+}
+
+function LinkAndFile({ openDetail, busy, setBusy, setError, compact = false, apple = false }) {
+  const [link, setLink] = useState(''), file = useRef(null);
+  const submit = async (event) => {
+    event.preventDefault(); if (!link.trim() || busy) return;
+    setBusy(true); setError('');
+    try { const detail = await musicRequest('/playlist/link', { url: link.trim() }); openDetail(detail, detail.provider); setLink(''); }
+    catch (error) { setError(error.message); } finally { setBusy(false); }
+  };
+  const readFile = async (picked) => {
+    if (!picked) return; setError('');
+    if (picked.size > 12 * 1024 * 1024) { setError('文件太大了：歌单文件应小于 12 MB。'); return; }
+    try {
+      const lists = parsePlaylistFile(await picked.text(), picked.name);
+      const list = lists[0];
+      openDetail({ playlist: { id: `file:${list.id}`, name: list.name, creator: picked.name.replace(/\.[^.]+$/, ''), trackCount: list.tracks.length }, tracks: list.tracks, others: lists.slice(1) }, 'file');
+    } catch (error) { setError(error.message); }
+    finally { if (file.current) file.current.value = ''; }
+  };
+  return <div className={`playlist-import ${compact ? 'is-compact' : ''}`}>
+    <form className="playlist-link" onSubmit={submit}>
+      <Link size={16}/><input type="url" inputMode="url" aria-label="歌单分享链接" placeholder={apple ? 'https://music.apple.com/…/playlist/…' : '粘贴网易云 / QQ 音乐 / Apple Music 歌单链接'} value={link} onChange={(event) => setLink(event.target.value)}/>
+      <button type="submit" className="pixel-button is-primary" disabled={busy || !link.trim()}>{busy ? <Loading size={16} className="player-spin"/> : '读取歌单'}</button>
+    </form>
+    <button type="button" className="playlist-drop" onClick={() => file.current?.click()} onDragOver={(event) => { event.preventDefault(); event.currentTarget.classList.add('is-over'); }} onDragLeave={(event) => event.currentTarget.classList.remove('is-over')} onDrop={(event) => { event.preventDefault(); event.currentTarget.classList.remove('is-over'); readFile(event.dataTransfer.files?.[0]); }}>
+      <DocumentArrow size={22}/><strong>导入歌单文件</strong><small>{apple ? '「音乐」App › 文件 › 资料库 › 导出播放列表… 存成 .xml' : 'Apple Music / iTunes 导出的 .xml、播放器的 .m3u / .m3u8，或每行「歌名 - 歌手」的 .txt'}</small>
+    </button>
+    <input ref={file} type="file" hidden accept=".xml,.m3u,.m3u8,.txt,.csv,text/plain,application/xml" onChange={(event) => readFile(event.target.files?.[0])}/>
+  </div>;
+}
+
+export default function PlaylistLibrary({ items, close, onAdded }) {
+  const desktop = useDesktopAppearance().client;
+  const [tab, setTab] = useState(() => { try { return localStorage.getItem('album-circle-playlist-tab-v1') || 'netease'; } catch { return 'netease'; } });
+  const [config, setConfig] = useState(null), [lists, setLists] = useState({}), [detail, setDetail] = useState(null), [busy, setBusy] = useState(false), [busyId, setBusyId] = useState(''), [error, setError] = useState(''), [notice, setNotice] = useState(''), [signing, setSigning] = useState('');
+  const generation = useRef(0);
+  const choose = (next) => { generation.current++; setTab(next); setDetail(null); setError(''); setNotice(''); setBusyId(''); try { localStorage.setItem('album-circle-playlist-tab-v1', next); } catch {} };
+  const listProvider = tab === 'apple' ? 'apple-local' : tab;
+  const loggedIn = tab === 'netease' ? config?.neteaseLoggedIn : tab === 'qq' ? config?.qqLoggedIn : false;
+  const refreshConfig = async () => { try { setConfig(await musicRequest('/config')); } catch (cause) { setConfig({}); setError(cause.message); } };
+  const loadList = async (provider, force = false) => {
+    if (!force && lists[provider]?.playlists) return;
+    const current = ++generation.current;
+    setLists((old) => ({ ...old, [provider]: { ...old[provider], loading: true, error: '' } }));
+    try { const result = await musicRequest('/playlists?provider=' + provider); if (current === generation.current) setLists((old) => ({ ...old, [provider]: { ...result, loading: false } })); }
+    catch (cause) { if (current === generation.current) setLists((old) => ({ ...old, [provider]: { playlists: null, loading: false, error: cause.message } })); }
+  };
+  useEffect(() => { refreshConfig(); }, []);
+  useEffect(() => {
+    const receive = (event) => { setSigning(''); if (event.detail?.error) setError(event.detail.error); refreshConfig().then(() => setLists({})); };
+    window.addEventListener('album-music-account', receive); return () => window.removeEventListener('album-music-account', receive);
+  }, []);
+  useEffect(() => { if ((tab === 'netease' || tab === 'qq') && loggedIn) loadList(tab); }, [tab, loggedIn]);
+  const openDetail = (value, provider) => { setDetail({ ...value, provider }); setNotice(''); setError(''); };
+  const openPlaylist = async (entry) => {
+    if (busyId) return; const current = generation.current; setBusyId(entry.id); setError('');
+    try { const value = await musicRequest(`/playlist?provider=${listProvider}&id=${encodeURIComponent(entry.id)}`); if (current === generation.current) openDetail(value, listProvider); }
+    catch (cause) { if (current === generation.current) setError(cause.message); } finally { if (current === generation.current) setBusyId(''); }
+  };
+  const savedItem = detail && items.find((item) => item.externalIds?.playlist === playlistKey(detail.provider, detail.playlist.id));
+  // Saving is idempotent: an existing sleeve is refreshed with the latest track list.
+  const save = async () => {
+    const value = playlistItem(detail, detail.provider);
+    if (!value.cover) value.cover = generatedCover(value);
+    const result = await addItem(value);
+    let item = result.item;
+    if (result.duplicate && JSON.stringify(item.tracks) !== JSON.stringify(value.tracks)) item = (await updateItem(item.id, { tracks: value.tracks, trackDetails: value.trackDetails, title: value.title })).item;
+    onAdded(item);
+    return { item, refreshed: result.duplicate };
+  };
+  const act = async (action, index = 0) => {
+    if (busy) return; setBusy(true); setError(''); setNotice('');
+    try {
+      const { item, refreshed } = await save();
+      if (action === 'save') { setNotice(refreshed ? `《${item.title}》已同步为最新的 ${item.tracks.length} 首。` : `《${item.title}》已放上唱片架，可以像专辑一样双击放盘。`); return; }
+      if (action === 'queue') { window.dispatchEvent(new CustomEvent('cabin-enqueue', { detail: { id: item.id, item } })); setNotice(`《${item.title}》已加入待播，当前唱片放完后接着放。`); return; }
+      window.dispatchEvent(new CustomEvent('cabin-play', { detail: { id: item.id, item, track: action === 'shuffle' ? Math.floor(Math.random() * item.tracks.length) : index, shuffle: action === 'shuffle' } }));
+      close();
+    } catch (cause) { setError(cause.message); } finally { setBusy(false); }
+  };
+  const state = lists[listProvider];
+  const signIn = (provider) => { setSigning(provider); setError(''); desktopCommand('music-login', { provider }); };
+  return <Dialog title="我的歌单" icon={<QueueList size={20}/>} close={close} wide className="playlist-dialog">
+    <div className="playlist-shell">
+      <nav className="playlist-rail" role="tablist" aria-label="歌单来源">{TABS.map((entry) => {
+        const connected = entry.id === 'netease' ? config?.neteaseLoggedIn : entry.id === 'qq' ? config?.qqLoggedIn : false;
+        return <button type="button" role="tab" key={entry.id} aria-selected={tab === entry.id} className={`playlist-rail-tab is-${entry.id}`} onClick={() => choose(entry.id)}>
+          <span className="playlist-rail-glyph" aria-hidden="true">{entry.id === 'import' ? <Link size={16}/> : entry.id === 'apple' ? <Music2 size={16}/> : <b>{entry.id === 'qq' ? 'QQ' : '云'}</b>}</span>
+          <span><strong>{entry.label}</strong><small>{connected ? '已登录' : entry.hint}</small></span>{connected && <i className="playlist-rail-dot" aria-label="已登录"/>}
+        </button>;
+      })}</nav>
+      <section className="playlist-main" aria-live="polite">
+        {error && <p className="playlist-error" role="alert">{error}</p>}
+        {notice && <p className="playlist-notice" role="status"><Check size={15}/>{notice}</p>}
+        {detail ? <PlaylistDetail detail={detail} provider={detail.provider} back={() => { setDetail(null); setNotice(''); }} act={act} busy={busy} saved={Boolean(savedItem)}/>
+          : tab === 'import' ? <><header className="playlist-main-head"><h3>从链接或文件导入</h3><p>公开歌单不需要登录：在平台里点「分享 › 复制链接」，粘贴到这里。</p></header><LinkAndFile openDetail={openDetail} busy={busy} setBusy={setBusy} setError={setError}/></>
+          : tab === 'apple' ? <>
+            <header className="playlist-main-head"><h3>Apple Music</h3><p>{isMac ? '读取这台 Mac「音乐」App 里的歌单（登录 Apple Music 后的资料库），或粘贴公开歌单链接。' : '粘贴公开歌单链接，或导入 iTunes / Apple Music 导出的歌单文件。'}播放时按歌名与歌手匹配可播放的同版本。</p></header>
+            {isMac && desktop && (state?.playlists ? <><div className="playlist-toolbar"><span>{state.playlists.length} 个歌单 · 音乐 App</span><button type="button" className="pixel-button is-quiet" onClick={() => loadList('apple-local', true)}><Loading size={14}/>刷新</button></div><PlaylistGrid playlists={state.playlists} open={openPlaylist} busyId={busyId}/></>
+              : <button type="button" className="playlist-music-app" disabled={state?.loading} onClick={() => loadList('apple-local', true)}>{state?.loading ? <Loading size={22} className="player-spin"/> : <Music2 size={22}/>}<strong>{state?.loading ? '正在读取「音乐」App…' : '读取「音乐」App 歌单'}</strong><small>第一次读取时，macOS 会询问是否允许心流小屋控制「音乐」。</small></button>)}
+            {state?.error && <p className="playlist-error" role="alert">{state.error}</p>}
+            <LinkAndFile openDetail={openDetail} busy={busy} setBusy={setBusy} setError={setError} compact apple/>
+          </>
+          : !config ? <p className="playlist-loading"><Loading size={18} className="player-spin"/>正在检查登录状态…</p>
+          : !loggedIn ? <SignIn provider={tab} desktop={desktop} busy={signing === tab} signIn={() => signIn(tab)}/>
+          : state?.loading && !state.playlists ? <ul className="playlist-grid is-skeleton" aria-label="正在读取歌单">{Array.from({ length: 8 }, (_, index) => <li key={index}><span className="playlist-card"><span className="playlist-sleeve is-md"/><span className="playlist-card-copy"><strong>&nbsp;</strong><small>&nbsp;</small></span></span></li>)}</ul>
+          : state?.error ? <div className="playlist-signin"><h3>歌单暂时读不出来</h3><p>{state.error}</p><button type="button" className="pixel-button is-primary" onClick={() => loadList(tab, true)}>重试</button><button type="button" className="pixel-button is-quiet" onClick={() => signIn(tab)}>重新登录</button></div>
+          : state?.playlists?.length ? <><div className="playlist-toolbar"><span>{state.user ? `${state.user} · ` : ''}{state.playlists.length} 个歌单</span><button type="button" className="pixel-button is-quiet" onClick={() => loadList(tab, true)}><Loading size={14}/>刷新</button></div><PlaylistGrid playlists={state.playlists} open={openPlaylist} busyId={busyId}/></>
+          : state?.playlists ? <div className="playlist-signin"><h3>还没有歌单</h3><p>在{PLAYLIST_SOURCES[tab].label}里创建或收藏歌单后，点刷新。</p><button type="button" className="pixel-button" onClick={() => loadList(tab, true)}>刷新</button></div>
+          : null}
+      </section>
+    </div>
+  </Dialog>;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { QUEUE_KEY, normalizeQueue, enqueue, playNext, dequeue, pruneQueue, cycleRepeat, nextStep, previousStep } from './player-queue.mjs';
 import { createPlaybackBroadcaster, rmsEnergy, smoothEnergy, estimatedEnergy, ENERGY_INTERVAL_MS } from './playback-signal.mjs';
 import { analyserFor } from './audio-graph.mjs';
@@ -13,6 +13,9 @@ export function usePlayerQueue({ items, record, trackIndex, setTrackIndex, loadA
   const itemsSignature = items.map((item) => item.id).join('|');
   useEffect(() => { if (items.length) setQueue((old) => pruneQueue(old, items.map((item) => item.id))); }, [itemsSignature]);
   const trackCount = trackNames(record).length, audible = provider !== 'visual' && provider !== 'system';
+  // What plays after this track is decided once (shuffle included), so the deck
+  // can match that exact track early and the transition is instant.
+  const upcoming = useMemo(() => nextStep({ trackIndex, trackCount, queue }), [record?.id, trackIndex, trackCount, queue.ids.join('|'), queue.repeat, queue.shuffle]);
   const go = (step) => {
     if (step.type === 'track') setTrackIndex(step.index);
     else if (step.type === 'restart') { if (audible) playback?.restart(); }
@@ -23,7 +26,9 @@ export function usePlayerQueue({ items, record, trackIndex, setTrackIndex, loadA
     queue,
     canNext: Boolean(record) && nextStep({ trackIndex, trackCount, queue, manual: true, random: () => 0 }).type !== 'stop',
     canPrevious: Boolean(record) && (trackIndex > 0 || (audible && (playback?.position || 0) > 0)),
-    next: (manual = true) => record && go(nextStep({ trackIndex, trackCount, queue, manual })),
+    next: (manual = true) => record && go(manual && upcoming.type === 'restart' ? nextStep({ trackIndex, trackCount, queue, manual }) : upcoming),
+    canAdvance: Boolean(record) && upcoming.type !== 'stop',
+    peekNext: () => upcoming.type === 'track' ? { item: record, index: upcoming.index } : upcoming.type === 'album' ? { item: items.find((entry) => entry.id === upcoming.id), index: 0 } : null,
     previous: () => record && go(previousStep({ trackIndex, position: audible ? playback?.position || 0 : 0 })),
     enqueue: (id) => setQueue((old) => enqueue(old, id)),
     playNext: (id) => setQueue((old) => playNext(old, id)),
@@ -112,5 +117,6 @@ export function suggestProvider(item) {
   const details = Array.isArray(item?.trackDetails) ? item.trackDetails : [];
   if (item?.externalIds?.fileAlbum || details.some((track) => track?.source === 'local')) return 'local';
   if (details.some((track) => /^[a-z\d]{14}$/i.test(track?.providerId || '') && track?.source !== 'local') || /^[a-z\d]{14}$/i.test(item?.externalIds?.qqSongMid || '')) return 'auto'; // QQ ids first, then verified QQ / 网易云 matches
+  if (item?.type === 'playlist') return 'auto'; // imported playlists: the source platform first, then version-safe matches
   return '';
 }

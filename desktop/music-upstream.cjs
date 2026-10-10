@@ -33,10 +33,14 @@ __export(music_upstream_exports, {
   call: () => call,
   getNeteaseLoginInfo: () => getNeteaseLoginInfo,
   getQQLoginInfo: () => getQQLoginInfo,
+  handleQQPlaylistTracks: () => handleQQPlaylistTracks,
   handleQQSearch: () => handleQQSearch,
   handleQQSongUrl: () => handleQQSongUrl,
+  handleQQUserPlaylists: () => handleQQUserPlaylists,
   handleSearch: () => handleSearch,
   handleSongUrl: () => handleSongUrl,
+  neteasePlaylistTracks: () => neteasePlaylistTracks,
+  neteaseUserPlaylists: () => neteaseUserPlaylists,
   normalizeLoginInfo: () => normalizeLoginInfo,
   parseCookieString: () => parseCookieString,
   qqCookieMusicKey: () => qqCookieMusicKey,
@@ -118,6 +122,19 @@ function qqCookieMusicKey(obj) {
 }
 function qqCookiePlaybackKey(obj) {
   return obj.qm_keyst || obj.qqmusic_key || obj.music_key || obj.wxskey || "";
+}
+function qqAuthComm(cookie) {
+  const cookieObj = parseCookieString(cookie);
+  const uin = qqCookieUin(cookieObj) || "0";
+  const musicKey = qqCookieMusicKey(cookieObj);
+  const comm = {
+    uin,
+    format: "json",
+    ct: musicKey ? 19 : 24,
+    cv: 0
+  };
+  if (musicKey) comm.authst = musicKey;
+  return comm;
 }
 function decodeQQCookieValue(value) {
   try {
@@ -239,10 +256,56 @@ function qualityCandidatesFrom(target, candidates) {
   if (start < 0) start = 0;
   return candidates.slice(start);
 }
+var QQ_LIKED_PLAYLIST_ID = "qq-liked:201";
+var QQ_TOPLIST_PREFIX = "qq-toplist:";
+function isQQLikedPlaylistReference(value) {
+  return String(value || "").trim() === QQ_LIKED_PLAYLIST_ID;
+}
+function isQQNumericPlaylistId(value) {
+  const id = String(value ?? "").trim();
+  return /^\d+$/.test(id) && Number.isSafeInteger(Number(id)) && Number(id) > 0;
+}
+function qqPlaylistReference(value) {
+  const id = String(value || "").trim();
+  if (isQQLikedPlaylistReference(id)) return { kind: "liked", id: "201" };
+  if (id.startsWith(QQ_TOPLIST_PREFIX)) {
+    return { kind: "toplist", id: id.slice(QQ_TOPLIST_PREFIX.length) };
+  }
+  return { kind: "playlist", id };
+}
+function isQQFavoritePlaylist(raw) {
+  return String(raw.dirid ?? raw.dirId ?? "").trim() === "201";
+}
+function isQzoneBackgroundPlaylist(pl) {
+  const text = String((pl && pl.name || "") + " " + (pl && pl.creator || "")).toLowerCase();
+  return /qzone|空间|背景音乐/i.test(text);
+}
 function qqAlbumCover(albumMid, size) {
   if (!albumMid) return "";
   const px = size || 300;
   return "https://y.qq.com/music/photo_new/T002R" + px + "x" + px + "M000" + albumMid + ".jpg?max_age=2592000";
+}
+function pickQQImageUrl(...values) {
+  for (const value of values) {
+    const raw = str(value).trim();
+    if (!raw) continue;
+    const normalized = raw.startsWith("//") ? `https:${raw}` : raw;
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") return normalized;
+    } catch {
+    }
+  }
+  return "";
+}
+function pickQQPlaylistCover(detail, tracks) {
+  const playlist = rec(detail);
+  return pickQQImageUrl(
+    playlist.logo,
+    playlist.diss_cover,
+    playlist.cover,
+    ...tracks.map((track) => rec(track).cover)
+  );
 }
 function mapQQArtists(raw) {
   return arr(raw).map((a) => {
@@ -289,6 +352,57 @@ function mapQQTrack(track, fallback) {
     playable: false
   };
 }
+function mapQQPlaylist(raw, kind) {
+  const pl = rec(raw);
+  const upstreamId = pl.dissid || pl.tid || pl.dirid || pl.id || pl.diss_id;
+  const playlist = {
+    provider: "qq",
+    source: "qq",
+    id: upstreamId ? String(upstreamId) : "",
+    name: str(pl.diss_name || pl.name || pl.title),
+    cover: pickQQImageUrl(pl.diss_cover, pl.logo, pl.picurl, pl.cover),
+    trackCount: numOf(pl.song_cnt || pl.songnum || pl.total_song_num || pl.song_count),
+    playCount: numOf(pl.listen_num || pl.visitnum || pl.play_count),
+    creator: str(pl.hostname || pl.nick || pl.creator) || "QQ \u97F3\u4E50",
+    subscribed: kind === "collect",
+    specialType: 0
+  };
+  if (isQQFavoritePlaylist(pl)) {
+    playlist.id = QQ_LIKED_PLAYLIST_ID;
+  }
+  return playlist;
+}
+function mapQQPlaylistTrack(raw) {
+  const r = rec(raw);
+  const track = r.songid || r.songmid || r.mid || r.name ? r : rec(r.track_info || r.songInfo || r.songinfo || r.song);
+  const album = rec(track.album);
+  const artists = mapQQArtists(track.singer || track.singers || []);
+  const linkedArtist = artists.find((artist) => artist.mid);
+  const mid = str(track.mid || track.songmid || r.mid || r.songmid);
+  const albumMid = str(album.mid || track.albummid || r.albummid);
+  const pay = rec(track.pay);
+  return {
+    provider: "qq",
+    source: "qq",
+    type: "qq",
+    id: mid,
+    qqId: track.id || track.songid || r.id || r.songid || "",
+    mid,
+    songmid: mid,
+    mediaMid: str(rec(track.file).media_mid || track.strMediaMid || track.media_mid || r.strMediaMid),
+    name: str(track.name || track.songname || r.songname),
+    artist: artists.map((a) => a.name).join(" / ") || str(track.singername || r.singername),
+    artists,
+    artistId: linkedArtist?.id,
+    artistMid: linkedArtist?.mid,
+    album: str(album.name || album.title || track.albumname || r.albumname),
+    albumMid,
+    cover: qqAlbumCover(albumMid, 300),
+    duration: numOf(track.interval || r.interval) * 1e3,
+    fee: pay && numOf(pay.pay_play) ? 1 : 0,
+    playable: false
+  };
+}
 async function qqMusicRequest(cookie, payload, opts = {}) {
   const body = JSON.stringify(payload);
   const headers = {
@@ -298,6 +412,16 @@ async function qqMusicRequest(cookie, payload, opts = {}) {
   };
   if (opts.cookie && cookie) headers.Cookie = cookie;
   const text = await requestText(QQ_MUSICU_URL, { method: "POST", headers }, body);
+  return parseJSONText(text);
+}
+async function qqGetJSON(cookie, targetUrl, params = {}, opts = {}) {
+  const u = new URL(targetUrl);
+  Object.keys(params).forEach((k) => {
+    if (params[k] != null) u.searchParams.set(k, String(params[k]));
+  });
+  const headers = { ...QQ_HEADERS, ...opts.headers || {} };
+  if (opts.cookie !== false && cookie) headers.Cookie = cookie;
+  const text = await requestText(u.toString(), { headers });
   return parseJSONText(text);
 }
 function normalizeQQProfile(cookie, body, cookieObj) {
@@ -367,6 +491,168 @@ async function getQQLoginInfo(cookie) {
   } catch (e) {
     return { ...fallback, profileUnavailable: true };
   }
+}
+async function handleQQUserPlaylists(cookie) {
+  const info = await getQQLoginInfo(cookie);
+  if (!info.loggedIn || !info.userId) return { loggedIn: false, provider: "qq", playlists: [] };
+  const uin = info.userId;
+  const createdReq = qqGetJSON(
+    cookie,
+    "https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss",
+    {
+      hostUin: 0,
+      hostuin: uin,
+      sin: 0,
+      size: 200,
+      g_tk: 5381,
+      loginUin: uin,
+      format: "json",
+      inCharset: "utf8",
+      outCharset: "utf-8",
+      notice: 0,
+      platform: "yqq.json",
+      needNewCode: 0
+    },
+    { headers: { Referer: "https://y.qq.com/portal/profile.html" } }
+  );
+  const collectReq = qqGetJSON(
+    cookie,
+    "https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg",
+    { ct: 20, cid: 205360956, userid: uin, reqtype: 3, sin: 0, ein: 80 },
+    { headers: { Referer: "https://y.qq.com/portal/profile.html" } }
+  );
+  const [createdRaw, collectRaw] = await Promise.allSettled([createdReq, collectReq]);
+  const created = createdRaw.status === "fulfilled" && Array.isArray(rec(rec(createdRaw.value).data).disslist) ? rec(rec(createdRaw.value).data).disslist.map((pl) => mapQQPlaylist(pl, "created")) : [];
+  const collected = collectRaw.status === "fulfilled" && Array.isArray(rec(rec(collectRaw.value).data).cdlist) ? rec(rec(collectRaw.value).data).cdlist.map((pl) => mapQQPlaylist(pl, "collect")) : [];
+  const seen = /* @__PURE__ */ new Set();
+  const playlists = created.concat(collected).filter((pl) => {
+    if (!pl.id || !pl.name || seen.has(pl.id)) return false;
+    if (isQzoneBackgroundPlaylist(pl)) return false;
+    seen.add(pl.id);
+    return true;
+  }).sort((a, b) => Number(b.id === QQ_LIKED_PLAYLIST_ID) - Number(a.id === QQ_LIKED_PLAYLIST_ID));
+  return { loggedIn: true, provider: "qq", userId: uin, playlists };
+}
+var QQ_PLAYLIST_PAGE_SIZE = 100;
+var QQ_PLAYLIST_MAX_PAGES = 100;
+function qqHasLoginCookie(cookie) {
+  const cookieObj = parseCookieString(cookie);
+  return !!(qqCookieUin(cookieObj) && qqCookieMusicKey(cookieObj));
+}
+function qqPlaylistTotal(data, detail) {
+  return numOf(
+    data.total_song_num || data.songlist_size || data.totalNum || detail.total_song_num || detail.songlist_size || detail.totalNum
+  );
+}
+function qqPageHasMore(data, offset, rawCount, total) {
+  const marker = data.hasmore ?? data.hasMore;
+  if (marker !== void 0) return marker === true || Number(marker) > 0;
+  if (total > 0) return offset + rawCount < total;
+  return rawCount >= QQ_PLAYLIST_PAGE_SIZE;
+}
+async function fetchQQDissPage(cookie, ref, offset, num = QQ_PLAYLIST_PAGE_SIZE) {
+  const liked = ref.kind === "liked";
+  if (!liked && !isQQNumericPlaylistId(ref.id)) throw new Error("Invalid QQ playlist id");
+  const json = rec(
+    await qqMusicRequest(
+      cookie,
+      {
+        comm: qqAuthComm(cookie),
+        playlist: {
+          module: "music.srfDissInfo.DissInfo",
+          method: "CgiGetDiss",
+          param: {
+            disstid: liked ? 0 : Number(ref.id),
+            dirid: liked ? 201 : 0,
+            tag: true,
+            song_begin: offset,
+            song_num: num,
+            userinfo: true,
+            orderlist: true,
+            onlysonglist: false
+          }
+        }
+      },
+      { cookie: true }
+    )
+  );
+  const block = rec(json.playlist);
+  if (!json.playlist || Number(block.code || 0) !== 0) {
+    const code = Number(block.code || block.result || 0);
+    const message = str(block.message || block.msg);
+    if (liked && qqHasLoginCookie(cookie) && ([301, 1e3, 2e3].includes(code) || /auth|cookie|login|登录|未登陆|过期|失效|票据/i.test(message))) {
+      const error = new Error("AUTH_EXPIRED");
+      error.statusCode = 403;
+      throw error;
+    }
+    throw new Error(message || "QQ_PLAYLIST_DETAIL_FAILED");
+  }
+  const data = rec(block.data);
+  return { data, detail: rec(data.dirinfo), rawTracks: arr(data.songlist) };
+}
+async function fetchQQToplistPage(cookie, topId, offset, num = QQ_PLAYLIST_PAGE_SIZE) {
+  if (!/^\d+$/.test(topId)) throw new Error("Invalid QQ toplist id");
+  const json = rec(
+    await qqMusicRequest(
+      cookie,
+      {
+        comm: qqAuthComm(cookie),
+        toplist: {
+          module: "music.musicToplist.Toplist",
+          method: "GetDetail",
+          param: { topId: Number(topId), offset, num, withTags: true }
+        }
+      },
+      { cookie: true }
+    )
+  );
+  const block = rec(json.toplist);
+  if (!json.toplist || Number(block.code || 0) !== 0) {
+    throw new Error(str(block.message || block.msg) || "QQ_TOPLIST_DETAIL_FAILED");
+  }
+  const data = rec(block.data);
+  return { data, detail: rec(data.data), rawTracks: arr(data.songInfoList) };
+}
+async function handleQQPlaylistTracks(cookie, id) {
+  const ref = qqPlaylistReference(id);
+  const loggedIn = qqHasLoginCookie(cookie);
+  if (!ref.id) {
+    return { loggedIn, provider: "qq", error: "Missing QQ playlist id", trackIds: [], tracks: [] };
+  }
+  if (ref.kind === "liked" && !loggedIn) {
+    return { loggedIn: false, provider: "qq", trackIds: [], tracks: [] };
+  }
+  const tracks = [];
+  let detail = {};
+  let total = 0;
+  let offset = 0;
+  for (let page = 0; page < QQ_PLAYLIST_MAX_PAGES; page++) {
+    const result = ref.kind === "toplist" ? await fetchQQToplistPage(cookie, ref.id, offset) : await fetchQQDissPage(cookie, ref, offset);
+    if (page === 0) detail = result.detail;
+    total = qqPlaylistTotal(result.data, result.detail) || total;
+    const mapped = result.rawTracks.map(ref.kind === "toplist" ? (raw) => mapQQTrack(raw, {}) : mapQQPlaylistTrack).filter((track) => track.name && track.mid);
+    tracks.push(...mapped);
+    const rawCount = result.rawTracks.length;
+    if (!rawCount || !qqPageHasMore(result.data, offset, rawCount, total)) break;
+    offset += rawCount;
+  }
+  const playlistId = ref.kind === "liked" ? QQ_LIKED_PLAYLIST_ID : ref.kind === "toplist" ? `${QQ_TOPLIST_PREFIX}${ref.id}` : ref.id;
+  const playlist = {
+    provider: "qq",
+    source: "qq",
+    type: ref.kind === "toplist" ? "toplist" : "playlist",
+    id: playlistId,
+    name: str(detail.title || detail.name || detail.dissname || detail.diss_name) || (ref.kind === "liked" ? "\u6211\u559C\u6B22\u7684\u97F3\u4E50" : ""),
+    cover: pickQQPlaylistCover(detail, tracks),
+    trackCount: total || tracks.length
+  };
+  return {
+    loggedIn,
+    provider: "qq",
+    playlist,
+    trackIds: tracks.map((track) => track.id),
+    tracks
+  };
 }
 async function requestQQSearch(cookie, query, searchType, limit) {
   const module2 = "music.search.SearchCgiService";
@@ -858,16 +1144,78 @@ async function getNeteaseLoginInfo(cookie) {
   }
   return { loggedIn: false };
 }
+var NCM_PLAYLIST_LIMIT = 1e3;
+var NCM_PAGE = 500;
+var ok = (response) => response.status < 400 && (response.body?.code == null || Number(response.body.code) === 200);
+var httpsCover = (value) => asStr(value).replace(/^http:\/\//, "https://");
+async function neteaseUserPlaylists(cookie) {
+  const info = await getNeteaseLoginInfo(cookie);
+  const uid = asStr(info.userId);
+  if (!info.loggedIn || !uid) return { loggedIn: false, provider: "netease", playlists: [] };
+  const playlists = [];
+  for (let offset = 0; offset < 600; offset += 100) {
+    const response = await call("user_playlist", { uid, limit: 100, offset, cookie, timestamp: Date.now() });
+    if (!ok(response)) throw new Error("\u7F51\u6613\u4E91\u6B4C\u5355\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55\u540E\u518D\u8BD5\u3002");
+    const page = asArr(response.body.playlist);
+    for (const raw of page) {
+      const pl = asObj(raw), creator = asObj(pl.creator);
+      playlists.push({
+        provider: "netease",
+        id: asStr(pl.id),
+        name: asStr(pl.name),
+        cover: httpsCover(pl.coverImgUrl),
+        trackCount: asNum(pl.trackCount),
+        creator: asStr(creator.nickname),
+        kind: Number(pl.specialType) === 5 ? "liked" : pl.subscribed || asStr(creator.userId) !== uid ? "collect" : "created"
+      });
+    }
+    if (!response.body.more || page.length < 100) break;
+  }
+  return { loggedIn: true, provider: "netease", user: asStr(info.nickname), playlists: playlists.filter((pl) => pl.id && pl.name) };
+}
+async function neteasePlaylistTracks(cookie, id) {
+  if (!/^\d{1,20}$/.test(id)) throw new Error("\u7F51\u6613\u4E91\u6B4C\u5355 ID \u65E0\u6548\u3002");
+  const detail = await call("playlist_detail", { id, s: 0, cookie, timestamp: Date.now() });
+  if (!ok(detail)) throw new Error(Number(detail.body?.code) === 404 ? "\u627E\u4E0D\u5230\u8FD9\u4E2A\u7F51\u6613\u4E91\u6B4C\u5355\uFF0C\u53EF\u80FD\u5DF2\u5220\u9664\u6216\u8BBE\u4E3A\u79C1\u5BC6\u3002" : "\u7F51\u6613\u4E91\u6B4C\u5355\u8BFB\u53D6\u5931\u8D25\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002");
+  const pl = asObj(detail.body.playlist), creator = asObj(pl.creator);
+  const total = Math.min(NCM_PLAYLIST_LIMIT, asNum(pl.trackCount) || asArr(pl.trackIds).length);
+  const tracks = [];
+  for (let offset = 0; offset < total; offset += NCM_PAGE) {
+    const response = await call("playlist_track_all", { id, limit: NCM_PAGE, offset, cookie, timestamp: Date.now() });
+    if (!ok(response)) break;
+    const privileges = new Map(asArr(response.body.privileges).map((p) => [asStr(asObj(p).id), asObj(p)]));
+    const songs = asArr(response.body.songs);
+    for (const raw of songs) {
+      const song = asObj(raw), mapped = mapSongRecord(song), privilege = privileges.get(asStr(song.id));
+      tracks.push({
+        id: asStr(mapped.id),
+        name: asStr(mapped.name),
+        artist: mapped.artist,
+        album: mapped.album,
+        cover: httpsCover(mapped.cover),
+        duration: mapped.duration,
+        fee: mapped.fee,
+        playable: isNeteaseSongAvailable({ ...song, privilege })
+      });
+    }
+    if (songs.length < NCM_PAGE) break;
+  }
+  return { provider: "netease", playlist: { provider: "netease", id, name: asStr(pl.name), cover: httpsCover(pl.coverImgUrl), trackCount: asNum(pl.trackCount) || tracks.length, creator: asStr(creator.nickname), description: asStr(pl.description).slice(0, 600) }, tracks };
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   audioProxyHeadersFor,
   call,
   getNeteaseLoginInfo,
   getQQLoginInfo,
+  handleQQPlaylistTracks,
   handleQQSearch,
   handleQQSongUrl,
+  handleQQUserPlaylists,
   handleSearch,
   handleSongUrl,
+  neteasePlaylistTracks,
+  neteaseUserPlaylists,
   normalizeLoginInfo,
   parseCookieString,
   qqCookieMusicKey,

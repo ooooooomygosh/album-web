@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Web.Script.Serialization;
 
 class DesktopHost {
@@ -32,6 +33,37 @@ class DesktopHost {
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
   [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hwnd,uint cmd);
   [DllImport("user32.dll")] static extern bool SetProcessDpiAwarenessContext(IntPtr context);
+  // keep-bottom (桌面模式): an out-of-context WinEvent hook keeps our window at the
+  // bottom of the z-order whenever anything raises it. No Explorer window is touched.
+  [StructLayout(LayoutKind.Sequential)] struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public POINT pt; }
+  delegate void WinEventProc(IntPtr hook,uint ev,IntPtr hwnd,int idObject,int idChild,uint thread,uint time);
+  [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min,uint max,IntPtr module,WinEventProc proc,uint pid,uint tid,uint flags);
+  [DllImport("user32.dll")] static extern bool UnhookWinEvent(IntPtr hook);
+  [DllImport("user32.dll")] static extern int GetMessage(out MSG msg,IntPtr hwnd,uint min,uint max);
+  [DllImport("user32.dll")] static extern bool TranslateMessage(ref MSG msg);
+  [DllImport("user32.dll")] static extern IntPtr DispatchMessage(ref MSG msg);
+  [DllImport("user32.dll")] static extern bool PostThreadMessage(uint thread,uint msg,IntPtr w,IntPtr l);
+  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+  static WinEventProc keeper; // held so the delegate is never collected while hooked
+  static void KeepBottom(IntPtr window,uint pid) {
+    uint loop=GetCurrentThreadId();
+    Action push=delegate { SetWindowPos(window,new IntPtr(1),0,0,0,0,0x0001|0x0002|0x0010|0x0200); }; // HWND_BOTTOM; NOSIZE|NOMOVE|NOACTIVATE|NOOWNERZORDER
+    keeper=delegate(IntPtr hook,uint ev,IntPtr hwnd,int idObject,int idChild,uint thread,uint time) {
+      if(!IsWindow(window)) { PostThreadMessage(loop,0x0012,IntPtr.Zero,IntPtr.Zero); return; }
+      if(idObject!=0) return; // OBJID_WINDOW only
+      if(ev==0x0003||hwnd==window) push();
+    };
+    var foreground=SetWinEventHook(0x0003,0x0003,IntPtr.Zero,keeper,0,0,0);     // EVENT_SYSTEM_FOREGROUND, any process
+    var reorder=SetWinEventHook(0x8004,0x8004,IntPtr.Zero,keeper,pid,0,0);       // EVENT_OBJECT_REORDER in the cabin's process
+    push();
+    Console.WriteLine("{\"keeping\":true}"); Console.Out.Flush();
+    // The parent closes stdin (or exits) to stop; the window closing also stops.
+    var watcher=new Thread(delegate() { try { Console.In.ReadToEnd(); } catch {} PostThreadMessage(loop,0x0012,IntPtr.Zero,IntPtr.Zero); });
+    watcher.IsBackground=true; watcher.Start();
+    var timer=new Timer(delegate(object state) { if(!IsWindow(window)) PostThreadMessage(loop,0x0012,IntPtr.Zero,IntPtr.Zero); },null,2000,2000);
+    MSG msg; while(GetMessage(out msg,IntPtr.Zero,0,0)>0) { TranslateMessage(ref msg); DispatchMessage(ref msg); }
+    timer.Dispose(); if(foreground!=IntPtr.Zero) UnhookWinEvent(foreground); if(reorder!=IntPtr.Zero) UnhookWinEvent(reorder);
+  }
   static string Class(IntPtr h) { var s=new StringBuilder(256); GetClassName(h,s,s.Capacity); return s.ToString(); }
   static IntPtr Handle(string s) { return new IntPtr(long.Parse(s, CultureInfo.InvariantCulture)); }
   static void Guard(IntPtr window,uint expectedPid) { uint pid; GetWindowThreadProcessId(window,out pid); if(!IsWindow(window)||pid!=expectedPid||Class(window)!="Chrome_WidgetWin_1") throw new Exception("Invalid owned wallpaper window"); }
@@ -81,6 +113,7 @@ class DesktopHost {
       try { SetProcessDpiAwarenessContext(new IntPtr(-4)); } catch(EntryPointNotFoundException) { }
       if(args.Length<3) throw new Exception("Command, window and owner process required");
       var window=Handle(args[1]); Guard(window,uint.Parse(args[2],CultureInfo.InvariantCulture));
+      if(args[0]=="keep-bottom") { KeepBottom(window,uint.Parse(args[2],CultureInfo.InvariantCulture)); return 0; }
       if(args[0]=="attach") { if(args.Length!=4)throw new Exception("Owner window required"); Attach(window,Handle(args[3])); }
       else if(args[0]!="probe") throw new Exception("Unknown command");
       Console.WriteLine(new JavaScriptSerializer().Serialize(Probe(window))); return 0;

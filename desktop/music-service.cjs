@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), http = require('node:http');
 const { safeAudioURL, serverURL, candidate } = require('./music-policy.cjs');
+const { createPlaylistLibrary } = require('./playlists.cjs');
 function createMusicService({ directory, safeStorage, login, logout, upstream = require('./music-upstream.cjs'), fetch = globalThis.fetch, nowPlaying = null, localMusic = null }) {
   const token = crypto.randomBytes(32).toString('hex'), streams = new Map(), cache = new Map(), activeStreams = new Set(), accountVersions = { qq: 0, netease: 0 };
   let revision = 0;
@@ -14,6 +15,9 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
     if (!safeStorage.isEncryptionAvailable() || safeStorage.getSelectedStorageBackend?.() === 'basic_text') throw new Error('本机安全凭据存储不可用，无法保存平台登录。');
     return safeStorage.encryptString(value).toString('base64');
   };
+  const playlists = createPlaylistLibrary({ upstream, cookies: (provider) => decode(preferences[provider]), fetch });
+  // Account playlists are read on demand; a changed login discards the answer.
+  async function guarded(task) { const currentRevision = revision; const result = await task(); if (currentRevision !== revision) throw new Error('平台登录已更改，请重新打开歌单。'); return result; }
   const config = () => ({ qqLoggedIn: Boolean(decode(preferences.qq)), neteaseLoggedIn: Boolean(decode(preferences.netease)), maURL: preferences.maURL, maTokenSet: Boolean(decode(preferences.maToken)), playerId: preferences.playerId });
   async function ma(command, args = {}) {
     if (!preferences.maURL || !decode(preferences.maToken)) throw new Error('请在音源设置中配置 Music Assistant 服务器与访问令牌。');
@@ -113,6 +117,9 @@ function createMusicService({ directory, safeStorage, login, logout, upstream = 
       if (req.method === 'GET' && url.pathname === '/config') return json(res, config());
       if (req.method === 'POST' && url.pathname === '/config') { const value = await body(req); const maURL = value.maURL ? serverURL(String(value.maURL)) : ''; const playerId = String(value.playerId || '').slice(0, 160); const maToken = value.clearToken ? '' : value.maToken ? encrypt(String(value.maToken).slice(0, 8192)) : maURL === preferences.maURL ? preferences.maToken : ''; save({ ...preferences, maURL, maToken, playerId }); return json(res, config()); }
       if (req.method === 'GET' && url.pathname === '/search') return json(res, { candidates: await search(url.searchParams.get('provider'), String(url.searchParams.get('query') || '').slice(0, 300)) });
+      if (req.method === 'GET' && url.pathname === '/playlists') return json(res, await guarded(() => playlists.list(String(url.searchParams.get('provider') || ''))));
+      if (req.method === 'GET' && url.pathname === '/playlist') return json(res, await guarded(() => playlists.tracks(String(url.searchParams.get('provider') || ''), String(url.searchParams.get('id') || ''))));
+      if (req.method === 'POST' && url.pathname === '/playlist/link') return json(res, await guarded(async () => playlists.link(String((await body(req)).url || ''))));
       if (req.method === 'POST' && url.pathname === '/resolve') return json(res, await resolve(await body(req)));
       if (req.method === 'GET' && url.pathname.startsWith('/audio/')) return await stream(req, res, url.pathname.slice(7));
       if (req.method === 'GET' && url.pathname === '/now-playing') return json(res, nowPlaying ? await nowPlaying.get() : { available: false, active: false });

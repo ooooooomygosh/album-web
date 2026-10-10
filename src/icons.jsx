@@ -20,3 +20,5 @@ export const Clock = icon('ClockIcon'), CheckCircle = icon('CheckCircleIcon'), C
 export const Forward = icon('ForwardIcon'), Backward = icon('BackwardIcon'), Gift = icon('GiftIcon'), Bars3 = icon('Bars3Icon'), EyeSlash = icon('EyeSlashIcon'), Eye = icon('EyeIcon');
 export const Pencil = icon('PencilSquareIcon');
 export const ListBullet = icon('ListBulletIcon'), Moon = icon('MoonIcon'), Heart = icon('HeartIcon'), FolderOpen = icon('FolderOpenIcon'), Computer = icon('ComputerDesktopIcon');
+export const QueueList = icon('QueueListIcon'), Link = icon('LinkIcon'), DocumentArrow = icon('DocumentArrowUpIcon'), ArrowLeft = icon('ArrowLeftIcon'), Signal = icon('SignalIcon');
+export const Bookmark = icon('AcademicCapIcon');
