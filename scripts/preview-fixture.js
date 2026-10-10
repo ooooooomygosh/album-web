@@ -46,11 +46,17 @@
     return realFetch(input, options);
   };
   let wallpaperAttempt = 0, wallpaperTimer;
-  const wallpaperState = state => { window.albumRoomWallpaperState = state; window.dispatchEvent(new CustomEvent('album-room-wallpaper', { detail: state })); };
+  const wallpaperState = state => {
+    // 沉入桌面 status mirrors the simulated wallpaper layer.
+    window.cabinDesktopStatus = { active: state.active, busy: state.busy, supported: true, via: state.active ? 'wallpaper' : '', reason: state.error || '' };
+    window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus }));
+    window.albumRoomWallpaperState = state; window.dispatchEvent(new CustomEvent('album-room-wallpaper', { detail: state }));
+  };
   window.open = value => {
     const command = String(value || '');
-    if (command.startsWith('album-desktop://action/wallpaper-stop')) { clearTimeout(wallpaperTimer); wallpaperState({ active: false, busy: false, error: '' }); return null; }
-    if (command.startsWith('album-desktop://action/wallpaper-start')) {
+    if (command.startsWith('album-desktop://action/tray-pet')) return null;
+    if (/^album-desktop:\/\/action\/(wallpaper-stop|desktop-sink-exit)/.test(command)) { clearTimeout(wallpaperTimer); wallpaperState({ active: false, busy: false, error: '' }); return null; }
+    if (/^album-desktop:\/\/action\/(wallpaper-start|desktop-sink-enter)/.test(command)) {
       clearTimeout(wallpaperTimer); const attempt = ++wallpaperAttempt; wallpaperState({ active: false, busy: true, error: '' });
       wallpaperTimer = setTimeout(() => wallpaperState(attempt === 1 ? { active: false, busy: false, error: '模拟桌面背景启动失败：仅用于错误提示验证' } : { active: true, busy: false, error: '' }), 350); return null;
     }

@@ -25,6 +25,7 @@ const cover = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w
 let items = Array.from({ length: 18 }, (_, i) => ({ id: `fixture-${i}`, type: 'album', title: i === 0 ? '晨光本地唱片' : `测试唱片 ${i + 1}`, artist: 'Fixture Artist', year: '2026', cover: i === 2 ? '' : cover, source: 'manual', tracks: ['晨光', '夜雨'], trackDetails: ['abcdef0123456789', 'fedcba9876543210'].map((id, index) => ({ title: index ? '夜雨' : '晨光', source: 'local', providerId: id })), addedAt: new Date(Date.UTC(2026, 9, 8) - i * 86400000).toISOString() }));
 const wav = Buffer.alloc(44 + 22050 * 2 * 15); wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(22050, 24); wav.writeUInt32LE(44100, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
 for (let i = 0; i < (wav.length - 44) / 2; i++) wav.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * 220 / 22050) * 1200), 44 + i * 2);
+let quality = 'exhigh', rematch = '', localOpens = [], rematchResolves = [];
 let systemPlaying = true, localAlbumCalls = 0, neteaseLoggedIn = false; const systemCommands = [];
 const screenshot = async (name) => { await page.screenshot({ path: path.join(output, name + '.png'), animations: 'disabled' }); report.screenshots.push(name + '.png'); };
 const closeDialog = () => page.keyboard.press('Escape');
@@ -50,7 +51,11 @@ try {
       if (request.method() === 'DELETE') { items = items.filter(i => i.id !== id); return json({ ok: true }); }
     }
     if (p === '/api/search') return json({ candidates: [{ ...items[0], id: 'search-result', title: '搜索找到的专辑' }] });
-    if (p === '/desktop-music/config') return json({ qqLoggedIn: false, neteaseLoggedIn, maURL: '', playerId: '' });
+    if (p === '/desktop-music/config') return json({ qqLoggedIn: false, neteaseLoggedIn, maURL: '', playerId: '', quality, qualities: [{ id: 'standard', label: '标准 · 128k' }, { id: 'exhigh', label: '高品质 · 320k' }, { id: 'lossless', label: '无损 · FLAC' }] });
+    if (p === '/desktop-music/quality') { quality = body.quality; return json({ qqLoggedIn: false, neteaseLoggedIn, maURL: '', playerId: '', quality }); }
+    if (p === '/desktop-music/open-local') { localOpens.push(body); return json({ opened: true, app: 'QQ 音乐', via: 'web', installed: false, playingInCabin: false }); }
+    if (rematch && p === '/desktop-music/resolve') { rematchResolves.push(body.id); if (rematch === 'all-fail' || body.id === 'fixture-vip') return json({ error: 'QQ 音乐没有给当前版本返回播放地址' }); return json({ audioPath: '/desktop-music/local/audio/' + body.id, trial: false, quality: '320k MP3' }); }
+    if (rematch && p === '/desktop-music/search') return json({ candidates: [{ id: 'fixture-vip', title: '晨光', artist: 'Fixture Artist', provider: url.searchParams.get('provider'), album: '晨光本地唱片' }, { id: 'fixture-stream', title: '晨光', artist: 'Fixture Artist', provider: url.searchParams.get('provider'), album: 'Fixture' }, { id: 'fixture-live', title: '晨光 (Live)', artist: 'Fixture Artist', provider: url.searchParams.get('provider') }] });
     if (p === '/desktop-music/playlists') return json({ loggedIn: true, provider: 'netease', user: 'Fixture', playlists: neteasePlaylists.map(({ cover, ...entry }) => entry) });
     const bare = (detail) => ({ ...detail, playlist: { ...detail.playlist, cover: '' }, tracks: detail.tracks.map(({ cover, ...track }) => track) });
     if (p === '/desktop-music/playlist') return json(bare(playlistDetail(url.searchParams.get('id'))));
@@ -59,6 +64,7 @@ try {
     if (p === '/desktop-music/local/albums') return json(localAlbumCalls++ % 2 ? { albums: [{ id: '0123456789abcdef', title: '残缺资料' }, null] } : {}); // malformed on purpose: {} then an album without tracks
     if (p === '/desktop-music/resolve') return json({ audioPath: '/desktop-music/local/audio/' + body.id, trial: false });
     if (p.startsWith('/desktop-music/local/audio/')) return route.fulfill({ contentType: 'audio/wav', body: wav, headers: { 'accept-ranges': 'bytes' } });
+    if (p === '/desktop-music/search' && (url.searchParams.get('query') || '').includes('晴天')) return json({ candidates: [{ id: 'abcdef0123456789', title: '晴天', artist: '周杰伦', album: '叶惠美', provider: url.searchParams.get('provider') }] }); // sources.mjs testPlayback track
     if (p === '/desktop-music/search') return json({ candidates: [{ id: 'fixture-stream', title: '晨光', artist: 'Fixture Artist', provider: url.searchParams.get('provider'), album: 'Fixture' }] });
     if (p === '/desktop-music/now-playing') return json({ available: true, active: true, playing: systemPlaying, title: '系统测试歌曲', artist: 'Fixture Artist', album: '系统测试专辑', app: 'Spotify', position: 1, duration: 180 });
     if (p === '/desktop-music/now-playing/control') { systemCommands.push(body.action); if (body.action === 'toggle') systemPlaying = !systemPlaying; return json({ ok: true }); }
@@ -94,6 +100,10 @@ try {
   await page.locator('.room-record').first().click(); await page.getByRole('button', { name: '唱片卡片', exact: true }).click(); await page.getByLabel('我的笔记').fill('持久化测试笔记'); await page.getByLabel('我的笔记').blur(); await page.getByText('已保存在这台电脑', { exact: true }).waitFor(); assert(items.some(i => i.notes === '持久化测试笔记')); await page.getByRole('button', { name: '移除', exact: true }).click(); await page.getByRole('button', { name: '确认移除' }).click(); await page.getByRole('dialog').waitFor({ state: 'hidden' }); assert(!items.some(i => i.title === 'QA 新唱片')); check('collection-update-notes-and-delete');
   await page.getByRole('button', { name: '添加专辑', exact: true }).click(); await page.getByRole('searchbox').fill('测试'); await page.getByRole('button', { name: '搜索', exact: true }).click(); await page.locator('.add-results li').first().waitFor(); await screenshot('catalog-results'); await closeDialog(); check('catalog-search-fixture');
   await page.locator('.room-record').first().dblclick(); await page.getByLabel('唱机音源', { exact: true }).selectOption('local'); await page.waitForFunction(() => { const a = document.querySelector('audio'); return a && !a.paused && a.currentTime > .2 && a.duration > 10; }); check('actual-generated-wav-decodes-and-plays'); await page.getByRole('button', { name: '下一首展示曲目' }).click(); await page.waitForFunction(() => document.querySelector('audio').src.endsWith('fedcba9876543210')); check('local-next-track-resolves-exact-id');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action: 'pause' } }))); await page.waitForFunction(() => document.querySelector('audio').paused);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action: 'play' } }))); await page.waitForFunction(() => !document.querySelector('audio').paused);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action: 'previous' } }))); await page.waitForFunction(() => document.querySelector('audio').src.endsWith('abcdef0123456789'));
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('cabin:player-command', { detail: { action: 'next' } }))); await page.waitForFunction(() => document.querySelector('audio').src.endsWith('fedcba9876543210') && !document.querySelector('audio').paused); check('player-command-event-drives-the-deck');
   // Player: cabin:playback signal (analyser energy), keyboard shortcuts, 待播 queue.
   await page.waitForFunction(() => window.__cabinPlayback?.some(d => d.playing && !d.estimated && d.energy > .02 && d.track?.index === 1));
   const signal = await page.evaluate(() => window.__cabinPlayback);
@@ -133,6 +143,14 @@ try {
   items = items.filter(i => !i.externalIds?.fileAlbum); await page.reload(); await page.locator('.room-record').first().waitFor(); // later checks count the 18 fixture albums
   await page.getByLabel('唱机音源', { exact: true }).selectOption('system'); await page.locator('.turntable-track', { hasText: '系统测试歌曲' }).waitFor(); assert.equal(await page.locator('audio').getAttribute('src'), null); await page.getByRole('button', { name: '暂停系统播放器' }).click(); await page.getByRole('button', { name: '继续系统播放器' }).waitFor(); await page.getByRole('button', { name: '系统播放器下一首' }).click(); assert.deepEqual(systemCommands, ['toggle', 'next']); check('system-source-and-transport-mocked'); await page.getByLabel('唱机音源', { exact: true }).selectOption('visual');
   await page.getByRole('button', { name: '音源设置', exact: true }).click(); await page.locator('.music-local-status', { hasText: '1 张专辑 · 2 首歌曲' }).waitFor(); await screenshot('music-settings'); const sourceBefore = await page.getByLabel('唱机音源', { exact: true }).inputValue(); await page.locator('.music-account', { hasText: 'QQ 音乐' }).getByRole('button', { name: '在唱机上用' }).click(); await page.getByLabel('唱机正在使用 QQ 音乐').waitFor(); await closeDialog(); assert.equal(await page.getByLabel('唱机音源', { exact: true }).inputValue(), 'qq'); await page.getByLabel('唱机音源', { exact: true }).selectOption(sourceBefore); check('music-settings-offline-account-and-local-status'); check('music-settings-use-source-on-deck');
+  // Seamless playback: stored source fails → automatic rematch plays the best candidate (no picker), with the chosen quality shown honestly.
+  await page.getByRole('button', { name: '音源设置', exact: true }).click(); await page.getByLabel('音质', { exact: true }).selectOption('lossless'); await page.waitForFunction(() => document.querySelector('select[aria-label="音质"]')?.value === 'lossless'); await closeDialog(); assert.equal(quality, 'lossless');
+  rematch = 'vip'; rematchResolves.length = 0; await page.locator('.room-record').nth(1).dblclick(); await page.getByLabel('唱机音源', { exact: true }).selectOption('qq');
+  await page.waitForFunction(() => { const a = document.querySelector('audio'); return a && !a.paused && a.src.endsWith('fixture-stream'); }); assert.equal(await page.locator('.turntable-matches').count(), 0, 'no manual picker when a match plays');
+  assert.deepEqual(rematchResolves.slice(0, 2), ['fixture-vip', 'fixture-stream']); assert(!rematchResolves.includes('fixture-live'), 'a live version is never auto-played');
+  await page.locator('.turntable-status', { hasText: '320k MP3' }).waitFor(); check('qq-rematch-plays-best-candidate-automatically-and-shows-actual-quality');
+  rematch = 'all-fail'; await page.getByRole('button', { name: '下一首展示曲目' }).click(); await page.getByRole('button', { name: '在 QQ 音乐中打开' }).click(); await page.locator('.turntable-local-app-notice', { hasText: '小屋不显示进度' }).waitFor(); assert.equal(localOpens[0].provider, 'qq'); assert.equal(await page.evaluate(() => document.querySelector('audio').paused), true, 'the hand-off never pretends the cabin is playing'); check('local-app-fallback-labelled-after-failure');
+  rematch = ''; await page.getByLabel('唱机音源', { exact: true }).selectOption(sourceBefore);
   await page.locator('.focus-badge').click(); await page.getByRole('tab', { name: '待办', exact: true }).click(); await page.getByLabel('新的待办').fill('浏览器测试待办'); await page.getByRole('button', { name: '添加待办' }).click(); await page.getByRole('checkbox', { name: '完成：浏览器测试待办' }).check(); assert.equal(await page.locator('.focus-task-list li.is-done').count(), 1); check('focus-tasks-create-and-complete');
   await page.getByRole('tab', { name: '随手记', exact: true }).click(); await page.getByLabel('随手记内容').fill('QA 随手记备份内容'); check('quick-notes-save-local-text');
   await page.getByRole('tab', { name: '番茄钟' }).click(); await page.getByRole('button', { name: '计时设置' }).click(); await page.getByLabel('专注（分）').fill('2'); await page.getByLabel('专注（分）').blur(); await page.getByRole('button', { name: '开始专注' }).click(); await page.clock.fastForward(121000); await page.locator('.focus-phase', { hasText: '短休息' }).waitFor(); await page.getByRole('tab', { name: '统计' }).click(); assert.match(await page.locator('.focus-stat-tiles').innerText(), /2 分钟/); await screenshot('focus-statistics'); check('focus-timer-completes-and-records-session'); await page.locator('.focus-dock-close').click();
@@ -177,10 +195,20 @@ try {
   assert.equal(await page.locator('.corner-tracks li').count(), 1);
   await page.keyboard.press('Escape'); await page.locator('.listening-corner').waitFor({ state: 'detached' });
   check('listening-corner-opens-paints-and-closes');
-  // 桌面模式 (browser preview: layout only): widgets replace the chrome, todo writes to focus state.
-  await page.getByRole('button', { name: '桌面模式', exact: true }).click();
-  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode'), 'the desktop client asks the shell');
-  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'true'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: true } })); }); // the shell's answer
+  // 沉入桌面: one entry point; the page asks the shell and follows cabin:desktop-mode.
+  assert.equal(await page.getByRole('button', { name: '设为桌面动态背景' }).count(), 0, 'the old wallpaper entry point is gone');
+  assert(await page.evaluate(() => typeof window.cabinDesktop?.enterDesktopMode === 'function' && window.cabinDesktop.getDesktopModeStatus().supported === true), 'public desktop API is installed');
+  await page.getByRole('button', { name: '沉入桌面', exact: true }).click();
+  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-sink-enter'), 'the desktop client asks the shell');
+  assert(await page.evaluate(() => window.__desktopCommands.some((value) => value.startsWith('album-desktop://action/tray-pet?id='))), 'the tray follows the room pet');
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: true, busy: false, supported: true, via: 'wallpaper', reason: '' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); });
+  await page.getByRole('button', { name: '浮出桌面', exact: true }).click();
+  assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-sink-exit'));
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: false, busy: false, supported: true, via: '', reason: '' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); });
+  await page.getByRole('button', { name: '沉入桌面', exact: true }).waitFor();
+  check('desktop-sink-single-entry-and-api');
+  // Fallback layer (no behind-icons desktop): the cabin stays interactive with widgets.
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: true, busy: false, supported: true, via: 'window', reason: '桌面背景层暂时无法挂载' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); document.documentElement.dataset.desktopMode = 'true'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: true } })); }); // the shell's fallback answer
   await page.locator('.desktop-widgets').waitFor();
   assert(await page.evaluate(() => document.documentElement.classList.contains('room-desktop')));
   assert.equal(await page.locator('.app-titlebar').isVisible(), false);
@@ -189,8 +217,8 @@ try {
   await page.getByRole('button', { name: /移动小组件：待办/ }).focus(); await page.keyboard.press('ArrowLeft');
   assert(await page.evaluate(() => JSON.parse(localStorage.getItem('album-circle-desktop-widgets-v1')).todo.x < .77), 'widget position is remembered');
   await screenshot('desktop-mode');
-  await page.getByRole('button', { name: '回到窗口' }).click(); assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-mode-exit'));
-  await page.evaluate(() => { document.documentElement.dataset.desktopMode = 'false'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: false } })); });
+  await page.getByRole('button', { name: '回到窗口' }).click(); assert(await page.evaluate(() => window.__desktopCommands.at(-1) === 'album-desktop://action/desktop-sink-exit'));
+  await page.evaluate(() => { window.cabinDesktopStatus = { active: false, busy: false, supported: true, via: '', reason: '' }; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: window.cabinDesktopStatus })); document.documentElement.dataset.desktopMode = 'false'; window.dispatchEvent(new CustomEvent('album-desktop-mode', { detail: { active: false } })); });
   await page.locator('.desktop-widgets').waitFor({ state: 'detached' }); await page.locator('.app-titlebar').waitFor();
   check('desktop-mode-widgets-todo-and-layout');
   await page.locator('.turntable-controls').getByRole('button', { name: '取下唱片' }).click();
@@ -200,6 +228,8 @@ try {
   await context.addInitScript(({ companion }) => {
     window.__nativeFixtureCalls = [];
     window.albumWallpaper = { getSnapshot: async () => ({ ...companion.room, focus: companion.focus }), onSnapshot: fn => { window.__pushWallpaper = fn; return () => {}; } };
+    window.__miniCalls = [];
+    window.albumMini = { getSnapshot: async () => ({ ...companion, track: '雪夜 · 预览', musicPlaying: true }), onSnapshot: () => () => {}, command: v => window.__miniCalls.push(v), player: a => window.__miniCalls.push('player:' + a), exit: () => window.__miniCalls.push('exit') };
     window.albumPet = { getSnapshot: async () => ({ companion, size: 192 }), onSnapshot: fn => { window.__pushPet = fn; return () => {}; }, setHit: v => window.__nativeFixtureCalls.push(['hit', v]), moveBy: (x, y) => window.__nativeFixtureCalls.push(['move', x, y]), dragEnd: () => {}, menu: () => {}, open: () => window.__nativeFixtureCalls.push(['open']) };
   }, { companion });
   const mainPage = page;
@@ -208,7 +238,18 @@ try {
     await page.evaluate(({ room, look }) => window.__pushWallpaper({ ...room, look }), { room: companion.room, look: scene.id });
     await page.locator(`.cabin-scene[data-room-look="${scene.id}"]`).waitFor(); assert.equal(await page.locator('.room-record').count(), Math.min(companion.room.items.length, scene.geometry.columns.length * scene.geometry.rows.length)); await screenshot(`wallpaper-${scene.id}`);
   }
-  check('wallpaper-renderer-all-scenes-mocked-snapshot'); await page.close();
+  check('wallpaper-renderer-all-scenes-mocked-snapshot');
+  // The room cat is hidden in the wallpaper while the interactive pet is out (沉入桌面 never shows two pets).
+  await page.evaluate(({ room }) => window.__pushWallpaper({ ...room, petOut: true }), { room: companion.room }); await page.waitForTimeout(100);
+  assert.equal(await page.locator('.wallpaper-room .room-cat:visible, .wallpaper-room .pixel-cat:visible').count(), 0, 'room cat hidden while the pet is out');
+  check('wallpaper-hides-room-cat-while-pet-is-out'); await page.close();
+  page = await context.newPage(); await page.setViewportSize({ width: 300, height: 64 }); await page.goto(origin + '/mini.html');
+  await page.locator('.mini-bar').waitFor(); await page.getByText('雪夜 · 预览').waitFor();
+  assert.equal(await page.locator('.mini-actions').evaluate(e => getComputedStyle(e).opacity), '0', 'controls hidden until hover');
+  await page.hover('.mini-bar'); await page.getByRole('button', { name: '上一首' }).click(); await page.getByRole('button', { name: '暂停' }).click(); await page.getByRole('button', { name: '下一首' }).click(); await page.getByRole('button', { name: '浮出桌面' }).click();
+  await page.locator('.mini-bar').dblclick({ position: { x: 4, y: 4 } });
+  assert.deepEqual(await page.evaluate(() => window.__miniCalls), ['player:previous', 'play-toggle', 'player:next', 'exit', 'exit']); await screenshot('mini-player');
+  check('mini-player-hover-controls-and-double-click-exit'); await page.close();
   page = await context.newPage(); await page.setViewportSize({ width: 420, height: 420 }); await page.goto(origin + '/pet.html'); await page.locator('.pet-cat .pixel-cat').waitFor();
   for (const pet of PETS) {
     await page.evaluate(({ companion, petId }) => window.__pushPet({ companion: { ...companion, petId }, size: 192 }), { companion, petId: pet.id });

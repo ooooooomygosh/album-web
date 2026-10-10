@@ -6,7 +6,7 @@ const { cleanSnapshot } = require('./wallpaper-model.cjs');
 const { readCompanion } = require('./companion-sync.cjs');
 const URL = 'album-desktop://wallpaper/wallpaper.html';
 function createWallpaper({ app, getMain, getSite, status, appearanceScript, getAppearance, log, registerProtocol }) {
-  let window, snapshot, timer, healthTimer, startupTimer, startupAbort, polling = null, active = false, busy = false, generation = 0, lastJSON = '', handle;
+  let window, snapshot, timer, healthTimer, startupTimer, startupAbort, polling = null, active = false, busy = false, generation = 0, lastJSON = '', handle, lastError = '', frameRate = 30;
   const helperPath = app.isPackaged ? path.join(process.resourcesPath, 'native', 'DesktopHost.exe') : path.join(__dirname, 'native', 'bin', 'DesktopHost.exe');
   const hwnd = (win) => win.getNativeWindowHandle().readBigUInt64LE().toString();
   const native = (command, target = handle, signal) => new Promise((resolve, reject) => {
@@ -18,6 +18,7 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
   });
   const announce = (error = '') => status({ active, busy, error });
   function stop(error = '') {
+    lastError = error;
     generation++; polling = null; active = false; busy = false; startupAbort?.abort(); startupAbort = null; clearInterval(timer); clearInterval(healthTimer); clearTimeout(startupTimer); timer = healthTimer = startupTimer = null;
     const old = window; window = null; handle = null; snapshot = null; lastJSON = '';
     if (old && !old.isDestroyed()) old.destroy(); announce(error); log('wallpaper-stopped');
@@ -34,7 +35,7 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
     finally { if (polling === token) polling = null; }
   }
   async function start() {
-    if (active || busy) return; busy = true; announce(); const token = ++generation;
+    if (active || busy) return; busy = true; lastError = ''; announce(); const token = ++generation;
     const controller = new AbortController(); startupAbort = controller;
     startupTimer = setTimeout(() => { if (token === generation) stop('应用动态背景超时，请重试。'); }, 20000);
     try {
@@ -53,7 +54,7 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
       const display = screen.getDisplayMatching(getMain().getBounds());
       const created = new BrowserWindow({ ...display.bounds, title: '心流小屋 · 动态桌面', ...(process.platform === 'darwin' ? { type: 'desktop', hiddenInMissionControl: true } : {}), frame: false, thickFrame: false, roundedCorners: false, show: false, skipTaskbar: true, focusable: false, resizable: false, movable: false, minimizable: false, maximizable: false, fullscreenable: false, hasShadow: false, backgroundColor: '#38200f',
         webPreferences: { preload: path.join(__dirname, 'wallpaper-preload.cjs'), partition: 'album-circle-wallpaper', sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, backgroundThrottling: false, spellcheck: false } });
-      window = created; handle = process.platform === 'win32' ? hwnd(created) : null; created.webContents.setFrameRate(30);
+      window = created; handle = process.platform === 'win32' ? hwnd(created) : null; created.webContents.setFrameRate(frameRate);
       created.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       created.webContents.on('will-navigate', (event) => event.preventDefault());
       created.webContents.on('will-frame-navigate', (event) => event.preventDefault());
@@ -105,6 +106,6 @@ function createWallpaper({ app, getMain, getSite, status, appearanceScript, getA
     if (event.sender !== window?.webContents || event.senderFrame !== window.webContents.mainFrame || event.senderFrame.url !== URL) throw new Error('Unknown wallpaper sender');
     return snapshot;
   });
-  return { start, stop, get active() { return active; }, get busy() { return busy; }, async reposition() { if (active) { const token = generation; try { if (process.platform === 'darwin') { window.setBounds(screen.getDisplayMatching(getMain().getBounds()).bounds); return; } await native('attach'); } catch (error) { if (token === generation) stop(error.message); } } }, async applyAppearance() { if (window && !window.isDestroyed()) await window.webContents.executeJavaScript(appearanceScript(getAppearance())).catch(() => {}); }, get window() { return window; }, get handle() { return handle; } };
+  return { start, stop, get active() { return active; }, get busy() { return busy; }, async reposition() { if (active) { const token = generation; try { if (process.platform === 'darwin') { window.setBounds(screen.getDisplayMatching(getMain().getBounds()).bounds); return; } await native('attach'); } catch (error) { if (token === generation) stop(error.message); } } }, async applyAppearance() { if (window && !window.isDestroyed()) await window.webContents.executeJavaScript(appearanceScript(getAppearance())).catch(() => {}); }, get window() { return window; }, get error() { return lastError; }, setFrameRate(value) { frameRate = value; if (window && !window.isDestroyed()) window.webContents.setFrameRate(value); }, get handle() { return handle; } };
 }
 module.exports = { createWallpaper };

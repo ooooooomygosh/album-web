@@ -86,15 +86,15 @@ let app, site;
 
   // Exercise actual unsupported-platform feedback on Linux; do not fake native success.
   if (process.platform === 'linux') {
-    await site.getByRole('button', { name: '设为桌面动态背景', exact: true }).click(); await site.locator('.wallpaper-error').waitFor();
+    await site.getByRole('button', { name: '沉入桌面', exact: true }).click(); await site.locator('.wallpaper-error').waitFor();
     assert.equal((await site.evaluate(() => window.albumRoomWallpaperState)).busy, false);
     await site.clock.install(); await site.clock.runFor(5100); await site.locator('.wallpaper-error').waitFor({ state: 'detached' });
-    await site.getByRole('button', { name: '设为桌面动态背景', exact: true }).click(); await site.locator('.wallpaper-error').waitFor();
+    await site.getByRole('button', { name: '沉入桌面', exact: true }).click(); await site.locator('.wallpaper-error').waitFor();
     await site.getByRole('button', { name: '关闭动态背景提示' }).click(); await site.locator('.wallpaper-error').waitFor({ state: 'detached' });
     check('real-linux-unsupported-feedback-auto-dismisses-and-retry-remains-available');
   }
   await site.evaluate(() => window.dispatchEvent(new CustomEvent('album-room-wallpaper', { detail: { busy: true } })));
-  await site.getByRole('button', { name: '取消应用桌面背景', exact: true }).click(); await site.getByRole('button', { name: '设为桌面动态背景', exact: true }).waitFor();
+  await site.getByRole('button', { name: '取消沉入桌面', exact: true }).click(); await site.getByRole('button', { name: '沉入桌面', exact: true }).waitFor();
   check('busy-button-uses-existing-stop-command-for-cancellation');
 
   // Real Electron protocol/resource/renderer smoke, without attaching a native desktop.

@@ -3,6 +3,7 @@ import SettingsHub from './onboarding/SettingsHub';
 import * as onboardingModel from './onboarding/onboarding-model.mjs';
 import { createPlayerAdapter, createDesktopAdapter } from './onboarding/onboarding-adapter.mjs';
 import { musicRequest } from './room-playback.mjs';
+import { enterDesktopMode, exitDesktopMode, getDesktopModeStatus, onDesktopModeChange, installDesktopApi, reportTrayPet } from './desktop/desktop-sink-client.mjs';
 import { getRoomScene } from './scene-catalog.mjs';
 import { normalizePetId } from './pet/pet-catalog.mjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -30,7 +31,7 @@ import './companion-room.css';
 export { ShowroomArtwork } from './RoomArtwork';
 
 const snapshotItem = (item) => item ? ({ id: item.id, title: item.title, artist: item.artist, cover: item.cover, type: item.type, tracks: item.tracks, externalIds: item.externalIds, collectionId: item.collectionId }) : null;
-const PROVIDERS = ['auto', 'qq', 'netease', 'ma', 'local', 'system'];
+const PROVIDERS = ['auto', 'qq', 'netease', 'ma', 'local', 'appleMusic', 'system'];
 const SORTS = { recent: '最近放上', year: '发行年份', title: '专辑名', artist: '歌手' };
 const readJSON = (key, fallback) => { try { return { ...fallback, ...(JSON.parse(localStorage.getItem(key)) || {}) }; } catch { return fallback; } };
 const writeJSON = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
@@ -103,7 +104,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
     if (record?.id === item.id && trackIndex === index && provider !== 'visual' && !playback.playing) playback.toggle(); setRecord(item); setSelectedId(item.id); setTrackIndex(index); setSpinning(true); };
   const [player, playerRef] = usePlayerQueue({ items, record, trackIndex, setTrackIndex, loadAlbum: (item, index) => loadRef.current(item, index), playback, provider });
   queueRef.current = playerRef;
-  usePlayerShortcuts({ playback, player, provider, record, trackIndex, toggleVisual: () => setSpinning((value) => !value) });
+  usePlayerShortcuts({ playback, player, provider, record, trackIndex, spinning, toggleVisual: () => setSpinning((value) => !value) });
   usePlaybackBroadcast({ playing: provider === 'system' ? Boolean(system.active && system.playing) : provider === 'visual' ? false : playback.playing, provider, spinning: effectiveSpin, record: deckItem, trackIndex: provider === 'system' ? 0 : trackIndex, trackTitle: provider === 'system' ? system.title : playback.actualTrack, audio: playback.audio });
   useEffect(() => { const open = () => openMusicDeep(), openCorner = () => setCorner(true); window.addEventListener('cabin-open-music-settings', open); window.addEventListener('cabin-open-corner', openCorner); return () => { window.removeEventListener('cabin-open-music-settings', open); window.removeEventListener('cabin-open-corner', openCorner); }; }, []);
   const changeRow = (next) => { const value = shelfWindow(visible, next, shelfColumns); setRow(value.startRow); setSelectedId(value.items[0]?.id || ''); };
@@ -129,7 +130,11 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   }, []);
   useEffect(() => { document.documentElement.classList.toggle('room-desktop', desktopMode); window.dispatchEvent(new Event('resize')); return () => document.documentElement.classList.remove('room-desktop'); }, [desktopMode]);
   // In a browser preview there is no shell: 桌面模式 only changes the layout.
-  const toggleDesktopMode = () => { if (appearance.client) desktopCommand(desktopMode ? 'desktop-mode-exit' : 'desktop-mode'); else setDesktopMode((value) => !value); };
+  // 沉入桌面 replaces 桌面模式 + 动态桌面背景. In a browser preview there is no shell: it only previews the widget layout.
+  const [sink, setSink] = useState(getDesktopModeStatus);
+  useEffect(() => { installDesktopApi(); setSink(getDesktopModeStatus()); return onDesktopModeChange(setSink); }, [appearance.client]);
+  useEffect(() => { reportTrayPet(petId); }, [petId, appearance.client]);
+  const toggleDesktopMode = () => { if (appearance.client) { if (sink.active || sink.busy) exitDesktopMode(); else enterDesktopMode(); } else setDesktopMode((value) => !value); };
   useEffect(() => { document.documentElement.classList.toggle('room-zen', zen); document.documentElement.classList.toggle('room-focus-open', dock.open); document.documentElement.classList.toggle('room-filters-open', filtersOpen); }, [zen, dock.open, filtersOpen]);
   useEffect(() => () => document.documentElement.classList.remove('room-zen', 'room-focus-open', 'room-filters-open'), []);
   useEffect(() => {
@@ -165,7 +170,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   const catFocus = focus ? focusSnapshot(focus.state, focus.now) : {}, weather = catFocus.weather || 'snow';
   const nowTrack = provider === 'visual' ? '' : provider === 'system' ? (system.active ? system.title : '') : playback.actualTrack || (record && playback.playing ? record.tracks?.[trackIndex] || record.title : '');
   const grooving = effectiveSpin || sound?.lofiState === 'playing';
-  snapshot.current = { look, petId, roomName: getRoomScene(look).label, weather, accessory: catFocus.accessory || '', grooving, track: typeof nowTrack === 'string' ? nowTrack : '', startRow: view.startRow, items: view.items.map(snapshotItem), selectedId: selected?.id || '', record: snapshotItem(deckItem), recordStyle, spinning: effectiveSpin, trackIndex: provider === 'system' ? 0 : trackIndex, reduceMotion: appearance.reduceMotion, statusText: provider === 'visual' ? (record ? spinning ? '展示中 · 无音频' : '旋转已暂停 · 无音频' : '等待放盘 · 无音频') : provider === 'system' ? system.statusText : playback.statusText, actualTrack: provider === 'system' ? system.title || '' : playback.actualTrack || '', provider };
+  snapshot.current = { look, petId, petOut: Boolean(pet.active), roomName: getRoomScene(look).label, weather, accessory: catFocus.accessory || '', grooving, track: typeof nowTrack === 'string' ? nowTrack : '', startRow: view.startRow, items: view.items.map(snapshotItem), selectedId: selected?.id || '', record: snapshotItem(deckItem), recordStyle, spinning: effectiveSpin, trackIndex: provider === 'system' ? 0 : trackIndex, reduceMotion: appearance.reduceMotion, statusText: provider === 'visual' ? (record ? spinning ? '展示中 · 无音频' : '旋转已暂停 · 无音频' : '等待放盘 · 无音频') : provider === 'system' ? system.statusText : playback.statusText, actualTrack: provider === 'system' ? system.title || '' : playback.actualTrack || '', provider };
   useEffect(() => {
     const getter = () => snapshot.current; window.albumRoomSnapshot = getter;
     const receive = (event) => { window.albumRoomWallpaperState = event.detail; setWallpaper(event.detail || {}); };
@@ -195,8 +200,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
       {focus && <span className="zen-keep cabin-toolbar-group"><button type="button" aria-pressed={zen} title="沉浸模式 · Z" onClick={() => setZen(!zen)}>{zen ? <><Eye size={17}/><span>退出沉浸</span></> : <><EyeSlash size={17}/><span>沉浸</span></>}</button></span>}
       <span className="cabin-toolbar-group">
         <button type="button" aria-label={petId === 'cat' ? (pet.active ? '让小猫回家' : '小猫出门') : (pet.active ? '让伙伴回家' : '伙伴出门')} title={pet.active ? '让伙伴回家' : '伙伴出门'} aria-pressed={Boolean(pet.active)} onClick={() => desktopCommand(pet.active ? 'pet-stop' : 'pet-start')}><Heart size={17}/><span>{petId === 'cat' ? (pet.active ? '让小猫回家' : '小猫出门') : (pet.active ? '让伙伴回家' : '伙伴出门')}</span></button>
-        <button type="button" aria-label="桌面模式" aria-pressed={desktopMode} title="桌面模式：小屋铺满桌面、待在所有窗口下面，可以直接操作；唱机、时钟、专注和待办成为桌面小组件" onClick={toggleDesktopMode}><Computer size={17}/><span>桌面模式</span></button>
-        <button type="button" aria-label={wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'} title={wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'} onClick={() => desktopCommand(wallpaper.active || wallpaper.busy ? 'wallpaper-stop' : 'wallpaper-start')}><External size={17}/><span>{wallpaper.busy ? '取消应用桌面背景' : wallpaper.active ? '停止桌面动态背景' : '设为桌面动态背景'}</span></button>
+        <button type="button" aria-label={sink.busy ? '取消沉入桌面' : sink.active ? '浮出桌面' : '沉入桌面'} aria-pressed={Boolean(sink.active)} disabled={appearance.client && !sink.supported} title={sink.active ? '浮出桌面：回到小屋窗口 · Ctrl/⌘+Alt+D' : sink.reason || '沉入桌面：窗口收起，小屋变成桌面背景，伙伴和迷你唱机还能点 · Ctrl/⌘+Alt+D'} onClick={toggleDesktopMode}><Computer size={17}/><span>{sink.busy ? '正在沉入…' : sink.active ? '浮出桌面' : '沉入桌面'}</span></button>
       </span>
     </nav>
     {filtersOpen && <section id="cabin-shelf-filters" className="shelf-filters" aria-label="筛选与唱片盒">

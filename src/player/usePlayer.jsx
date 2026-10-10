@@ -40,12 +40,14 @@ export function usePlayerQueue({ items, record, trackIndex, setTrackIndex, loadA
   return [api, ref];
 }
 
+export const PLAYER_COMMAND_EVENT = 'cabin:player-command';
+export const PLAYER_COMMANDS = Object.freeze(['toggle', 'play', 'pause', 'next', 'previous']);
 const typing = (target) => target?.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable=""]');
 // Global keys (ignored while typing or with a dialog open):
 //   Space play/pause · Shift+←/→ previous/next · ←/→ seek 5 s · M mute
 //   - / = volume · R repeat · S shuffle. Also wires hardware media keys.
-export function usePlayerShortcuts({ playback, player, provider, toggleVisual, record, trackIndex = 0 }) {
-  const latest = useRef(); latest.current = { playback, player, provider, toggleVisual, record };
+export function usePlayerShortcuts({ playback, player, provider, toggleVisual, record, trackIndex = 0, spinning = false }) {
+  const latest = useRef(); latest.current = { playback, player, provider, toggleVisual, record, spinning };
   useEffect(() => {
     const keydown = (event) => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || typing(event.target) || document.querySelector('dialog[open]')) return;
@@ -67,6 +69,25 @@ export function usePlayerShortcuts({ playback, player, provider, toggleVisual, r
     };
     document.addEventListener('keydown', keydown);
     return () => document.removeEventListener('keydown', keydown);
+  }, []);
+  // `cabin:player-command` (docs/events.md): other surfaces — the desktop-mode
+  // mini turntable, or another window via main-process IPC — drive this deck.
+  useEffect(() => {
+    const command = (event) => {
+      const action = event?.detail?.action, { playback: pb, player: pl, provider: source, toggleVisual: spin, record: current } = latest.current;
+      if (!current || !PLAYER_COMMANDS.includes(action)) return;
+      const audible = source !== 'visual' && source !== 'system';
+      if (action === 'next') pl.next(); // same queue / repeat / shuffle rules as the ⏭ button
+      else if (action === 'previous') pl.previous();
+      else if (!audible) { if (source === 'visual' && (action === 'toggle' || (action === 'play') !== Boolean(latest.current.spinning))) spin?.(); }
+      else {
+        // The element is the truth while a track is still buffering; remote players report state.
+        const element = pb.audio?.current, playing = !pb.remote && element?.getAttribute('src') ? !element.paused : Boolean(pb.playing);
+        if (action === 'toggle' || (action === 'play' && !playing) || (action === 'pause' && playing)) pb.toggle();
+      }
+    };
+    window.addEventListener(PLAYER_COMMAND_EVENT, command);
+    return () => window.removeEventListener(PLAYER_COMMAND_EVENT, command);
   }, []);
   // Media Session: OS media keys, lock-screen / taskbar controls.
   const session = typeof navigator !== 'undefined' ? navigator.mediaSession : null;

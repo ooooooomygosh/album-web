@@ -110,7 +110,7 @@ export async function verifyOnboarding({ browser, origin, routeHandler, evidence
     await page.screenshot({ path: path.join(evidence, 'settings-hub-music.png'), animations: 'disabled' });
     await page.getByRole('tab', { name: '桌面' }).click();
     await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).waitFor();
-    assert.equal(await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).isDisabled(), false);
+    assert.equal(await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).isDisabled(), true, 'browser preview: #14 reports 沉入桌面 as desktop-client only');
     await page.getByRole('tab', { name: '数据与备份' }).click(); await button(page, '收藏与备份').click();
     await page.getByRole('dialog', { name: '收藏与备份' }).waitFor(); await page.keyboard.press('Escape');
     check('settings-hub-sections-and-old-shortcuts-route-to-it');
@@ -121,7 +121,7 @@ export async function verifyOnboarding({ browser, origin, routeHandler, evidence
   ({ context, page, failures } = await fresh(() => { window.cabinDesktop = { getDesktopModeStatus: () => ({ active: false, supported: false, reason: '当前系统不支持沉入桌面' }), enterDesktopMode() {}, exitDesktopMode() {} }; localStorage.setItem('flow-cabin-welcome-v1', 'seen'); }));
   try {
     await page.goto(origin); await button(page, '设置').click(); await page.getByRole('tab', { name: '桌面' }).click();
-    await hubOf(page).getByText('当前系统不支持沉入桌面').waitFor();
+    await hubOf(page).getByText(/当前系统不支持沉入桌面|沉入桌面需要在心流小屋桌面客户端里使用/).first().waitFor(); // #14's installDesktopApi owns window.cabinDesktop in the page
     assert.equal(await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).isDisabled(), true);
     check('desktop-mode-unsupported-reason-disables-toggle');
     assert.deepEqual(failures, []);

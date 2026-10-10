@@ -44,9 +44,9 @@ const check = (value) => report.checks.push(value);
   await shell.locator('#zoom').fill('110'); await shell.locator('#zoom').dispatchEvent('change'); await shell.getByRole('button', { name: '完成', exact: true }).click();
   check('settings-open-and-save');
   if (process.env.ALBUM_QA_SKIP_WALLPAPER !== '1') {
-  await site.getByRole('button', { name: '设为桌面动态背景', exact: true }).click();
-  await site.getByRole('button', { name: '停止桌面动态背景', exact: true }).waitFor({ timeout: 20000 });
-  await site.getByRole('button', { name: '停止桌面动态背景', exact: true }).click(); check('native-desktop-wallpaper');
+  await site.getByRole('button', { name: '沉入桌面', exact: true }).click();
+  await site.getByRole('button', { name: '浮出桌面', exact: true }).waitFor({ timeout: 20000 });
+  await site.getByRole('button', { name: '浮出桌面', exact: true }).click(); check('native-desktop-wallpaper');
   } else check('desktop-wallpaper-not-tested-on-hosted-runner');
   await site.screenshot({ path: path.join(output, 'cabin.png') });
   await application.close(); application = null;

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { findPlayableSource, musicRequest } from './room-playback.mjs';
+import { createMatchMemory, matchKey } from './player/auto-match.mjs';
+import { REMOTE_PROVIDERS, remoteControlPath, localAppTarget } from './player/sources.mjs';
 import { trackNames } from './room-model.mjs';
 import { ensureAnalyser } from './player/audio-graph.mjs';
 import { isSessionAlbum, sessionTrackUrl } from './player/session-files.mjs';
@@ -12,6 +14,8 @@ const MEDIA_ERRORS = { 1: '播放被中断，请重新播放。', 2: '网络中�
 const FADE_IN_MS = 420, FADE_OUT_MS = 220, PREFETCH_DELAY_MS = 1500;
 // One cache for the whole deck: the next track is matched while this one plays.
 const resolutions = createResolutionCache();
+// Which candidate really played for each track (survives restarts).
+const matches = createMatchMemory(typeof localStorage === 'undefined' ? null : localStorage);
 
 // `options.peekNext()` names the track that will play after this one (same
 // album, the next queued record, or nothing) so it can be matched early;
@@ -37,14 +41,14 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
   const resetAudio = (element = audio.current) => { fader.current.stop(); if (element) { element.pause(); element.removeAttribute('src'); element.load(); } };
   useEffect(() => {
     const current = ++sequence.current, controller = new AbortController(), element = audio.current; resetAudio(element);
-    update({ status: 'idle', playing: false, candidates: [], position: 0, duration: 0, error: '', trial: false, actualTrack: '', remote: false, quality: '' });
+    update({ status: 'idle', playing: false, candidates: [], position: 0, duration: 0, error: '', trial: false, actualTrack: '', remote: false, quality: '', notice: '' });
     const active = () => sequence.current === current && !controller.signal.aborted;
     let resolution = 0;
     const request = (path, value) => musicRequest(path, value, controller.signal);
     const key = resolutionKey(provider, record, trackIndex);
     async function play(candidate, result) {
       if (!active()) return;
-      if (result.remote) { remote.current = true; update({ status: 'loading', remote: true, resolvedProvider: candidate.provider }); }
+      if (result.remote) { remote.current = candidate.provider; if (element.getAttribute('src')) resetAudio(element); update({ status: 'loading', remote: true, resolvedProvider: candidate.provider }); }
       else {
         remote.current = false;
         update({ playing: false, status: 'loading', error: '', trial: result.trial, quality: result.quality, remote: false, resolvedProvider: candidate.provider, actualTrack: candidate.title });
@@ -67,11 +71,12 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
       try {
         const result = candidate.sessionUrl ? { audioPath: candidate.sessionUrl, trial: false, quality: '本次导入的文件' } : await musicRequest('/resolve', candidate, controller.signal); if (!latest()) return;
         await play(candidate, result);
+        if (latest() && !result.remote && !candidate.sessionUrl) matches.put(matchKey(record, trackIndex), candidate);
       } catch (error) { if (latest()) update({ status: 'error', playing: false, error: playbackErrorMessage(error) || '音频加载失败。' }); }
     }
     resolveRef.current = resolve;
     (async () => {
-      if (remote.current) { remote.current = false; await musicRequest('/ma/control', { action: 'stop' }).catch(() => {}); }
+      if (remote.current) { const was = remote.current; remote.current = false; await musicRequest(remoteControlPath(was), { action: was === 'appleMusic' ? 'pause' : 'stop' }).catch(() => {}); }
       if (!record || provider === 'visual' || provider === 'system' || !active()) return;
       const name = trackNames(record)[trackIndex]; if (!name) { update({ status: 'error', error: '原始资料没有曲目，无法定位音频。' }); return; }
       // Files picked in this session play directly, whichever audio source is selected.
@@ -86,7 +91,7 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
       }
       update({ status: 'searching' });
       try {
-        const result = await findPlayableSource({ record, index: trackIndex, provider, request, play, isCurrent: active });
+        const result = await findPlayableSource({ record, index: trackIndex, provider, request, play, isCurrent: active, memory: matches });
         if (active() && result?.error) update({ status: 'error', playing: false, candidates: result.candidates, error: result.error });
       }
       catch (error) { if (active()) update({ status: 'error', playing: false, error: playbackErrorMessage(error) || '音频加载失败。' }); }
@@ -122,27 +127,27 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
   }, [state.status, state.error, record?.id, trackIndex]);
   useEffect(() => { skips.current = 0; }, [record?.id, provider]);
 
-  useEffect(() => { const changed = () => { resolutions.clear(); setAccountEpoch((value) => value + 1); }; window.addEventListener('album-music-account', changed); window.addEventListener('album-music-settings', changed); return () => { window.removeEventListener('album-music-account', changed); window.removeEventListener('album-music-settings', changed); }; }, []);
+  useEffect(() => { const changed = () => { resolutions.clear(); /* a new login or source setting can change which version is playable */ setAccountEpoch((value) => value + 1); }; window.addEventListener('album-music-account', changed); window.addEventListener('album-music-settings', changed); return () => { window.removeEventListener('album-music-account', changed); window.removeEventListener('album-music-settings', changed); }; }, []);
   useEffect(() => {
-    if (provider !== 'ma' || !record) return;
+    if (!REMOTE_PROVIDERS.has(provider) || !record) return;
     let disposed = false, busy = false;
     const current = sequence.current;
     const poll = async () => {
       if (!remote.current || busy) return; busy = true;
-      try { const result = await musicRequest('/ma/state'); if (!disposed && sequence.current === current) update({ playing: result.state === 'playing', status: result.state === 'playing' ? 'playing' : result.state === 'paused' ? 'paused' : 'waiting', position: result.elapsed, duration: result.duration, actualTrack: result.title }); }
+      try { const result = await musicRequest(provider === 'appleMusic' ? '/apple/state' : '/ma/state'); if (!disposed && sequence.current === current) update({ playing: result.state === 'playing', status: result.state === 'playing' ? 'playing' : result.state === 'paused' ? 'paused' : 'waiting', position: result.elapsed, duration: result.duration, actualTrack: result.title }); }
       catch (error) { if (!disposed && sequence.current === current) update({ status: 'error', error: error.message, playing: false }); }
       finally { busy = false; }
     };
     const timer = setInterval(poll, 1500); return () => { disposed = true; clearInterval(timer); };
   }, [provider, record?.id, trackIndex, accountEpoch]);
   useEffect(() => { if (audio.current) { audio.current.volume = Math.max(0, Math.min(1, volume * fader.current.gain)); audio.current.muted = muted; } }, [volume, muted]);
-  useEffect(() => () => { if (remote.current) musicRequest('/ma/control', { action: 'stop' }).catch(() => {}); }, []);
+  useEffect(() => () => { if (remote.current) musicRequest(remoteControlPath(remote.current), { action: remote.current === 'appleMusic' ? 'pause' : 'stop' }).catch(() => {}); }, []);
   const toggle = async () => {
     if (controlling.current || provider === 'system' || provider === 'visual') return;
     controlling.current = true;
     const current = sequence.current;
     try {
-      if (remote.current) { await musicRequest('/ma/control', { action: state.playing ? 'pause' : 'play' }); return; }
+      if (remote.current) { await musicRequest(remoteControlPath(remote.current), { action: state.playing ? 'pause' : 'play' }); return; }
       const element = audio.current;
       if (element?.getAttribute('src')) {
         if (element.paused) { await ensureAnalyser(element); fader.current.set(0); await element.play(); fader.current.to(1, FADE_IN_MS); }
@@ -172,7 +177,7 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
     }
   };
   const skipping = state.status === 'error' && shouldAutoSkip({ error: state.error, status: state.status, consecutive: skips.current, canNext: canNext() });
-  const statusText = (state.error && (skipping ? `${state.error} 稍后自动播放下一首…` : state.error)) || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: '等待服务器播放器', buffering: '正在缓冲音频…' }[state.status] || '待播放');
+  const statusText = (state.error && (skipping ? `${state.error} 稍后自动播放下一首…` : state.error)) || ({ idle: '待播放', loading: '正在连接音源…', searching: '正在匹配原始曲目…', choose: '请选择对应的曲目版本', playing: `${provider === 'ma' ? '服务器播放器正在播放' : provider === 'appleMusic' ? '正在“音乐”App 中播放' : provider === 'local' ? '正在播放本地文件' : '正在播放'}${state.trial ? ' · 试听片段' : ''}${state.quality && !state.remote && provider !== 'local' ? ` · ${state.quality}` : ''}`, paused: '播放已暂停', ended: '本曲播放结束', waiting: provider === 'appleMusic' ? '等待“音乐”App' : '等待服务器播放器', buffering: '正在缓冲音频…' }[state.status] || '待播放');
   const seek = (value) => { if (audio.current && !remote.current && Number.isFinite(value) && Number.isFinite(audio.current.duration)) audio.current.currentTime = Math.max(0, Math.min(value, audio.current.duration)); };
   // Same track again ("repeat one", or "previous" after 3 s).
   const restart = async () => {
@@ -182,5 +187,10 @@ export default function useRoomPlayback(record, trackIndex, provider, onNext, op
   };
   return { ...state, statusText, skipping, rate: rate.current, setRate: (value) => { rate.current = Math.max(.5, Math.min(2, Number(value) || 1)); applyRate(); update({}); },
     // Seek into a track that is about to start (dragging the needle across songs).
-    startAt: (seconds) => { resumeAt.current = Math.max(0, Number(seconds) || 0); }, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate), seek, seekBy: (delta) => seek((audio.current?.currentTime || 0) + delta), restart, retry: () => { skips.current = 0; setAccountEpoch((value) => value + 1); }, remote: Boolean(state.remote), volume, muted, setVolume: (value) => setSound({ volume: value, muted: false }), setMuted: (value) => setSound({ muted: Boolean(value) }), canControl: provider !== 'visual' && provider !== 'system' };
+    startAt: (seconds) => { resumeAt.current = Math.max(0, Number(seconds) || 0); }, audio, events, toggle, choose: (candidate) => resolveRef.current?.(candidate),
+    // Labelled hand-off: opens the song in the QQ 音乐 / 网易云 app (or its web page).
+    // The cabin does not play or track it afterwards; the result says so.
+    localApp: localAppTarget({ record, index: trackIndex, provider, status: state.status, candidates: state.candidates, resolvedProvider: state.resolvedProvider }),
+    openInLocalApp: async () => { const target = localAppTarget({ record, index: trackIndex, provider, status: state.status, candidates: state.candidates, resolvedProvider: state.resolvedProvider }); if (!target) return null; try { const result = await musicRequest('/open-local', target); update({ notice: `已在${result.via === 'app' ? ` ${result.app} App ` : ` ${result.app} 网页`}中打开，声音由它播放，小屋不显示进度。` }); return result; } catch (error) { update({ notice: error.message }); return null; } },
+    rememberedMatches: matches, seek, seekBy: (delta) => seek((audio.current?.currentTime || 0) + delta), restart, retry: () => { skips.current = 0; setAccountEpoch((value) => value + 1); }, remote: Boolean(state.remote), volume, muted, setVolume: (value) => setSound({ volume: value, muted: false }), setMuted: (value) => setSound({ muted: Boolean(value) }), canControl: provider !== 'visual' && provider !== 'system' };
 }

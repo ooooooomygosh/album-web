@@ -10,6 +10,6 @@ function serverURL(value) {
 }
 function candidate(value, provider) {
   const artists = value.artists || value.singer || [], album = value.album || {};
-  return { id: String(value.mid || value.id || value.item_id || ''), provider, title: String(value.name || value.title || '').slice(0, 300), artist: String(value.artist || artists.map((a) => a.name || '').join(' / ')).slice(0, 300), album: String(value.albumName || album.name || '').slice(0, 300), duration: Number(value.duration) || 0, mediaMid: String(value.mediaMid || value.media_mid || value.file?.media_mid || ''), fee: Boolean(value.fee), uri: String(value.uri || '').slice(0, 1000) };
+  return { id: String(value.mid || value.id || value.item_id || ''), provider, title: String(value.name || value.title || '').slice(0, 300), artist: String(value.artist || artists.map((a) => a.name || '').join(' / ')).slice(0, 300), album: String(value.albumName || (typeof value.album === 'string' ? value.album : album.name) || '').slice(0, 300), duration: Number(value.duration) || 0, mediaMid: String(value.mediaMid || value.media_mid || value.file?.media_mid || ''), fee: Boolean(value.fee), uri: String(value.uri || '').slice(0, 1000) };
 }
 module.exports = { safeAudioURL, serverURL, candidate };

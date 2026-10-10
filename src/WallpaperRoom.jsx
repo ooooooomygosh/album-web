@@ -31,7 +31,7 @@ function WallpaperRoom() {
   if (!snapshot) return null;
   const focus = snapshot.focus || {};
   return <main className={`wallpaper-room cabin-${snapshot.look}`}><RoomScene look={snapshot.look} items={snapshot.items} selectedId={snapshot.selectedId} startRow={snapshot.startRow} weather={snapshot.weather}
-    cat={<RoomCat petId={snapshot.petId} focus={{ ...focus, accessory: snapshot.accessory }} playing={snapshot.grooving} track={snapshot.track} reduceMotion={snapshot.reduceMotion} interactive={false}/>}>
+    cat={<RoomCat petId={snapshot.petId} focus={{ ...focus, accessory: snapshot.accessory }} playing={snapshot.grooving} track={snapshot.track} reduceMotion={snapshot.reduceMotion} interactive={false} hidden={snapshot.petOut}/>}>
     <RoomTurntable item={snapshot.record} spinning={snapshot.spinning} trackIndex={snapshot.trackIndex} style={snapshot.recordStyle} readOnly provider={snapshot.provider} statusText={snapshot.statusText} actualTrack={snapshot.actualTrack}/>
     <WallpaperTimer focus={snapshot.focus}/>
     <div className="wallpaper-caption">{snapshot.roomName} · {snapshot.statusText || '你的唱片收藏'}</div>

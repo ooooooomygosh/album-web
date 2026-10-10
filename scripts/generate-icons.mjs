@@ -58,3 +58,38 @@ function poseSheet() {
 }
 fs.mkdirSync(new URL('../docs/images/', import.meta.url), { recursive: true });
 write('../docs/images/cat-poses.png', poseSheet());
+
+// Tray / menu-bar icons, one per pet so the icon follows the chosen companion.
+// macOS: template images (black + alpha, @1x 16 px and @2x 32 px) that the menu
+// bar tints for light/dark. Windows: a colour ICO with 16 / 32 px PNG frames.
+{
+  const { petFrame, PET_PALETTES } = await import('../src/pet/pet-sprites.mjs');
+  const { PETS } = await import('../src/pet/pet-catalog.mjs');
+  const png = (size, pixel) => {
+    const raw = Buffer.alloc((size * 4 + 1) * size);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const c = pixel(x, y), o = y * (size * 4 + 1) + 1 + x * 4; if (c) { raw[o] = c[0]; raw[o + 1] = c[1]; raw[o + 2] = c[2]; raw[o + 3] = c[3]; } }
+    const header = Buffer.alloc(13); header.writeUInt32BE(size, 0); header.writeUInt32BE(size, 4); header[8] = 8; header[9] = 6;
+    return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+  };
+  // Crop to the painted pixels so small icons stay legible, then nearest-sample.
+  const sampler = (frame, size) => {
+    let x0 = SIZE, y0 = SIZE, x1 = 0, y1 = 0;
+    frame.forEach((row, y) => row.forEach((v, x) => { if (v) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } }));
+    const side = Math.max(x1 - x0, y1 - y0) + 1, ox = x0 - Math.floor((side - (x1 - x0 + 1)) / 2), oy = y0 - Math.floor((side - (y1 - y0 + 1)) / 2);
+    return (x, y) => frame[oy + Math.floor(y * side / size)]?.[ox + Math.floor(x * side / size)] || 0;
+  };
+  fs.mkdirSync(new URL('../desktop/assets/tray/', import.meta.url), { recursive: true });
+  for (const { id } of PETS) {
+    const frame = petFrame(id, 'idle', 0, ''), palette = PET_PALETTES[id];
+    const template = (size) => { const at = sampler(frame, size); return png(size, (x, y) => { const v = at(x, y); return v && v !== 6 && v !== 7 ? [0, 0, 0, v === 1 ? 255 : 210] : null; }); };
+    const colour = (size) => { const at = sampler(frame, size); return png(size, (x, y) => { const v = at(x, y), c = v && palette[v]; return c ? [...hex(c), 255] : null; }); };
+    write(`../desktop/assets/tray/${id}Template.png`, template(16));
+    write(`../desktop/assets/tray/${id}Template@2x.png`, template(32));
+    write(`../desktop/assets/tray/${id}.png`, colour(32));
+    const frames = [colour(16), colour(32)], head = Buffer.alloc(6 + 16 * frames.length);
+    head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(frames.length, 4);
+    let offset = head.length;
+    frames.forEach((data, i) => { const e = 6 + i * 16, size = i ? 32 : 16; head[e] = size; head[e + 1] = size; head.writeUInt16LE(1, e + 4); head.writeUInt16LE(32, e + 6); head.writeUInt32LE(data.length, e + 8); head.writeUInt32LE(offset, e + 12); offset += data.length; });
+    write(`../desktop/assets/tray/${id}.ico`, Buffer.concat([head, ...frames]));
+  }
+}

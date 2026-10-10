@@ -113,3 +113,21 @@ test('logout during NetEase account verification prevents a later playback reque
   await ready; await service.logout('netease'); verify({ loggedIn: true, userId: 42 });
   assert.equal((await pending).status, 502); assert.equal(calls, 0);
 });
+test('audio quality: the chosen tier is requested, the actual tier is reported', async (t) => {
+  const asked = [];
+  const { request } = await fixture(t, { handleQQSongUrl: async (_cookie, _mid, _media, quality) => { asked.push(quality); return { url: 'https://ws.stream.qqmusic.qq.com/a.mp3', playable: true, quality: '320k MP3' }; } });
+  const config = await (await request('/config')).json();
+  assert.equal(config.quality, 'exhigh'); assert.deepEqual(config.qualities.map((q) => q.id), ['standard', 'exhigh', 'lossless']);
+  assert.equal((await (await request('/quality', { quality: 'lossless' })).json()).quality, 'lossless');
+  assert.equal((await request('/quality', { quality: 'jymaster' })).status, 502, 'unknown tiers are refused');
+  const resolved = await (await request('/resolve', { provider: 'qq', id: '001n4C3p1yv0FU' })).json();
+  assert.deepEqual(asked, ['lossless']);
+  assert.equal(resolved.quality, '320k MP3', 'no VIP: the deck shows the tier really returned');
+  assert.equal(resolved.requestedQuality, 'lossless');
+});
+test('system Apple Music and local app routes are explicit about what they do', async (t) => {
+  const { request } = await fixture(t);
+  assert.equal((await (await request('/apple/permission')).json()).available, false);
+  assert.match((await (await request('/apple/state')).json()).error, /macOS/);
+  assert.match((await (await request('/open-local', { provider: 'qq', query: 'x' })).json()).error, /不可用/);
+});
