@@ -31,7 +31,8 @@ export function animateCatMove(catEl, before, after, kind, { grounded = true } =
     const at = (t) => `${dx * (1 - t)}px ${dy * (1 - t) - arc * 4 * t * (1 - t)}px`;
     const stretch = (t) => t < .25 || t > .75 ? '.9 1.12' : '1 1';
     frames = [
-      { translate: at(0), scale: '1 1', offset: 0, easing: 'steps(2, end)' },
+      // steps(…, start): the crouch / takeoff shows on the very first frame — the cat never idles in mid-air.
+      { translate: at(0), scale: '1 1', offset: 0, easing: 'steps(2, start)' },
       ...(grounded ? [{ translate: at(0), scale: '1.14 .82', offset: lift * .75, easing: 'steps(1, end)' }] : []), // crouch
       ...(grounded ? [0] : []).concat([.15, .3, .45, .5, .55, .7, .85]).map((t) => ({ translate: at(t), scale: t === 0 ? '.88 1.16' : stretch(t), offset: lift + (land - lift) * t, easing: 'steps(3, end)' })), // takeoff → apex (t=.5) → pre-land
       { translate: at(1), scale: '1.18 .8', offset: land, easing: 'steps(2, end)' },        // touch down: squash

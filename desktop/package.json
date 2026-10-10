@@ -61,6 +61,7 @@
       "wallpaper-model.cjs",
       "wallpaper-preload.cjs",
       "pet.cjs",
+      "pet-physics.cjs",
       "pet-preload.cjs",
       "companion-sync.cjs",
       "now-playing.cjs",
