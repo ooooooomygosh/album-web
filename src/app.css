@@ -152,7 +152,7 @@ a{color:var(--amber-2)}
 .app:has(.cabin-room:not(.cabin-pixel)) .pixel-button{border-width:1px;border-radius:7px;box-shadow:none}
 .cabin-room:not(.cabin-pixel) .cabin-toolbar-group{background:#1d2529db;border:1px solid #e6d5b340;border-radius:10px;box-shadow:0 4px 15px #0002;backdrop-filter:blur(12px);padding:4px}
 .cabin-room:not(.cabin-pixel) .cabin-toolbar button{border-radius:6px;color:#eee4d4}
-.cabin-room:not(.cabin-pixel) .room-now-playing{background:#1d2529e0;border:1px solid #e6d5b338;border-radius:12px;box-shadow:0 5px 20px #0002;backdrop-filter:blur(12px)}
+.cabin-room:not(.cabin-pixel) .room-now-playing{background:rgb(29 37 41 / 70%);border:1px solid #e6d5b338;border-radius:12px;box-shadow:0 5px 20px #0002;backdrop-filter:none}
 .cabin-room:not(.cabin-pixel) .room-selection-actions :is(button,a){border-width:1px;border-radius:6px;box-shadow:none;background:#ffffff08;color:#eee4d4}
 .cabin-room:not(.cabin-pixel) .room-selection-actions .room-open-album{background:var(--amber);color:#20272a}
 .cabin-room:not(.cabin-pixel) .room-shelf-navigation{background:#1d2529d9;border:1px solid #e6d5b338;border-radius:12px;box-shadow:0 4px 16px #0002}

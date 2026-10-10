@@ -190,7 +190,7 @@ html[data-desktop-reduce-motion='true'] .room-record:hover, html[data-desktop-re
 /* Short windows scale the art down to keep deck + shelf clear of the toolbar and
    footer (roomGeometry band). Any side gutter shows the same scene, dimmed, so
    the stage never looks letterboxed. */
-.cabin-scene.room-scene::before { content: ''; position: absolute; inset: -8%; z-index: -1; pointer-events: none;
+.cabin-scene.room-scene::before { content: ''; display:block; position: absolute; inset: -8%; z-index: -1; pointer-events: none;
   background: var(--scene-view) center / cover no-repeat; image-rendering: pixelated; filter: brightness(.38) saturate(.8); }
 /* 月夜书桌: the cabinet reaches the right edge, so shelf paging sits on the wall
    left of the cabinet (art x≈812), centred on the middle row — never on a record. */

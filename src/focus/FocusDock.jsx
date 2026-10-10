@@ -93,6 +93,12 @@ export function FocusBadge({ onClick, open = false }) {
 
 export default function FocusDock({ open, close, tab, setTab }) {
   const tabId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const escape = event => { if (event.key === 'Escape' && !event.defaultPrevented) { close(); document.querySelector('.focus-badge')?.focus(); } };
+    document.addEventListener('keydown', escape);
+    return () => document.removeEventListener('keydown', escape);
+  }, [open, close]);
   const Panel = TABS.find(([id]) => id === tab)?.[3] || FocusTimer;
   if (!open) return null;
   const navigateTabs = (event) => {

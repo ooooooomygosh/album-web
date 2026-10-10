@@ -1,0 +1,1689 @@
+{
+  "windowShown": false,
+  "realElectronZoom": true,
+  "fixturesOnly": true,
+  "cases": [
+    {
+      "width": 1440,
+      "height": 900,
+      "zoom": 0.75,
+      "card": {
+        "card": {
+          "left": 570.1458740234375,
+          "right": 1485.0625610351562,
+          "top": 1082,
+          "bottom": 1186
+        },
+        "art": {
+          "left": 0,
+          "width": 1920
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 929.4791870117188,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 681.6666870117188,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1200,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1200,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 817,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1200,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1200,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.5208435058594,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1200,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "zoom": 1,
+      "card": {
+        "card": {
+          "left": 427.609375,
+          "right": 1113.796875,
+          "top": 782,
+          "bottom": 886
+        },
+        "art": {
+          "left": 0,
+          "width": 1440
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 720.625,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 687,
+            "left": 1064,
+            "right": 1424
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 900,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 298,
+            "left": 1064,
+            "right": 1424
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 900,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 818,
+            "left": 1064,
+            "right": 1424
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 900,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 549,
+            "left": 1064,
+            "right": 1424
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 900,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 520.1875,
+            "left": 1064,
+            "right": 1424
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 900,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "zoom": 1.25,
+      "card": {
+        "card": {
+          "left": 366.5500183105469,
+          "right": 858.1000366210938,
+          "top": 562,
+          "bottom": 706
+        },
+        "art": {
+          "left": 60.212501525878906,
+          "width": 1031.550048828125
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 549.9749984741211,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 682.2000122070312,
+            "left": 776,
+            "right": 1136
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.40000915527344,
+            "left": 776,
+            "right": 1136
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 688,
+            "left": 776,
+            "right": 1136
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545.8000183105469,
+            "left": 776,
+            "right": 1136
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 518.6000061035156,
+            "left": 776,
+            "right": 1136
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "zoom": 1.5,
+      "card": {
+        "card": {
+          "left": 328.8645935058594,
+          "right": 683.5520935058594,
+          "top": 442,
+          "bottom": 586
+        },
+        "art": {
+          "left": 107.82292175292969,
+          "width": 744.34375
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 429.9791717529297,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 568,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 568,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545.6666870117188,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.53125,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 960,
+      "height": 600,
+      "zoom": 0.75,
+      "card": {
+        "card": {
+          "left": 391.66668701171875,
+          "right": 974.4583740234375,
+          "top": 642,
+          "bottom": 786
+        },
+        "art": {
+          "left": 28.479167938232422,
+          "width": 1223.0208740234375
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 629.9583587646484,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 681.6666870117188,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 800,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 800,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 768,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 800,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 800,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.5208435058594,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 800,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 960,
+      "height": 600,
+      "zoom": 1,
+      "card": {
+        "card": {
+          "left": 328.859375,
+          "right": 683.546875,
+          "top": 442,
+          "bottom": 586
+        },
+        "art": {
+          "left": 107.8125,
+          "width": 744.34375
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 429.96875,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 568,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 298,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 568,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 549,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 520.1875,
+            "left": 584,
+            "right": 944
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 600,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 960,
+      "height": 600,
+      "zoom": 1.25,
+      "card": {
+        "card": {
+          "left": 298.95001220703125,
+          "right": 498.52500915527344,
+          "top": 306,
+          "bottom": 466
+        },
+        "art": {
+          "left": 174.5749969482422,
+          "width": 418.8374938964844
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 293.97500228881836,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": true,
+          "panel": {
+            "top": 153.60000610351562,
+            "bottom": 480,
+            "left": 0,
+            "right": 768
+          },
+          "collisions": 12,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 480,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": true,
+          "panel": {
+            "top": 326.20001220703125,
+            "bottom": 480.00001525878906,
+            "left": 0,
+            "right": 768
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 480,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": true,
+          "panel": {
+            "top": 153.60000610351562,
+            "bottom": 480,
+            "left": 0,
+            "right": 768
+          },
+          "collisions": 12,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 480,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": true,
+          "panel": {
+            "top": 153.60000610351562,
+            "bottom": 480,
+            "left": 0,
+            "right": 768
+          },
+          "collisions": 12,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 480,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": true,
+          "panel": {
+            "top": 153.60000610351562,
+            "bottom": 480,
+            "left": 0,
+            "right": 768
+          },
+          "collisions": 12,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 480,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 960,
+      "height": 600,
+      "zoom": 1.5,
+      "card": {
+        "card": {
+          "left": 271.3958435058594,
+          "right": 385.43751525878906,
+          "top": 226,
+          "bottom": 386
+        },
+        "art": {
+          "left": 200.3229217529297,
+          "width": 239.33334350585938
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 218.9791774749756,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": true,
+          "panel": {
+            "top": 128,
+            "bottom": 400,
+            "left": 0,
+            "right": 640
+          },
+          "collisions": 13,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 400,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": true,
+          "panel": {
+            "top": 246.33334350585938,
+            "bottom": 400.00001525878906,
+            "left": 0,
+            "right": 640
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 400,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": true,
+          "panel": {
+            "top": 128,
+            "bottom": 400,
+            "left": 0,
+            "right": 640
+          },
+          "collisions": 13,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 400,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": true,
+          "panel": {
+            "top": 128,
+            "bottom": 400,
+            "left": 0,
+            "right": 640
+          },
+          "collisions": 13,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 400,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": true,
+          "panel": {
+            "top": 128,
+            "bottom": 400,
+            "left": 0,
+            "right": 640
+          },
+          "collisions": 13,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 400,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 0.75,
+      "card": {
+        "card": {
+          "left": 760.2083740234375,
+          "right": 1980.0833740234375,
+          "top": 1322,
+          "bottom": 1426
+        },
+        "art": {
+          "left": 0,
+          "width": 2560
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 1188.6250610351562,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 681.6666870117188,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 817,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.5208435058594,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1,
+      "card": {
+        "card": {
+          "left": 570.15625,
+          "right": 1485.0625,
+          "top": 962,
+          "bottom": 1066
+        },
+        "art": {
+          "left": 0,
+          "width": 1920
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 921.21875,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 687,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1080,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 298,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1080,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 818,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1080,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 549,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1080,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 520.1875,
+            "left": 1544,
+            "right": 1904
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1080,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1.25,
+      "card": {
+        "card": {
+          "left": 469.13751220703125,
+          "right": 1170.5375366210938,
+          "top": 746,
+          "bottom": 850
+        },
+        "art": {
+          "left": 32.025001525878906,
+          "width": 1471.925048828125
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 733.9874877929688,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 682.2000122070312,
+            "left": 1160,
+            "right": 1520
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 864,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.40000915527344,
+            "left": 1160,
+            "right": 1520
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 864,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 813.7999877929688,
+            "left": 1160,
+            "right": 1520
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 864,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545.8000183105469,
+            "left": 1160,
+            "right": 1520
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 864,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 518.6000061035156,
+            "left": 1160,
+            "right": 1520
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 864,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1.5,
+      "card": {
+        "card": {
+          "left": 430.5520935058594,
+          "right": 922.1041870117188,
+          "top": 562,
+          "bottom": 706
+        },
+        "art": {
+          "left": 124.21875,
+          "width": 1031.541748046875
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 549.9791717529297,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 684.3333740234375,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 688,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545.6666870117188,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.53125,
+            "left": 904,
+            "right": 1264
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 720,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "zoom": 0.75,
+      "card": {
+        "card": {
+          "left": 1013.625,
+          "right": 2640.125,
+          "top": 1802,
+          "bottom": 1906
+        },
+        "art": {
+          "left": 0,
+          "width": 3413.33349609375
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 1556.3750610351562,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 681.6666870117188,
+            "left": 3037.33349609375,
+            "right": 3397.33349609375
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1920,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 3037.33349609375,
+            "right": 3397.33349609375
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1920,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 817,
+            "left": 3037.33349609375,
+            "right": 3397.33349609375
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1920,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545,
+            "left": 3037.33349609375,
+            "right": 3397.33349609375
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1920,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.5208435058594,
+            "left": 3037.33349609375,
+            "right": 3397.33349609375
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1920,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "zoom": 1,
+      "card": {
+        "card": {
+          "left": 760.21875,
+          "right": 1980.09375,
+          "top": 1322,
+          "bottom": 1426
+        },
+        "art": {
+          "left": 0,
+          "width": 2560
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 1188.59375,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 687,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 298,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 818,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 549,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 520.1875,
+            "left": 2184,
+            "right": 2544
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1440,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "zoom": 1.25,
+      "card": {
+        "card": {
+          "left": 608.1749877929688,
+          "right": 1584.0750122070312,
+          "top": 1034,
+          "bottom": 1138
+        },
+        "art": {
+          "left": 0,
+          "width": 2048
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 974.6749877929688,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 682.2000122070312,
+            "left": 1672,
+            "right": 2032
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1152,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.40000915527344,
+            "left": 1672,
+            "right": 2032
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1152,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 813.7999877929688,
+            "left": 1672,
+            "right": 2032
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1152,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545.8000183105469,
+            "left": 1672,
+            "right": 2032
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1152,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 518.6000061035156,
+            "left": 1672,
+            "right": 2032
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 1152,
+          "badgeVisible": true
+        }
+      ]
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "zoom": 1.5,
+      "card": {
+        "card": {
+          "left": 507.8125,
+          "right": 1318.6979370117188,
+          "top": 842,
+          "bottom": 946
+        },
+        "art": {
+          "left": 2.4791667461395264,
+          "width": 1701.697998046875
+        },
+        "background": "rgba(36, 22, 15, 0.7)",
+        "opacity": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "horizontalOverflow": false,
+        "recordBottom": 829.9896087646484,
+        "buttonOverflow": false
+      },
+      "tabs": [
+        {
+          "tab": "番茄钟",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 684.3333740234375,
+            "left": 1330.666748046875,
+            "right": 1690.666748046875
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 960,
+          "badgeVisible": true
+        },
+        {
+          "tab": "待办",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 295.6666717529297,
+            "left": 1330.666748046875,
+            "right": 1690.666748046875
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 960,
+          "badgeVisible": true
+        },
+        {
+          "tab": "统计",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 799,
+            "left": 1330.666748046875,
+            "right": 1690.666748046875
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 960,
+          "badgeVisible": true
+        },
+        {
+          "tab": "声音",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 545.6666870117188,
+            "left": 1330.666748046875,
+            "right": 1690.666748046875
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 960,
+          "badgeVisible": true
+        },
+        {
+          "tab": "随手记",
+          "narrow": false,
+          "panel": {
+            "top": 140,
+            "bottom": 517.53125,
+            "left": 1330.666748046875,
+            "right": 1690.666748046875
+          },
+          "collisions": 0,
+          "background": "url(\"http://127.0.0.1:4190/room-scenes/pixel-cabin.png\")",
+          "backgroundVisible": true,
+          "height": 960,
+          "badgeVisible": true
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

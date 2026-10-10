@@ -29,9 +29,52 @@
 
 @media (max-width: 1300px) { .room-turntable { width: 236px; } }
 @media (max-height: 760px) { .room-turntable .turntable-console { max-height: 44vh; } }
-/* Keep the footer card clear of the console. */
-.cabin-room .room-now-playing { left: 304px !important; }
-@media (max-width: 1300px) { .cabin-room .room-now-playing { left: 268px !important; } }
+/* The selected album sits below the rack, with the same outer frame width.
+   Alpha belongs to the background only; labels and controls stay opaque. */
+.cabin-room.cabin-room .room-now-playing {
+  container-type: inline-size;
+  left: var(--room-shelf-left, 30%); right: auto; width: var(--room-shelf-width, 48%);
+  max-width: calc(100% - 24px); height: 104px; bottom: 14px; padding: 10px 12px;
+  background: rgb(36 22 15 / 70%); backdrop-filter: none;
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+}
+.cabin-room .room-now-playing .room-selection-copy { flex: 1 1 210px; }
+.cabin-room .room-now-playing .room-selection-copy p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cabin-room .room-now-playing .room-selection-actions { flex: 0 1 auto; max-width: 100%; flex-wrap: wrap; gap: 6px; }
+.cabin-room .room-now-playing .room-selection-actions :is(button,a) { font-size: 12px; padding: 6px 8px; }
+/* A stable viewport-based height breaks the card-width → wrapping → art-size
+   feedback loop. Tight cards use labelled/accessible icon actions below. */
+@media (max-width: 1399px), (max-height: 700px) {
+  .cabin-room.cabin-room .room-now-playing { height: 144px; }
+}
+@media (max-width: 800px), (max-height: 550px) {
+  .cabin-room.cabin-room .room-now-playing { height: 160px; }
+}
+@container (max-width: 520px) {
+  .room-now-playing .room-selection-actions span { display: none; }
+  .cabin-room .room-now-playing .room-selection-actions { justify-content: flex-start; }
+  .cabin-room .room-now-playing .room-selection-actions :is(button,a) { padding: 5px; }
+}
+@container (max-width: 700px) {
+  .room-now-playing:has(.room-queue-add) .room-selection-actions span { display: none; }
+  .cabin-room .room-now-playing:has(.room-queue-add) .room-selection-actions :is(button,a) { padding: 5px; }
+}
+@container (max-width: 340px) { .room-now-playing .room-selection-copy > small { display: none; } }
+
+/* These are ordinary buttons below the heading, outside its drag handle. */
+.turntable-room-tools { display: grid; gap: 3px; margin: 0 0 9px; }
+.turntable-room-tools button {
+  display: flex; align-items: center; gap: 8px; min-height: 30px; width: 100%;
+  padding: 5px 7px; border: 1px solid #8a5a3266; background: #24160f;
+  color: var(--px-ink, #ffe9cb); font: inherit; font-size: 12px; text-align: left;
+}
+.turntable-room-tools button:hover { background: #4d311c; }
+.turntable-room-tools button[aria-expanded=true], .turntable-room-tools button.is-active { background: var(--px-accent, #e0ad69); color: #24170d; }
+.turntable-room-tools button:focus-visible { outline: 2px solid #ffe0a8; outline-offset: 2px; }
+.turntable-room-tools svg { flex: none; }
+.cabin-room .shelf-filters { left: min(calc(var(--room-tools-right, 304px) + 12px), calc(100% - min(700px, calc(100% - 28px)) - 14px)); }
+.shelf-filters-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; font-size: 13px; }
+.shelf-filters-header button { padding: 5px 10px; background: #4d311c; border: 1px solid #d4a46b; color: #ffe9cb; }
 
 /* Queue open (待播) or long match lists must never push the volume/progress
    row out of reach: the console scrolls, the sliders stay pinned to its

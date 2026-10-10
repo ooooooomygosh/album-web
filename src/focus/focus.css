@@ -1,5 +1,12 @@
 /* Focus dock: pixel-cosy panel that floats over the right side of the room. */
 .focus-badge{font-variant-numeric:tabular-nums}
+.cabin-room > .focus-badge{position:absolute;z-index:21;top:calc(var(--titlebar,82px) + 10px);right:16px;display:flex;align-items:center;gap:7px;padding:8px 12px;color:#ffe2b4;background:#27180ef2;border:2px solid #d4a46b;box-shadow:3px 3px 0 #120b06b3;font:inherit;font-size:12px;cursor:pointer}
+.cabin-room > .focus-badge.is-running{background:#d79a51;color:#21140b}
+.cabin-room > .focus-badge.phase-shortBreak,.cabin-room > .focus-badge.phase-longBreak{background:#7fae8a;color:#14200f}
+.cabin-room > .focus-badge:focus-visible{outline:2px solid #ffe0a8;outline-offset:3px}
+.cabin-room.cabin-room .cabin-toolbar{right:180px}
+.room-zen .cabin-room > .focus-badge{top:12px}
+.room-zen .cabin-room .cabin-toolbar{right:200px}
 .cabin-toolbar .focus-badge.is-running{background:#d79a51!important;color:#21140b!important;border-color:#ffd99c!important}
 .cabin-toolbar .focus-badge.phase-shortBreak,.cabin-toolbar .focus-badge.phase-longBreak{background:#7fae8a!important;color:#14200f!important}
 .focus-dock{position:absolute;z-index:20;top:calc(var(--room-header-bottom,82px) + 58px);right:16px;width:min(360px,calc(100% - 32px));max-height:calc(100% - var(--room-header-bottom,82px) - 90px);display:flex;flex-direction:column;color:#ffe9cb;background:#27180ef2;border:2px solid #d4a46b;box-shadow:6px 6px 0 #120b06b3;image-rendering:pixelated;font-size:13px}
@@ -73,8 +80,9 @@
 .sound-slider input{width:100%;accent-color:#e0ad69;padding:0!important;border:0!important;background:none!important}
 .sound-note{font-size:10px;color:#a88a68}
 
-@media (max-width:720px),(orientation:portrait) and (max-width:900px){
+@media (max-width:900px){
   .focus-dock{top:auto;bottom:0;left:0;right:0;width:auto;max-height:68%;border-width:2px 0 0}
+  .room-zen .focus-dock{top:auto;max-height:68%}
   .room-focus-open .room-shelf-navigation{right:8px}
 }
 .focus-dock input[type=checkbox]{appearance:auto;flex:none;width:16px;height:16px;min-width:0;min-height:0;margin:0;padding:0;border:0;box-shadow:none}

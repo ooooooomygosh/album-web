@@ -22,6 +22,22 @@ export function roomGeometry(width, height, safeArea, geometry = SHELF.warm) {
   if (safeArea) top = Math.max(safeTop - shelfTop * scale, Math.min(top, height - safeBottom - shelfBottom * scale));
   return { width: artWidth, height: artHeight, left, top };
 }
+// A floating tool occupies its actual rectangle, not an entire side of the room.
+// Keep the largest usable shelf/deck band, then prefer the smallest camera move.
+export function roomGeometryAroundPanel(width, height, safeArea, geometry, panel) {
+  const base = roomGeometry(width, height, safeArea, geometry);
+  if (!panel || !safeArea) return base;
+  const band = geometry.band || { left: geometry.columns[0][0], right: geometry.columns.at(-1)[0] + geometry.columns.at(-1)[1], top: 200, bottom: 701 };
+  const bounds = art => { const k = art.width / ROOM_SIZE.width; return { left: art.left + band.left * k, right: art.left + band.right * k, top: art.top + band.top * k, bottom: art.top + band.bottom * k }; };
+  const overlaps = art => { const b = bounds(art); return b.left < panel.right + 12 && b.right > panel.left - 12 && b.top < panel.bottom + 12 && b.bottom > panel.top - 12; };
+  if (!overlaps(base)) return base;
+  const candidates = [
+    { right: width - panel.left + 12 }, { left: panel.right + 12 },
+    { top: panel.bottom + 12 }, { bottom: height - panel.top + 12 }
+  ].map(inset => roomGeometry(width, height, Object.fromEntries(Object.entries({ ...safeArea, ...inset }).map(([key, value]) => [key, Math.max(value, safeArea[key] || 0)])), geometry)).filter(art => !overlaps(art));
+  candidates.sort((a, b) => b.width - a.width || (Math.abs(a.left - base.left) + Math.abs(a.top - base.top)) - (Math.abs(b.left - base.left) + Math.abs(b.top - base.top)));
+  return candidates[0] || base;
+}
 export function shelfWindow(items, row, columns = 4, visibleRows = 3) {
   const rows = Math.ceil(items.length / columns), maxRow = Math.max(0, rows - visibleRows);
   const startRow = Math.max(0, Math.min(maxRow, Math.round(row) || 0));

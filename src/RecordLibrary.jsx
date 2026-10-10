@@ -68,7 +68,7 @@ export function RecordTools({ item }) {
   const [open, setOpen] = useState(false);
   const library = useRecordLibrary();
   if (!library || library.readOnly || item.type !== 'album') return null;
-  return <><button type="button" className="record-tools-button" onClick={(event) => { event.stopPropagation(); setOpen(true); }}><Wand2 size={15}/>自定义唱片</button>{open && <RecordEditor item={item} close={() => setOpen(false)}/>}</>;
+  return <><button type="button" className="record-tools-button" aria-label="自定义唱片" title="自定义唱片" onClick={(event) => { event.stopPropagation(); setOpen(true); }}><Wand2 size={15}/><span>自定义唱片</span></button>{open && <RecordEditor item={item} close={() => setOpen(false)}/>}</>;
 }
 
 function RecordEditor({ item, close }) {
