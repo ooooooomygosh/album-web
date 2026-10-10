@@ -19,7 +19,7 @@ const scenes = [
   { id: 'starlight', labelEn: 'Starry Night', label: '星夜阁楼', description: '星光落在深夜的唱片上', art: '/room-scenes/starlight-cabin.svg', pixelArt: '/room-scenes/starlight-cabin-pixel.png', alt: '星夜阁楼，星空圆窗、望远镜、十二格唱片架与暖灯阅读椅', band: DECK_BAND, geometry: pixelGeometry, pixel: true, style: { accent: '#c1b7db', background: '#303b50' } }
 ];
 
-export const ROOM_SCENES = Object.freeze(scenes.map((scene) => Object.freeze({ ...scene, view: scene.pixelArt || scene.art, geometry: freezeGeometry(scene.geometry), band: Object.freeze({ ...scene.band }), style: Object.freeze(scene.style) })));
+export const ROOM_SCENES = Object.freeze(scenes.map((scene) => Object.freeze({ ...scene, view: scene.pixelArt || scene.art, geometry: freezeGeometry(scene.geometry), band: Object.freeze({ ...scene.band }), shelfFrame: Object.freeze(scene.id === 'night-study' ? { left: 800, right: 1424 } : { left: 430, right: 1120 }), style: Object.freeze(scene.style) })));
 export const ROOM_SCENE_IDS = Object.freeze(ROOM_SCENES.map(({ id }) => id));
 const byId = new Map(ROOM_SCENES.map((scene) => [scene.id, scene]));
 export function normalizeRoomSceneId(id) { return byId.has(id) ? id : 'pixel'; }

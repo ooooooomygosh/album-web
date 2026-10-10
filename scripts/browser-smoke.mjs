@@ -5,6 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { verifyWelcome } from './welcome-checks.mjs';
+import { verifyCabinLayout, verifyCabinToolActions, verifyFocusLayout } from './cabin-layout-checks.mjs';
 import { neteasePlaylists, playlistDetail } from './playlist-fixture.mjs';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
@@ -71,6 +72,7 @@ try {
   page = await context.newPage(); page.setDefaultTimeout(12000); await page.clock.install({ time: new Date('2026-10-08T10:00:00Z') });
   /* context captures errors across the main, wallpaper and pet renderers. */
   await page.goto(origin); await page.locator('.room-record').first().waitFor(); check('renderer-mounts-with-offline-collection');
+  await verifyCabinLayout({ page, check }); await verifyCabinToolActions({ page, check });
   for (const [width, height] of [[1440, 900], [960, 600]]) { await page.setViewportSize({ width, height }); await screenshot(`cabin-${width}x${height}`); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'page must not overflow horizontally'); check(`viewport-${width}x${height}`); }
   await page.setViewportSize({ width: 1440, height: 900 });
   const { ROOM_SCENES } = await import('../src/scene-catalog.mjs');
@@ -257,6 +259,7 @@ try {
       await page.setViewportSize({ width, height }); await page.waitForTimeout(700);
       const issues = await layoutIssues('bubble');
       await page.locator('.focus-badge').click(); await page.locator('.focus-dock').waitFor(); await page.waitForTimeout(700); issues.push(...await layoutIssues('focus panel'));
+      await verifyCabinLayout({ page }); await verifyFocusLayout({ page });
       await page.getByRole('button', { name: '收起专注工具', exact: true }).click(); await page.waitForTimeout(150);
       assert.deepEqual(issues, [], `${scene.id} ${width}x${height}: deck, record cells and cat bubble must be clear`);
     }

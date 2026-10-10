@@ -4,7 +4,7 @@ import CabinAtmosphere from './CabinAtmosphere';
 import AmbientLife from './scene/AmbientLife';
 import { VinylDisc } from './RecordLibrary';
 import { Disc3 } from './icons';
-import { roomGeometry } from './room-model.mjs';
+import { roomGeometryAroundPanel } from './room-model.mjs';
 import { ShowroomArtwork } from './RoomArtwork';
 import { normalizeWeather, timeOfDay } from './room-ambience.mjs';
 import StudyWriting from './StudyWriting';
@@ -25,14 +25,24 @@ export default function RoomScene({ look = 'warm', items = [], selectedId, selec
       const box = (element) => element && element.getClientRects().length ? element.getBoundingClientRect() : null;
       const zen = document.documentElement.classList.contains('room-zen') || document.documentElement.classList.contains('room-desktop') || document.documentElement.dataset.desktopFullscreen === 'true', bar = box(toolbar), top = box(header), foot = box(room?.querySelector('.room-now-playing'));
       const safeArea = room && !zen ? { top: Math.max(bar?.bottom || 0, top?.bottom || 0) - rect.top + 12, bottom: foot ? rect.bottom - foot.top + 12 : 12 } : undefined;
-      // An open focus panel is an obstruction like the footer: right-docked → right inset, bottom sheet → bottom inset.
-      const panel = safeArea && box(room.querySelector('.focus-dock'));
-      if (panel && panel.left > rect.left + rect.width / 2) safeArea.right = rect.right - panel.left + 12;
-      else if (panel && panel.top > rect.top + rect.height / 2) safeArea.bottom = Math.max(safeArea.bottom, rect.bottom - panel.top + 12);
+      // Narrow screens use an explicitly opened bottom sheet. Wide screens
+      // avoid only the panel's rectangle; short tabs no longer reserve a rail.
+      const panel = box(room?.querySelector('.focus-dock'));
+      const sheet = window.matchMedia('(max-width: 900px)').matches;
       // The turntable console docked on the left edge is an obstruction too (it can be dragged elsewhere).
       const deck = safeArea && box(room.querySelector('.room-turntable'));
       if (deck && deck.right < rect.left + rect.width * .4) safeArea.left = deck.right - rect.left + 12;
-      setGeometry(roomGeometry(rect.width, rect.height, safeArea, { ...scene.geometry, band: scene.band }));
+      const obstacle = panel && !sheet ? { left: panel.left - rect.left, right: panel.right - rect.left, top: panel.top - rect.top, bottom: panel.bottom - rect.top } : null;
+      const next = roomGeometryAroundPanel(rect.width, rect.height, safeArea || (obstacle ? { top: 12, bottom: 12 } : undefined), { ...scene.geometry, band: scene.band }, obstacle);
+      // The information card uses the same art-space frame as the rack, while
+      // its text and controls stay at their normal CSS-pixel size.
+      if (room) {
+        const scale = next.width / 1448;
+        room.style.setProperty('--room-shelf-left', `${next.left + scene.shelfFrame.left * scale}px`);
+        room.style.setProperty('--room-shelf-width', `${(scene.shelfFrame.right - scene.shelfFrame.left) * scale}px`);
+        room.style.setProperty('--room-tools-right', `${deck ? deck.right - rect.left : 304}px`);
+      }
+      setGeometry(next);
     };
     let frame;
     const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); });

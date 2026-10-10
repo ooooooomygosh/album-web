@@ -1,0 +1,217 @@
+{
+  "startedAt": "2026-10-10T02:10:44.313Z",
+  "finishedAt": "2026-10-10T02:12:30.802Z",
+  "passed": true,
+  "fixtureData": true,
+  "nativeIntegrationTested": false,
+  "realAccountsUsed": false,
+  "checks": [
+    {
+      "name": "first-visit-guide-three-sizes-keyboard-heading-and-no-autostart",
+      "passed": true
+    },
+    {
+      "name": "guide-dismissal-scene-and-companion-survive-reload",
+      "passed": true
+    },
+    {
+      "name": "guide-all-exit-actions-escape-and-focus-restoration",
+      "passed": true
+    },
+    {
+      "name": "guide-motion-obeys-os-and-app-preferences",
+      "passed": true
+    },
+    {
+      "name": "guide-storage-failure-preserves-selection-and-allows-exit",
+      "passed": true
+    },
+    {
+      "name": "returning-empty-collection-is-not-interrupted",
+      "passed": true
+    },
+    {
+      "name": "renderer-mounts-with-offline-collection",
+      "passed": true
+    },
+    {
+      "name": "album-card-frame-alignment-background-alpha-and-console-tools",
+      "passed": true
+    },
+    {
+      "name": "relocated-tools-filter-state-and-dialog-actions",
+      "passed": true
+    },
+    {
+      "name": "viewport-1440x900",
+      "passed": true
+    },
+    {
+      "name": "viewport-960x600",
+      "passed": true
+    },
+    {
+      "name": "all-scenes-and-pets-select-and-persist",
+      "passed": true
+    },
+    {
+      "name": "collection-create-manual",
+      "passed": true
+    },
+    {
+      "name": "collection-update-notes-and-delete",
+      "passed": true
+    },
+    {
+      "name": "catalog-search-fixture",
+      "passed": true
+    },
+    {
+      "name": "actual-generated-wav-decodes-and-plays",
+      "passed": true
+    },
+    {
+      "name": "local-next-track-resolves-exact-id",
+      "passed": true
+    },
+    {
+      "name": "cabin-playback-event-carries-real-analyser-energy",
+      "passed": true
+    },
+    {
+      "name": "keyboard-space-mute-and-previous",
+      "passed": true
+    },
+    {
+      "name": "queue-adds-selected-album",
+      "passed": true
+    },
+    {
+      "name": "local-music-empty-or-partial-response-renders",
+      "passed": true
+    },
+    {
+      "name": "files-import-with-tags-from-names-durations-and-pixel-cover",
+      "passed": true
+    },
+    {
+      "name": "session-files-explain-reload-honestly",
+      "passed": true
+    },
+    {
+      "name": "relinked-session-files-play-from-blob",
+      "passed": true
+    },
+    {
+      "name": "record-card-pixel-cover-preview-apply-and-restore",
+      "passed": true
+    },
+    {
+      "name": "system-source-and-transport-mocked",
+      "passed": true
+    },
+    {
+      "name": "music-settings-offline-account-and-local-status",
+      "passed": true
+    },
+    {
+      "name": "music-settings-use-source-on-deck",
+      "passed": true
+    },
+    {
+      "name": "focus-tasks-create-and-complete",
+      "passed": true
+    },
+    {
+      "name": "quick-notes-save-local-text",
+      "passed": true
+    },
+    {
+      "name": "focus-timer-completes-and-records-session",
+      "passed": true
+    },
+    {
+      "name": "backup-exports-collection-and-focus",
+      "passed": true
+    },
+    {
+      "name": "backup-rejects-malformed-input",
+      "passed": true
+    },
+    {
+      "name": "backup-import-merges-new-album",
+      "passed": true
+    },
+    {
+      "name": "album-wall-paints-and-downloads-real-png",
+      "passed": true
+    },
+    {
+      "name": "zen-mode-keyboard",
+      "passed": true
+    },
+    {
+      "name": "companion-snapshot-carries-selected-pet-and-room",
+      "passed": true
+    },
+    {
+      "name": "wallpaper-renderer-all-scenes-mocked-snapshot",
+      "passed": true
+    },
+    {
+      "name": "pet-renderer-all-species-and-keyboard-poke-mocked-bridge",
+      "passed": true
+    },
+    {
+      "name": "room-stage-does-not-scroll-or-zoom-after-dblclick-1280x800",
+      "passed": true
+    },
+    {
+      "name": "every-scene-deck-cells-and-cat-bubble-clear-of-toolbar-panels-and-focus-panel-at-5-viewports",
+      "passed": true
+    },
+    {
+      "name": "cat-always-on-a-surface-and-hops-off-hidden-console",
+      "passed": true
+    },
+    {
+      "name": "immersive-console-hidden-and-revealed-near-pointer",
+      "passed": true
+    },
+    {
+      "name": "cat-relocation-hops-or-walks-when-motion-allowed",
+      "passed": true,
+      "expand": {
+        "positions": 21,
+        "idleUnsupported": 0,
+        "worstHover": 24,
+        "frames": 85
+      },
+      "immersive": {
+        "positions": 22,
+        "idleUnsupported": 0,
+        "worstHover": 15,
+        "frames": 92
+      },
+      "walk": {
+        "positions": 21,
+        "bobs": 3,
+        "frames": 32
+      }
+    },
+    {
+      "name": "deleted-albums-do-not-receive-late-autosaves",
+      "passed": true
+    }
+  ],
+  "pageErrors": [],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "unexpectedRequests": [],
+  "limitations": [
+    "Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.",
+    "WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.",
+    "Screenshots are review artifacts; no approved pixel baseline has been established.",
+    "macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests."
+  ]
+}
