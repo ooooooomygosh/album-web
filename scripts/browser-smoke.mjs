@@ -4,7 +4,7 @@
  * Fixtures never call external services or read a user's profile/collection.
  */
 import assert from 'node:assert/strict';
-import { verifyWelcome } from './welcome-checks.mjs';
+import { verifyOnboarding } from './onboarding-checks.mjs';
 import { verifyCabinLayout, verifyCabinToolActions, verifyFocusLayout } from './cabin-layout-checks.mjs';
 import { neteasePlaylists, playlistDetail } from './playlist-fixture.mjs';
 import { createRequire } from 'node:module';
@@ -67,7 +67,7 @@ try {
   };
   await context.route('**/*', routeHandler);
   const welcomeRoute = route => new URL(route.request().url()).pathname === '/api/items' ? route.fulfill({ json: { items: [] } }) : routeHandler(route);
-  await verifyWelcome({ browser, origin, routeHandler: welcomeRoute, evidence: output, output, check });
+  await verifyOnboarding({ browser, origin, routeHandler: welcomeRoute, evidence: output, output, check });
   context.on('page', watched => { watched.on('pageerror', error => report.pageErrors.push(error.message)); watched.on('console', message => { if (message.type() === 'error') report.consoleErrors.push(message.text()); }); watched.on('requestfailed', request => { if (request.failure()?.errorText !== 'net::ERR_ABORTED') report.failedRequests.push({ url: request.url(), error: request.failure()?.errorText }); }); });
   page = await context.newPage(); page.setDefaultTimeout(12000); await page.clock.install({ time: new Date('2026-10-08T10:00:00Z') });
   /* context captures errors across the main, wallpaper and pet renderers. */
@@ -147,7 +147,7 @@ try {
   await page.keyboard.press(' '); await page.keyboard.press('3'); await page.locator('.study-done').waitFor(); await page.getByRole('button', { name: '回到卡组' }).click();
   await page.getByLabel('倒计时名称').fill('期末'); await page.getByLabel('倒计时日期').fill('2026-12-20'); await page.getByRole('button', { name: '添加倒计时' }).click(); await page.locator('.study-countdowns li', { hasText: '期末' }).getByText('73 天').waitFor();
   check('study-flashcards-fsrs-keyboard-review-and-countdown'); await page.locator('.focus-dock-close').click();
-  await page.getByRole('button', { name: '收藏与备份', exact: true }).click(); const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: '导出备份', exact: true }).click(); const download = await downloadPromise; await download.saveAs(path.join(output, 'fixture-backup.json')); const backup = JSON.parse(await fs.readFile(path.join(output, 'fixture-backup.json'))); assert.equal(backup.kind, 'FlowCabinBackup'); assert.equal(backup.items.length, 18); assert.equal(backup.focus.tasks.length, 1); assert.equal(backup.focus.notes, 'QA 随手记备份内容'); assert.equal(backup.study.cards.length, 2); assert.equal(backup.study.countdowns[0].title, '期末'); check('backup-exports-collection-and-focus');
+  await page.getByRole('button', { name: '设置', exact: true }).click(); await page.getByRole('tab', { name: '数据与备份', exact: true }).click(); await page.getByRole('button', { name: '收藏与备份', exact: true }).click(); const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: '导出备份', exact: true }).click(); const download = await downloadPromise; await download.saveAs(path.join(output, 'fixture-backup.json')); const backup = JSON.parse(await fs.readFile(path.join(output, 'fixture-backup.json'))); assert.equal(backup.kind, 'FlowCabinBackup'); assert.equal(backup.items.length, 18); assert.equal(backup.focus.tasks.length, 1); assert.equal(backup.focus.notes, 'QA 随手记备份内容'); assert.equal(backup.study.cards.length, 2); assert.equal(backup.study.countdowns[0].title, '期末'); check('backup-exports-collection-and-focus');
   await page.getByLabel('导入备份文件').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{invalid') }); await page.getByText('文件内容无法读取。', { exact: true }).waitFor(); check('backup-rejects-malformed-input');
   const imported = { kind: 'FlowCabinBackup', items: [{ ...items[0], id: 'backup-imported', title: '备份导入唱片' }] };
   await page.getByLabel('导入备份文件').setInputFiles({ name: 'fixture.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) }); await page.getByText('导入完成：新增 1 张唱片，唱片架现在共有 19 张。', { exact: true }).waitFor(); assert(items.some(i => i.id === 'backup-imported')); check('backup-import-merges-new-album'); await closeDialog();

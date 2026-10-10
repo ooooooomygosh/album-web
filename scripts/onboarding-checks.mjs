@@ -1,0 +1,151 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+
+// First-run wizard + settings hub checks, sharing the screenshot suite's
+// isolated, offline routes. The web build has no desktop shell, so every
+// native action must stay untouched (window.open throws).
+export async function verifyOnboarding({ browser, origin, routeHandler, evidence, output, check }) {
+  const fresh = async (init) => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', reducedMotion: 'reduce' });
+    await context.route('**/*', routeHandler);
+    await context.addInitScript(() => { window.open = () => { throw new Error('Onboarding must not invoke native actions on the web'); }; });
+    if (init) await context.addInitScript(init);
+    const page = await context.newPage(); page.setDefaultTimeout(8000);
+    const failures = []; page.on('pageerror', (error) => failures.push(error.message));
+    return { context, page, failures };
+  };
+  const button = (page, name) => page.getByRole('button', { name, exact: true });
+  const wizardOf = (page) => page.getByRole('dialog', { name: '新手引导' });
+  const hubOf = (page) => page.getByRole('dialog', { name: '设置', exact: true });
+  const heading = (page) => page.locator('#onboarding-heading');
+  const inViewport = async (page, locator) => {
+    const box = await locator.boundingBox(), view = page.viewportSize();
+    assert(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= view.width + 1 && box.y + box.height <= view.height + 1, 'control must be inside the viewport');
+  };
+
+  // 1. Full happy path on a brand-new cabin.
+  let { context, page, failures } = await fresh();
+  try {
+    await page.goto(origin); const wizard = wizardOf(page); await wizard.waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    await heading(page).filter({ hasText: '欢迎来到心流小屋' }).waitFor();
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 600 }, { width: 640, height: 600 }]) {
+      await page.setViewportSize(viewport);
+      for (const name of ['开始设置', '跳过引导']) await inViewport(page, button(page, name));
+      assert(await wizard.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth));
+      await page.screenshot({ path: path.join(evidence, `onboarding-${viewport.width}.png`), animations: 'disabled' });
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await button(page, '开始设置').click();
+    await heading(page).filter({ hasText: '想从哪里听歌？' }).waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'onboarding-heading');
+    assert.equal(await page.getByRole('radio', { name: '音源 QQ 音乐' }).isDisabled(), true, 'platform login is desktop-only');
+    await page.getByRole('radio', { name: '音源 本地音乐' }).click();
+    assert.equal(await page.getByRole('radio', { name: '音源 本地音乐' }).getAttribute('aria-checked'), 'true');
+    await button(page, '选择音乐文件').waitFor();
+    await wizard.locator('.onboarding-scene img').evaluate((image) => image.decode());
+    await page.screenshot({ path: path.join(output, 'onboarding.png'), animations: 'disabled' });
+    check('wizard-auto-opens-three-sizes-web-sources-and-heading-focus');
+    await button(page, '下一步').click();
+    await heading(page).filter({ hasText: '只开需要的权限' }).waitFor();
+    await button(page, '跳过 系统通知').click(); await wizard.getByText('已跳过').waitFor();
+    await button(page, '下一步').click();
+    await button(page, '入门选择 林间书屋').click(); await button(page, '入门选择 枫糖').click();
+    assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), 'forest');
+    await button(page, '下一步').click();
+    assert.equal(await page.locator('audio[src]').count(), 0, 'no sound before 播放测试');
+    await button(page, '播放测试').click(); await button(page, '听到了').click();
+    await wizard.getByText('声音正常，可以开始听歌了。').waitFor();
+    await button(page, '下一步').click();
+    await wizard.locator('.onboarding-summary').getByText('本地音乐').waitFor();
+    await button(page, '进入小屋').click(); await wizard.waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('.focus-badge.is-running').count(), 0);
+    await page.reload(); await page.getByRole('button', { name: '添加第一张专辑' }).waitFor();
+    assert.equal(await wizardOf(page).count(), 0);
+    assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), 'forest');
+    assert.equal(await page.locator('.room-cat .pixel-cat').getAttribute('data-pet-id'), 'fox');
+    assert.equal(await page.evaluate(() => localStorage.getItem('album-circle-room-player-v1')), 'local');
+    check('wizard-full-flow-persists-source-room-companion-and-does-not-reopen');
+
+    // 2. 重新引导 from the hub, motion preferences.
+    await button(page, '设置').click(); await hubOf(page).waitFor();
+    assert.deepEqual(await page.getByRole('tab').allInnerTexts(), ['音源', '房间与桌宠', '专注工具', '桌面', '数据与备份', '关于']);
+    await page.getByRole('tab', { name: '关于' }).click(); await button(page, '重新引导').click();
+    await wizardOf(page).waitFor(); await heading(page).filter({ hasText: '欢迎来到心流小屋' }).waitFor();
+    assert.equal(await hubOf(page).count(), 0);
+    assert.equal(await page.locator('.onboarding-step').evaluate((el) => getComputedStyle(el).animationName), 'none');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    assert.equal(await page.locator('.onboarding-step').evaluate((el) => getComputedStyle(el).animationName), 'onboarding-in');
+    await page.evaluate(() => { document.documentElement.dataset.desktopReduceMotion = 'true'; });
+    assert.equal(await page.locator('.onboarding-step').evaluate((el) => getComputedStyle(el).animationName), 'none');
+    await page.evaluate(() => { delete document.documentElement.dataset.desktopReduceMotion; }); await page.emulateMedia({ reducedMotion: 'reduce' });
+    check('reopen-from-settings-and-motion-obeys-os-and-app-preferences');
+
+    // 3. Closing half-way resumes on the next launch; Escape restores focus.
+    await button(page, '开始设置').click(); await heading(page).filter({ hasText: '想从哪里听歌？' }).waitFor();
+    await page.keyboard.press('Escape'); await wizardOf(page).waitFor({ state: 'hidden' });
+    await page.reload(); await wizardOf(page).waitFor();
+    await heading(page).filter({ hasText: '想从哪里听歌？' }).waitFor();
+    assert.equal(await page.getByRole('radio', { name: '音源 本地音乐' }).getAttribute('aria-checked'), 'true', 'earlier choices survive');
+    // 4. 跳过引导 is final until 重新引导.
+    await button(page, '跳过引导').click(); await page.reload(); await page.getByRole('button', { name: '添加第一张专辑' }).waitFor();
+    assert.equal(await wizardOf(page).count(), 0);
+    check('wizard-resumes-after-close-and-skip-is-remembered');
+
+    // 5. Settings hub: shortcuts route to their section.
+    await button(page, '布置小屋').click(); await hubOf(page).waitFor();
+    assert.equal(await page.getByRole('tab', { name: '房间与桌宠' }).getAttribute('aria-selected'), 'true');
+    await button(page, '选择场景 海边慢屋').click();
+    assert.equal(await page.locator('.cabin-scene').getAttribute('data-room-look'), 'seaside');
+    await page.screenshot({ path: path.join(evidence, 'settings-hub-room.png'), animations: 'disabled' });
+    await button(page, '回到小屋').click(); await hubOf(page).waitFor({ state: 'hidden' });
+    await button(page, '音源设置').click();
+    await page.getByRole('dialog', { name: '音源与账户', exact: true }).waitFor();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+    await button(page, '设置').click(); await hubOf(page).waitFor();
+    assert.equal(await page.getByRole('tab', { name: '音源' }).getAttribute('aria-selected'), 'true');
+    await hubOf(page).getByText('唱机现在用').waitFor();
+    await hubOf(page).getByLabel('音质').waitFor();
+    await page.screenshot({ path: path.join(evidence, 'settings-hub-music.png'), animations: 'disabled' });
+    await page.getByRole('tab', { name: '桌面' }).click();
+    await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).waitFor();
+    assert.equal(await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).isDisabled(), false);
+    await page.getByRole('tab', { name: '数据与备份' }).click(); await button(page, '收藏与备份').click();
+    await page.getByRole('dialog', { name: '收藏与备份' }).waitFor(); await page.keyboard.press('Escape');
+    check('settings-hub-sections-and-old-shortcuts-route-to-it');
+    assert.deepEqual(failures, []);
+  } finally { await context.close(); }
+
+  // 6. 沉入桌面 API says unsupported: toggle disabled, reason shown.
+  ({ context, page, failures } = await fresh(() => { window.cabinDesktop = { getDesktopModeStatus: () => ({ active: false, supported: false, reason: '当前系统不支持沉入桌面' }), enterDesktopMode() {}, exitDesktopMode() {} }; localStorage.setItem('flow-cabin-welcome-v1', 'seen'); }));
+  try {
+    await page.goto(origin); await button(page, '设置').click(); await page.getByRole('tab', { name: '桌面' }).click();
+    await hubOf(page).getByText('当前系统不支持沉入桌面').waitFor();
+    assert.equal(await hubOf(page).getByRole('checkbox', { name: '沉入桌面' }).isDisabled(), true);
+    check('desktop-mode-unsupported-reason-disables-toggle');
+    assert.deepEqual(failures, []);
+  } finally { await context.close(); }
+
+  // 7. Storage failure keeps the choice visible and still allows exit.
+  ({ context, page, failures } = await fresh());
+  try {
+    await page.goto(origin); await wizardOf(page).waitFor();
+    await button(page, '开始设置').click(); await button(page, '下一步').click(); await button(page, '下一步').click();
+    await page.evaluate(() => { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (key.startsWith('album-circle-library')) throw new DOMException('Storage full', 'QuotaExceededError'); return set.call(this, key, value); }; });
+    await button(page, '入门选择 海边慢屋').click();
+    await wizardOf(page).getByRole('alert').waitFor();
+    await button(page, '跳过引导').click(); await wizardOf(page).waitFor({ state: 'hidden' });
+    check('wizard-storage-failure-is-shown-and-allows-exit');
+  } finally { await context.close(); }
+
+  // 8. A returning cabin (any earlier data) is never interrupted.
+  const returning = await browser.newContext();
+  try {
+    await returning.route('**/*', routeHandler);
+    await returning.addInitScript(() => localStorage.setItem('album-circle-focus-dock-v1', JSON.stringify({ open: false, tab: 'timer' })));
+    const page = await returning.newPage(); await page.goto(origin); await page.getByRole('button', { name: '添加第一张专辑' }).waitFor();
+    assert.equal(await page.getByRole('dialog').count(), 0);
+    check('returning-empty-collection-is-not-interrupted');
+  } finally { await returning.close(); }
+}

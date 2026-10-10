@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import { showcaseAlbums } from './showcase-albums.mjs';
-import { verifyWelcome } from './welcome-checks.mjs';
+import { verifyOnboarding } from './onboarding-checks.mjs';
 import { createRequire } from 'node:module';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -52,7 +52,7 @@ try {
     return route.continue();
   };
   await context.route('**/*', routeHandler);
-  await verifyWelcome({ browser, origin, routeHandler, evidence, output, check });
+  await verifyOnboarding({ browser, origin, routeHandler, evidence, output, check });
   page = await context.newPage(); page.setDefaultTimeout(10000); page.on('pageerror', e => report.errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') report.errors.push(m.text()); });
   await page.goto(origin); await page.getByRole('button', { name: '先专注一会儿' }).waitFor(); await page.evaluate(() => document.fonts.ready);
   for (const viewport of [{ width: 1440, height: 900 }, { width: 960, height: 600 }]) {
@@ -98,10 +98,14 @@ try {
     demo.on('pageerror', error => report.errors.push(error.message));
     await demo.goto(origin); await demo.waitForFunction(() => document.querySelectorAll('.pixel-artwork canvas.is-painted').length >= 12);
     await demo.locator('.room-record').nth(5).dblclick(); await demo.waitForTimeout(2000);
-    await demo.getByRole('button', { name: '入门指南', exact: true }).click(); await demo.waitForTimeout(2300);
-    await demo.getByRole('button', { name: '下一步', exact: true }).click(); await demo.waitForTimeout(2600);
-    await demo.getByRole('button', { name: '下一步', exact: true }).click(); await demo.waitForTimeout(2600);
-    await demo.getByRole('button', { name: '打开专注工具', exact: true }).click(); await demo.waitForTimeout(1700);
+    await demo.getByRole('button', { name: '设置', exact: true }).click(); await demo.waitForTimeout(1300);
+    await demo.getByRole('tab', { name: '关于', exact: true }).click(); await demo.waitForTimeout(900);
+    await demo.getByRole('button', { name: '重新引导', exact: true }).click(); await demo.waitForTimeout(1800);
+    await demo.getByRole('button', { name: '开始设置', exact: true }).click(); await demo.waitForTimeout(2200);
+    await demo.getByRole('button', { name: '下一步', exact: true }).click(); await demo.waitForTimeout(1800);
+    await demo.getByRole('button', { name: '下一步', exact: true }).click(); await demo.waitForTimeout(2200);
+    await demo.getByRole('button', { name: '跳过引导', exact: true }).click(); await demo.waitForTimeout(900);
+    await demo.locator('.focus-badge').click(); await demo.waitForTimeout(1500);
     await demo.getByRole('button', { name: '开始专注', exact: true }).click(); await demo.waitForTimeout(1700);
     await demo.getByRole('button', { name: '收起专注工具', exact: true }).click();
     await demo.getByRole('button', { name: '布置小屋', exact: true }).click(); await demo.waitForTimeout(1300);
