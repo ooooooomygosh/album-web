@@ -190,7 +190,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   const desktopAdapter = useMemo(() => createDesktopAdapter({ env, fallback: { get active() { return desktopLive.current.active; }, enter: () => { if (!desktopLive.current.active) desktopLive.current.toggle(); }, exit: () => { if (desktopLive.current.active) desktopLive.current.toggle(); } } }), [env]);
   useEffect(() => { if (!window.cabinDesktop) window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: { active: desktopMode, supported: true, reason: '' } })); }, [desktopMode]);
   useEffect(() => {
-    const receive = (event) => { const command = event.detail?.command; if (command === 'open-settings') setHub((value) => value || 'music'); if (command === 'open-onboarding') restartOnboarding(); };
+    const receive = (event) => { const command = event.detail?.command; if (command === 'open-settings') setHub((value) => value || 'music'); if (command === 'open-about') setHub('about'); if (command === 'open-onboarding') restartOnboarding(); };
     const open = (event) => setHub(event.detail?.section || 'music');
     window.addEventListener('album-companion-command', receive); window.addEventListener('cabin-open-settings', open);
     return () => { window.removeEventListener('album-companion-command', receive); window.removeEventListener('cabin-open-settings', open); };

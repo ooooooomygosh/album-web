@@ -55,6 +55,14 @@ jobs:
         env:
           ALBUM_QA_SKIP_WALLPAPER: '1'
           ALBUM_QA_EXE: ${{ matrix.executable }}
+      # Update info for electron-updater: latest.yml (NSIS) / latest-mac.yml (zip),
+      # plus blockmaps for delta downloads. Each mac job writes its own
+      # latest-mac.yml; rename it so the publish job can merge both.
+      - name: Check update info
+        shell: bash
+        working-directory: desktop/release
+        run: |
+          if [ "${{ matrix.platform }}" = win ]; then test -f latest.yml && ls *-setup.exe.blockmap; else test -f latest-mac.yml && ls *.zip.blockmap && mv latest-mac.yml "latest-mac-${{ matrix.arch }}.yml"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: client-${{ matrix.platform }}-${{ matrix.arch }}
@@ -62,6 +70,8 @@ jobs:
             desktop/release/*.exe
             desktop/release/*.dmg
             desktop/release/*.zip
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
@@ -86,6 +96,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          node scripts/merge-mac-update-info.mjs release/latest-mac.yml release/latest-mac-arm64.yml release/latest-mac-x64.yml
+          rm release/latest-mac-arm64.yml release/latest-mac-x64.yml
+          # Never publish without the files the in-app updater reads.
+          for f in latest.yml latest-mac.yml; do test -s "release/$f" || { echo "missing $f"; exit 1; }; done
+          ls release/*-setup.exe.blockmap release/*-mac-arm64.zip.blockmap release/*-mac-x64.zip.blockmap
           cd release
           sha256sum *.exe *.dmg *.zip > SHA256SUMS.txt
           cd ..

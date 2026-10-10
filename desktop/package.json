@@ -71,6 +71,7 @@
       "now-playing.cjs",
       "apple-music.cjs",
       "local-app.cjs",
+      "updater.cjs",
       "local-music.cjs",
       "collection-store.cjs",
       "catalog-search.mjs",
@@ -147,9 +148,17 @@
         "NSAppleEventsUsageDescription": "心流小屋读取并控制 Music 或 Spotify 正在播放的歌曲，用于在小屋唱机上显示。"
       }
     },
-    "publish": null
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ooooooomygosh",
+        "repo": "album-web",
+        "releaseType": "release"
+      }
+    ]
   },
   "dependencies": {
+    "electron-updater": "6.8.9",
     "music-metadata": "11.15.0",
     "NeteaseCloudMusicApi": "4.32.0"
   }

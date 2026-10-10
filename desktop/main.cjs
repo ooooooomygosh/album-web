@@ -21,6 +21,7 @@ const { createPet } = require('./pet.cjs');
 const { createNowPlaying } = require('./now-playing.cjs');
 const { createAppleMusic } = require('./apple-music.cjs');
 const { createLocalApps } = require('./local-app.cjs');
+const { createUpdater } = require('./updater.cjs');
 const { createLocalMusic } = require('./local-music.cjs');
 const { sendCompanionCommand } = require('./companion-sync.cjs');
 
@@ -84,6 +85,7 @@ function refreshTray() {
     companionTray.setContextMenu(Menu.buildFromTemplate([
       { label: '打开小屋', click: restoreMainWindow },
       { label: '小屋设置…', click: () => { restoreMainWindow(); sendCompanionCommand(siteView?.webContents, 'open-settings'); } },
+      { label: '检查更新…', click: checkUpdatesFromMenu },
       { label: '开始 / 暂停专注', click: () => sendCompanionCommand(siteView?.webContents, 'focus-toggle') },
       { label: '开关小屋声音', click: () => sendCompanionCommand(siteView?.webContents, 'sound-toggle') },
       { type: 'separator' },
@@ -278,6 +280,7 @@ async function wireRemoteView() {
     wallpaperStatus(wallpaperState); petStatus(petState);
     if (desktopMode) notifySite(`document.documentElement.dataset.desktopMode = '${desktopMode.active}';`);
     if (desktopSink) notifySinkStatus(desktopSink.status());
+    pushUpdateState();
     siteView.setVisible(!settingsOpen);
     if (mainWindow && !mainWindow.isDestroyed() && !contents.isDestroyed() && (!mainWindow.isVisible() || mainWindow.isMinimized())) await contents.executeJavaScript("window.dispatchEvent(new Event('blur'));").catch(() => {});
     sendState();
@@ -348,6 +351,7 @@ function handleSiteCommand(value) {
   if (url.protocol !== 'album-desktop:' || url.hostname !== 'action' || url.username || url.password || !isSiteUrl(siteView?.webContents.getURL())) return false;
   switch (url.pathname) {
     case '/settings': toggleSettings(true); break;
+    case '/update-check': case '/update-download': case '/update-install': case '/update-open': case '/update-auto': case '/update-state': handleUpdateCommand(url.pathname, url.searchParams); break;
     case '/fullscreen': toggleFullscreen(); break;
     case '/fullscreen-exit': setFullscreen(false); break;
     // 沉入桌面. The old desktop-mode / wallpaper commands are kept as aliases.
@@ -381,6 +385,32 @@ function notifyLocalMusic(detail) {
 function notifySinkStatus(state) {
   notifySite(`window.cabinDesktopStatus = ${JSON.stringify(state)}; document.documentElement.dataset.desktopSink = '${state.active}'; window.dispatchEvent(new CustomEvent('cabin:desktop-mode', {detail: window.cabinDesktopStatus}));`);
 }
+// 检查更新 (desktop/updater.cjs). State reaches the page as
+// window.cabinUpdateState + CustomEvent 'cabin:update-state'.
+let updater = null;
+function updateSettings() {
+  const file = path.join(app.getPath('userData'), 'update.json');
+  return { get: () => { try { return JSON.parse(fs.readFileSync(file, 'utf8')).autoDownload !== false; } catch { return true; } }, set: (value) => { try { fs.writeFileSync(file, JSON.stringify({ autoDownload: Boolean(value) })); } catch {} } };
+}
+function pushUpdateState(state = updater?.state) {
+  if (state) notifySite(`window.cabinUpdateState = ${JSON.stringify(state)}; window.dispatchEvent(new CustomEvent('cabin:update-state', { detail: window.cabinUpdateState }));`);
+}
+function startUpdater() {
+  const { updateMode } = require('./updater.cjs');
+  const native = updateMode({ isPackaged: app.isPackaged }).mode === 'install';
+  updater = createUpdater({ currentVersion: app.getVersion(), isPackaged: app.isPackaged, autoUpdater: native ? require('electron-updater').autoUpdater : null, openExternal: (url) => shell.openExternal(url), settings: updateSettings(), onState: (state) => pushUpdateState(state) });
+  if (!process.env.ALBUM_DESKTOP_TEST_PROFILE) updater.start();
+}
+function checkUpdatesFromMenu() { restoreMainWindow(); sendCompanionCommand(siteView?.webContents, 'open-about'); updater?.check({ manual: true }); }
+function handleUpdateCommand(pathname, params) {
+  if (!updater) return;
+  if (pathname === '/update-check') updater.check({ manual: true });
+  else if (pathname === '/update-download') updater.download();
+  else if (pathname === '/update-install') updater.install();
+  else if (pathname === '/update-open') updater.openRelease();
+  else if (pathname === '/update-auto' && ['true', 'false'].includes(params.get('enabled'))) updater.setAutoDownload(params.get('enabled') === 'true');
+  else if (pathname === '/update-state') pushUpdateState();
+}
 function notifySite(script) {
   if (siteView && !siteView.webContents.isDestroyed()) siteView.webContents.executeJavaScript(script).catch(() => {});
 }
@@ -405,6 +435,7 @@ function createMenus() {
       { label: '小屋设置…', click: () => sendCompanionCommand(siteView?.webContents, 'open-settings') },
       { label: '显示与字体…', accelerator: 'CmdOrCtrl+,', click: () => toggleSettings(true) },
       { label: '重新引导', click: () => sendCompanionCommand(siteView?.webContents, 'open-onboarding') },
+      { label: '检查更新…', click: checkUpdatesFromMenu },
       { label: '重新载入小屋', accelerator: 'CmdOrCtrl+R', click: () => navigate(`${SITE_ORIGIN}/`) },
       { type: 'separator' },
         { type: 'separator' },
@@ -563,7 +594,7 @@ else {
     localMusic = createLocalMusic({ directory: app.getPath('userData'), resizeCover: (buffer) => { const image = nativeImage.createFromBuffer(buffer); return image.isEmpty() ? null : image.resize({ width: Math.min(600, image.getSize().width), quality: 'good' }).toJPEG(86); } });
     const nowPlaying = createNowPlaying({ helperPath: app.isPackaged ? path.join(process.resourcesPath, 'native', 'NowPlaying.exe') : path.join(__dirname, 'native', 'bin', 'NowPlaying.exe') });
     music = createMusicService({ directory: app.getPath('userData'), safeStorage, nowPlaying, localMusic, appleMusic: createAppleMusic(), localApps: createLocalApps({ openExternal: (url) => shell.openExternal(url), appForProtocol: (url) => app.getApplicationNameForProtocol(url) }), login: (provider) => provider === 'qq' ? openQQLogin(mainWindow) : openNeteaseLogin(mainWindow), logout: (provider) => provider === 'qq' ? clearQQLogin() : clearNeteaseLogin() });
-    writeLog('started', app.getVersion()); await createWindow();
+    writeLog('started', app.getVersion()); await createWindow(); try { startUpdater(); } catch (error) { writeLog('updater-error', error.message); }
   }).catch((error) => {
     writeLog('startup-error', error.message);
     dialog.showErrorBox('心流小屋启动失败', '请关闭后重新打开应用。\n' + error.message);

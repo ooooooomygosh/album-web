@@ -373,6 +373,17 @@ try {
   report.limitations = ['Browser fixtures test renderer behavior, not native Electron IPC or OS integrations.', 'WAV decoding/playback progress is real, but physical speaker output and streaming providers are not tested.', 'Screenshots are review artifacts; no approved pixel baseline has been established.', 'macOS/Windows installers, wallpaper attachment, media permissions, and pet window click-through require native acceptance tests.'];
   for (const [index, call] of report.apiCalls.entries()) if (call.method === 'DELETE' && call.path === '/api/items') assert(!report.apiCalls.slice(index + 1).some(later => later.method === 'PATCH' && later.path === call.path && later.id === call.id), 'Deleted album received a late notes autosave');
   check('deleted-albums-do-not-receive-late-autosaves');
+  // 设置 › 关于: version + update row (browser preview has no updater, says so).
+  await page.getByRole('button', { name: '设置', exact: true }).click(); await page.getByRole('tab', { name: '关于' }).click();
+  const about = page.locator('.update-panel'); await about.getByText(/心流小屋 v\d+\.\d+\.\d+/).waitFor(); const send = (detail) => page.evaluate((value) => { window.cabinUpdateState = value; window.dispatchEvent(new CustomEvent('cabin:update-state', { detail: value })); }, detail);
+  if (await about.getByText('网页版总是最新的').count()) assert.equal(await about.getByRole('button', { name: '检查更新' }).count(), 0, 'no fake update button on the web');
+  else {
+    await send({ status: 'available', mode: 'notify', latestVersion: '9.9.0', reason: '这个 macOS 版本没有 Apple 开发者签名，系统不允许自动安装更新。', downloadUrl: 'https://github.com/ooooooomygosh/album-web/releases/download/v9.9.0/FlowCabin-9.9.0-mac-arm64.dmg', notes: '新功能' });
+    await about.getByText(/发现新版本 v9\.9\.0.*签名/).waitFor(); await about.getByRole('button', { name: '下载安装包' }).waitFor(); assert.equal(await about.getByRole('button', { name: '重启安装' }).count(), 0);
+    await send({ status: 'downloading', mode: 'install', percent: 50, autoDownload: true }); await about.getByText('下载中 50%').waitFor(); assert.equal(await about.getByRole('progressbar').getAttribute('aria-valuenow'), '50'); await about.getByLabel(/自动下载/).waitFor();
+    await send({ status: 'downloaded', mode: 'install', latestVersion: '9.9.0', autoDownload: true }); await about.getByRole('button', { name: '重启安装' }).waitFor();
+  }
+  await screenshot('settings-about-update'); await page.keyboard.press('Escape'); check('settings-about-shows-version-and-update-status');
   assert.deepEqual(report.pageErrors, []); assert.deepEqual(report.unexpectedRequests, []); assert.deepEqual(report.consoleErrors, []); assert.deepEqual(report.failedRequests, []);
   report.passed = true;
 } catch (error) { report.passed = false; report.error = error.stack || String(error); console.error(report.error); process.exitCode = 1; if (page && !page.isClosed()) { await screenshot('failure').catch(() => {}); await fs.writeFile(path.join(output, 'failure.html'), await page.content()).catch(() => {}); } }
