@@ -1,6 +1,9 @@
-import RoomPersonalization from './RoomPersonalization';
+import OnboardingWizard from './onboarding/OnboardingWizard';
+import SettingsHub from './onboarding/SettingsHub';
+import * as onboardingModel from './onboarding/onboarding-model.mjs';
+import { createPlayerAdapter, createDesktopAdapter } from './onboarding/onboarding-adapter.mjs';
+import { musicRequest } from './room-playback.mjs';
 import { enterDesktopMode, exitDesktopMode, getDesktopModeStatus, onDesktopModeChange, installDesktopApi, reportTrayPet } from './desktop/desktop-sink-client.mjs';
-import CabinWelcome, { WELCOME_KEY } from './CabinWelcome';
 import { getRoomScene } from './scene-catalog.mjs';
 import { normalizePetId } from './pet/pet-catalog.mjs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -46,19 +49,27 @@ function useShelfFilters(items) {
   return { filters, setFilters, visible };
 }
 
-export default function CabinRoom({ items, loading, openRecord, openAdd, firstVisit = false, guideRequest = 0, notify }) {
+export default function CabinRoom({ items, loading, openRecord, openAdd, firstVisit = false, hubRequest = null, openBackup, openWall, notify }) {
   const library = useRecordLibrary(), look = library?.data.rooms[library.roomId]?.look || 'pixel';
   const appearance = useDesktopAppearance();
   const petId = normalizePetId(library?.data.rooms[library.roomId]?.petId);
-  const [personalize, setPersonalize] = useState(false);
-  const [welcome, setWelcome] = useState(false);
+  // Settings hub section ('' = closed). Old shortcuts open their section.
+  const [hub, setHub] = useState('');
+  const env = useMemo(() => onboardingModel.detectEnv(window), [appearance.client]);
+  const playerAdapter = useMemo(() => createPlayerAdapter({ env, command: desktopCommand, request: musicRequest }), [env]);
+  const [onboarding, setOnboarding] = useState(() => onboardingModel.readOnboarding(localStorage));
+  const [wizard, setWizard] = useState(false);
   const welcomeChecked = useRef(false);
+  const saveOnboarding = (next) => { setOnboarding(next); try { onboardingModel.writeOnboarding(localStorage, next); } catch { notify?.('这次未能记住引导进度，下次仍可从「设置 › 关于」重新引导。'); } };
   useEffect(() => {
     if (loading || welcomeChecked.current) return;
     welcomeChecked.current = true;
-    if (firstVisit && !items.length) setWelcome(true);
+    if (onboardingModel.shouldAutoOpen(onboarding, { isNew: firstVisit && !items.length })) { setWizard(true); if (onboarding.status === 'new') saveOnboarding(onboardingModel.start(onboarding)); }
   }, [loading, firstVisit, items.length]);
-  useEffect(() => { if (guideRequest) setWelcome(true); }, [guideRequest]);
+  useEffect(() => { if (hubRequest?.section) setHub(hubRequest.section); }, [hubRequest]);
+  const restartOnboarding = () => { setHub(''); saveOnboarding(onboardingModel.reopen(onboarding)); setWizard(true); };
+  // 音源设置 / turntable error buttons open the hub's 音源 detail page directly.
+  const openMusicDeep = () => setMusicSettings(true);
   const { filters, setFilters, visible } = useShelfFilters(items);
   const [row, setRow] = useState(0), [selectedId, setSelectedId] = useState(visible[0]?.id || '');
   const [record, setRecord] = useState(null), [spinning, setSpinning] = useState(false), [trackIndex, setTrackIndex] = useState(0);
@@ -95,7 +106,7 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   queueRef.current = playerRef;
   usePlayerShortcuts({ playback, player, provider, record, trackIndex, spinning, toggleVisual: () => setSpinning((value) => !value) });
   usePlaybackBroadcast({ playing: provider === 'system' ? Boolean(system.active && system.playing) : provider === 'visual' ? false : playback.playing, provider, spinning: effectiveSpin, record: deckItem, trackIndex: provider === 'system' ? 0 : trackIndex, trackTitle: provider === 'system' ? system.title : playback.actualTrack, audio: playback.audio });
-  useEffect(() => { const open = () => setMusicSettings(true), openCorner = () => setCorner(true); window.addEventListener('cabin-open-music-settings', open); window.addEventListener('cabin-open-corner', openCorner); return () => { window.removeEventListener('cabin-open-music-settings', open); window.removeEventListener('cabin-open-corner', openCorner); }; }, []);
+  useEffect(() => { const open = () => openMusicDeep(), openCorner = () => setCorner(true); window.addEventListener('cabin-open-music-settings', open); window.addEventListener('cabin-open-corner', openCorner); return () => { window.removeEventListener('cabin-open-music-settings', open); window.removeEventListener('cabin-open-corner', openCorner); }; }, []);
   const changeRow = (next) => { const value = shelfWindow(visible, next, shelfColumns); setRow(value.startRow); setSelectedId(value.items[0]?.id || ''); };
   useEffect(() => { setRow(0); setSelectedId(visible[0]?.id || ''); }, [signature, look]);
   useEffect(() => { if (record && !items.some((item) => item.id === record.id)) { setRecord(null); setSpinning(false); } }, [items]);
@@ -168,13 +179,22 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
   }, []);
   const personalizeRoom = (patch) => library?.update((old) => ({ ...old, rooms: { ...old.rooms, [library.roomId]: { ...(old.rooms[library.roomId] || {}), ...patch } } }));
   const filtered = visible.length !== items.length;
-  const finishWelcome = (action) => {
-    try { localStorage.setItem(WELCOME_KEY, 'seen'); } catch { notify?.('这次未能记住入门状态，下次仍可从入门指南打开。'); }
-    setWelcome(false);
-    if (action === 'focus') saveDock({ open: true, tab: 'timer' });
-    if (action === 'album') openAdd();
-    if (action === 'music') setMusicSettings(true);
+  const closeWizard = (reason) => {
+    setWizard(false);
+    if (reason === 'skip') saveOnboarding(onboardingModel.skip(onboarding));
+    else if (reason === 'done') saveOnboarding(onboardingModel.complete(onboarding));
+    // 'later' keeps status 'active' so the next launch resumes this step.
   };
+  // 沉入桌面 adapter; the fallback drives today's 桌面模式 until feat/desktop-merge ships its API.
+  const desktopLive = useRef({}); desktopLive.current = { active: desktopMode, toggle: toggleDesktopMode };
+  const desktopAdapter = useMemo(() => createDesktopAdapter({ env, fallback: { get active() { return desktopLive.current.active; }, enter: () => { if (!desktopLive.current.active) desktopLive.current.toggle(); }, exit: () => { if (desktopLive.current.active) desktopLive.current.toggle(); } } }), [env]);
+  useEffect(() => { if (!window.cabinDesktop) window.dispatchEvent(new CustomEvent('cabin:desktop-mode', { detail: { active: desktopMode, supported: true, reason: '' } })); }, [desktopMode]);
+  useEffect(() => {
+    const receive = (event) => { const command = event.detail?.command; if (command === 'open-settings') setHub((value) => value || 'music'); if (command === 'open-onboarding') restartOnboarding(); };
+    const open = (event) => setHub(event.detail?.section || 'music');
+    window.addEventListener('album-companion-command', receive); window.addEventListener('cabin-open-settings', open);
+    return () => { window.removeEventListener('album-companion-command', receive); window.removeEventListener('cabin-open-settings', open); };
+  });
   return <div className={`listening-room cabin-room cabin-${look}`} style={{ '--amber': getRoomScene(look).style.accent }}>
     <nav className="cabin-toolbar" aria-label="小屋工具">
       {focus && <span className="zen-keep cabin-toolbar-group"><button type="button" aria-pressed={zen} title="沉浸模式 · Z" onClick={() => setZen(!zen)}>{zen ? <><Eye size={17}/><span>退出沉浸</span></> : <><EyeSlash size={17}/><span>沉浸</span></>}</button></span>}
@@ -191,20 +211,20 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
       </div>
       <RecordBoxControls items={items} filters={filters} setFilters={(change) => setFilters((old) => ({ ...old, ...(typeof change === 'function' ? change(old) : change) }))} count={visible.length}/>
     </section>}
-    {library?.error && !personalize && !filtersOpen && <p className="room-preferences-error" role="alert">设置未保存：{library.error}</p>}
+    {library?.error && hub !== 'room' && !wizard && !filtersOpen && <p className="room-preferences-error" role="alert">设置未保存：{library.error}</p>}
     {wallpaperError && <p className="wallpaper-error" role="alert">{wallpaperError}<button type="button" aria-label="关闭动态背景提示" onClick={() => setWallpaperError('')}>×</button></p>}
     <div ref={stage} className="cabin-stage-wrap"><RoomScene look={look} items={view.items} selectedId={selected?.id} select={setSelectedId} load={load} startRow={view.startRow} weather={weather} cat={<RoomCat petId={petId} focus={catFocus} playing={grooving} track={snapshot.current.track} reduceMotion={appearance.reduceMotion} hidden={Boolean(pet.active)}/>}>
       <RoomTurntable item={deckItem} spinning={effectiveSpin} system={system} trackIndex={provider === 'system' ? 0 : trackIndex} style={recordStyle} items={items} load={load} toggle={() => setSpinning(!spinning)} track={setTrackIndex} eject={() => { setRecord(null); setSpinning(false); }} provider={provider} setProvider={chooseProvider} playback={playback} player={player} desktopClient tools={<nav className="turntable-room-tools" aria-label="小屋设置">
         <button type="button" aria-label="筛选与唱片盒" title="筛选与唱片盒" aria-controls="cabin-shelf-filters" aria-expanded={filtersOpen} className={filtered ? 'is-active' : ''} onClick={() => setFiltersOpen(!filtersOpen)}><Settings size={17}/><span>筛选与唱片盒{filtered ? ` · ${visible.length}` : ''}</span></button>
-        <button type="button" aria-label="布置小屋" title="布置小屋" onClick={() => setPersonalize(true)}><Grid3X3 size={17}/><span>布置小屋</span></button>
-        <button type="button" aria-label="音源设置" title="音源设置" onClick={() => setMusicSettings(true)}><Music2 size={17}/><span>音源设置</span></button>
+        <button type="button" aria-label="布置小屋" title="布置小屋" onClick={() => setHub('room')}><Grid3X3 size={17}/><span>布置小屋</span></button>
+        <button type="button" aria-label="音源设置" title="音源设置" onClick={openMusicDeep}><Music2 size={17}/><span>音源设置</span></button>
       </nav>}/>
       {!visible.length && <div className="room-empty">
         <p>{loading ? '正在整理唱片…' : items.length ? '没有符合筛选的唱片。' : '木屋的唱片架，等你放上第一张。'}</p>
         {!loading && (items.length ? <button type="button" onClick={() => setFilters({ ...filters, type: 'all', box: 'all', genre: 'all', decade: 'all', provider: 'all' })}>清除筛选</button> : <>
           <small>也可以先专注一会儿，收藏慢慢来。</small>
           <div className="room-welcome-actions"><button type="button" onClick={() => openAdd()}><Plus size={16}/>添加第一张专辑</button>{focus && <button type="button" className="room-welcome-focus" onClick={() => saveDock({ open: true, tab: 'timer' })}>先专注一会儿</button>}</div>
-          <small className="room-welcome-tip">在「布置小屋」里选一个场景和伙伴。</small>
+          <small className="room-welcome-tip">在「布置小屋」或右上角「设置」里换场景和伙伴。</small>
         </>)}
       </div>}
       {view.rows > 3 && <div className="room-shelf-navigation" aria-label="唱片架浏览"><button type="button" aria-label="上一排唱片" disabled={view.startRow === 0} onClick={() => changeRow(view.startRow - 1)}><Up/></button><span>{`${view.startRow + 1}–${Math.min(view.rows, view.startRow + 3)} / ${view.rows} 排`}</span><button type="button" aria-label="下一排唱片" disabled={view.startRow >= view.maxRow} onClick={() => changeRow(view.startRow + 1)}><Down/></button><small>↑ ↓ / 滚轮浏览</small></div>}
@@ -214,8 +234,8 @@ export default function CabinRoom({ items, loading, openRecord, openAdd, firstVi
     {desktopMode ? <DesktopWidgets mode="desktop" exit={toggleDesktopMode} item={deckItem} provider={provider} playback={playback} player={player} spinning={effectiveSpin} toggleVisual={() => setSpinning((value) => !value)} trackIndex={provider === 'system' ? 0 : trackIndex}/> : zen && <DesktopWidgets mode="zen"/>}
     {!desktopMode && <ImmersiveChrome zen={zen} fullscreen={fullscreen} desktopClient={appearance.client} exitZen={() => setZen(false)}/>}
     {corner && <ListeningCorner item={deckItem} items={visible} vinyl={recordStyle} provider={provider} spinning={effectiveSpin} trackIndex={provider === 'system' ? 0 : trackIndex} setTrackIndex={setTrackIndex} playback={playback} player={player} toggleVisual={() => setSpinning((value) => !value)} load={load} close={() => setCorner(false)} reduceMotion={appearance.reduceMotion}/>}
-    {personalize && <RoomPersonalization look={look} petId={petId} onChange={personalizeRoom} close={() => setPersonalize(false)} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
+    {hub && <SettingsHub section={hub} setSection={setHub} close={() => setHub('')} env={env} player={playerAdapter} desktop={desktopAdapter} provider={provider} useSource={chooseProvider} openMusicSettings={() => setMusicSettings(true)} look={look} petId={petId} onRoomChange={personalizeRoom} reduceMotion={appearance.reduceMotion} error={library?.error} focus={focus} openDock={(tab) => { setHub(''); saveDock({ open: true, tab }); }} pet={pet} openBackup={() => { setHub(''); openBackup?.(); }} openWall={() => { setHub(''); openWall?.(); }} restartOnboarding={restartOnboarding}/>}
+    {wizard && <OnboardingWizard state={onboarding} update={saveOnboarding} env={env} player={playerAdapter} look={look} petId={petId} onRoomChange={personalizeRoom} useSource={chooseProvider} openMusicSettings={() => setMusicSettings(true)} openAdd={() => { closeWizard('later'); openAdd(); }} close={closeWizard} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
     {musicSettings && <MusicSettings close={() => setMusicSettings(false)} provider={provider} useSource={chooseProvider}/>}
-    {welcome && <CabinWelcome look={look} petId={petId} onChange={personalizeRoom} close={() => finishWelcome()} finish={finishWelcome} reduceMotion={appearance.reduceMotion} error={library?.error}/>}
   </div>;
 }

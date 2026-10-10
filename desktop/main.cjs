@@ -83,6 +83,7 @@ function refreshTray() {
     companionTray.setToolTip('心流小屋');
     companionTray.setContextMenu(Menu.buildFromTemplate([
       { label: '打开小屋', click: restoreMainWindow },
+      { label: '小屋设置…', click: () => { restoreMainWindow(); sendCompanionCommand(siteView?.webContents, 'open-settings'); } },
       { label: '开始 / 暂停专注', click: () => sendCompanionCommand(siteView?.webContents, 'focus-toggle') },
       { label: '开关小屋声音', click: () => sendCompanionCommand(siteView?.webContents, 'sound-toggle') },
       { type: 'separator' },
@@ -401,7 +402,9 @@ function showToolbarMenu() {
 function createMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: '应用', submenu: [
-      { label: '设置', accelerator: 'CmdOrCtrl+,', click: () => toggleSettings(true) },
+      { label: '小屋设置…', click: () => sendCompanionCommand(siteView?.webContents, 'open-settings') },
+      { label: '显示与字体…', accelerator: 'CmdOrCtrl+,', click: () => toggleSettings(true) },
+      { label: '重新引导', click: () => sendCompanionCommand(siteView?.webContents, 'open-onboarding') },
       { label: '重新载入小屋', accelerator: 'CmdOrCtrl+R', click: () => navigate(`${SITE_ORIGIN}/`) },
       { type: 'separator' },
         { type: 'separator' },
