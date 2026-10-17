@@ -23,6 +23,7 @@ import useDeck from './room/useDeck';
 import useRoomChrome from './room/useRoomChrome';
 import useOnboardingFlow from './room/useOnboardingFlow';
 import useCompanionSnapshot from './room/useCompanionSnapshot';
+import { useCatCareHost } from './cat/useCatCare';
 import { coverThumb } from './focus/session-log.mjs';
 import './companion-room.css';
 
@@ -60,6 +61,7 @@ export default function CabinRoom({ items, loading, loadError = '', reload, open
   const deck = useDeck({ items, onLoad: (item) => setSelectedId(item.id) });
   const { record, provider, playback, player, deckItem, effectiveSpin } = deck;
   const focus = useFocusState(), sound = useSoundscape();
+  useCatCareHost();
   const [pet, setPet] = useState(() => window.albumPetState || {});
   const [wallpaperError, setWallpaperError] = useState(() => window.albumRoomWallpaperState?.error || '');
   useEffect(() => { const receive = (event) => { window.albumPetState = event.detail; setPet(event.detail || {}); }; window.addEventListener('album-pet-state', receive); return () => window.removeEventListener('album-pet-state', receive); }, []);
